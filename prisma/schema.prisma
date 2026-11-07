@@ -57,6 +57,8 @@ model ReportingSeason {
   startTime       DateTime? @map("start_time")
   endTime         DateTime? @map("end_time")
   estimate        Boolean?
+  // A person has checked the season's result values.
+  confirmed       Boolean   @default(false)
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -110,19 +112,23 @@ model FieldDefinition {
   @@map("field_definition")
 }
 
-// The value of a result field for one reporting season, in whole euros.
+// The value of a result field for one reporting season, in whole euros. Insert-only: a new
+// value is a new row, and the latest row (by createdAt, id) per season and field is current.
 model ResultRow {
   id                Int      @id @default(autoincrement())
   reportingSeasonId Int      @map("reporting_season")
   resultFieldId     Int      @map("result_field")
   value             BigInt?
+  // News whose report the value was extracted from; null for values entered by hand.
+  newsId            Int?     @map("news")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
   reportingSeason ReportingSeason @relation(fields: [reportingSeasonId], references: [id], onDelete: Cascade)
   resultField     ResultField     @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
+  news            News?           @relation(fields: [newsId], references: [id], onDelete: SetNull)
 
-  @@unique([reportingSeasonId, resultFieldId])
+  @@index([reportingSeasonId, resultFieldId, createdAt(sort: Desc)])
   @@map("result_row")
 }
 
@@ -139,6 +145,7 @@ model News {
   company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category    NewsCategory     @relation(fields: [categoryId], references: [id])
   attachments NewsAttachment[]
+  resultRows  ResultRow[]
 
   // Feeds list news newest first, either all of them or one company's.
   @@index([releasedAt(sort: Desc)])

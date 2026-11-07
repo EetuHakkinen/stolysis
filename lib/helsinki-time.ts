@@ -26,3 +26,18 @@ export function helsinkiTime(year: number, month: number, day: number, hour = 0,
   const asUtc = Date.UTC(year, month, day, hour, minute);
   return new Date(asUtc - timeZoneOffset(new Date(asUtc)));
 }
+
+// Local calendar date in Finland of the given instant (month is 0-based).
+export function helsinkiDate(date: Date): { year: number; month: number; day: number } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TIME_ZONE,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    })
+      .formatToParts(date)
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+  return { year: parts.year, month: parts.month - 1, day: parts.day };
+}

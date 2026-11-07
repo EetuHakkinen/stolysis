@@ -39,7 +39,7 @@ export async function categorizeNews({
 }: {
   subject: string;
   releaseLine?: string;
-}): Promise<number> {
+}): Promise<{ id: number; name: string }> {
   const categories = await prisma.newsCategory.findMany({
     orderBy: { id: "asc" },
     select: { id: true, name: true, keywords: true },
@@ -48,7 +48,7 @@ export async function categorizeNews({
     matchCategory(categories, { subject, releaseLine }) ??
     categories.find((category) => category.name === FALLBACK_CATEGORY);
   if (!category) throw new Error(`News category "${FALLBACK_CATEGORY}" is missing`);
-  return category.id;
+  return { id: category.id, name: category.name };
 }
 
 export type NewsEmail = {
@@ -59,7 +59,7 @@ export type NewsEmail = {
 };
 
 export type SaveNewsEmailResult =
-  | { saved: true; newsId: number; companyId: number }
+  | { saved: true; newsId: number; companyId: number; category: string }
   | { saved: false; reason: "noSubject" | "noCompany" | "noReleaseTime" };
 
 // Saves a stock exchange release email as news for the company it mentions.
@@ -78,7 +78,7 @@ export async function saveNewsFromEmail(email: NewsEmail): Promise<SaveNewsEmail
   const releasedAt = parseReleaseTime(description) ?? parseDateHeader(email.headers ?? "");
   if (!releasedAt) return { saved: false, reason: "noReleaseTime" };
 
-  const categoryId = await categorizeNews({
+  const category = await categorizeNews({
     subject: title,
     releaseLine: findReleaseLine(description),
   });
@@ -88,8 +88,8 @@ export async function saveNewsFromEmail(email: NewsEmail): Promise<SaveNewsEmail
     title,
     description,
     releasedAt,
-    categoryId,
+    categoryId: category.id,
     attachments: findDocumentLinks(description, email.html),
   });
-  return { saved: true, newsId: news.id, companyId: company.id };
+  return { saved: true, newsId: news.id, companyId: company.id, category: category.name };
 }

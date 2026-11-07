@@ -49,7 +49,11 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
           select: {
             id: true,
             name: true,
-            resultRows: { select: { reportingSeasonId: true, value: true } },
+            // result_row is insert-only: newest first, so the first row per season is current.
+            resultRows: {
+              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+              select: { reportingSeasonId: true, value: true },
+            },
           },
         },
       },
@@ -62,8 +66,17 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
       ...group,
       fields: resultFields.map(({ resultRows, ...field }) => ({
         ...field,
-        values: Object.fromEntries(resultRows.map((row) => [row.reportingSeasonId, row.value])),
+        values: latestValues(resultRows),
       })),
     })),
   };
+}
+
+// Value of the first (latest) row per reporting season.
+function latestValues(rows: { reportingSeasonId: number; value: bigint | null }[]) {
+  const values: Record<number, bigint | null> = {};
+  for (const row of rows) {
+    if (!(row.reportingSeasonId in values)) values[row.reportingSeasonId] = row.value;
+  }
+  return values;
 }

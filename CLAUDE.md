@@ -6,6 +6,10 @@ All postgres tables and columns must be named with snakecase, for example `compa
 
 All db tables must have `createdAt` and `updatedAt`-columns.
 
+`result_row` is insert-only: never update or delete its rows. A new value for a reporting season and
+result field is a new row, and only the latest row (by `created_at`, then `id`) per season and field
+is shown to the user.
+
 ## Components
 
 When doing something that might be reusable, use components to make the features reusable and codebase less cluttered.

@@ -109,26 +109,43 @@ export function parseDateHeader(headers: string): Date | undefined {
 
 const DOCUMENT_EXTENSIONS = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "zip"];
 
-// Links to documents (by file extension) in the plain text and HTML hrefs, without duplicates.
-// The name is the file name from the URL.
+const DOCUMENT_NAME = `[^\\s<>"']+\\.(?:${DOCUMENT_EXTENSIONS.join("|")})`;
+
+function isDocumentName(name: string): boolean {
+  return new RegExp(`^${DOCUMENT_NAME}$`, "i").test(name);
+}
+
+// Links to documents in the plain text and HTML hrefs, without duplicates. A link is a document
+// when it's labelled with a document file name, e.g. "Report-Q3.pdf https://attachment.news.eu.nasdaq.com/a431…"
+// in text or <a href="…">Report-Q3.pdf</a> in HTML (the name is then the label), or when its URL
+// ends in a document file name (the name is then that file name).
 export function findDocumentLinks(text: string, html = ""): { url: string; name: string }[] {
-  const candidates = [
+  const labelled = [
+    ...[...text.matchAll(new RegExp(`(${DOCUMENT_NAME})\\s+(https?:\\/\\/[^\\s<>"']+)`, "gi"))].map(
+      (m) => ({ url: m[2], name: m[1] }),
+    ),
+    ...[...html.matchAll(/<a\b[^>]*href\s*=\s*["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+      .map((m) => ({ url: decodeEntities(m[1]), name: htmlToText(m[2]) }))
+      .filter((link) => isDocumentName(link.name)),
+  ];
+  const unlabelled = [
     ...(text.match(/https?:\/\/[^\s<>"']+/g) ?? []),
     ...[...html.matchAll(/href\s*=\s*["'](https?:\/\/[^"']+)["']/gi)].map((m) => decodeEntities(m[1])),
-  ].map((url) => url.replace(/[.,;:!?)\]]+$/, ""));
+  ].map((url) => ({ url, name: undefined }));
 
+  // Labelled links first, so their label wins over the URL's file name.
   const links = new Map<string, string>();
-  for (const candidate of candidates) {
+  for (const candidate of [...labelled, ...unlabelled]) {
     let url: URL;
     try {
-      url = new URL(candidate);
+      url = new URL(candidate.url.replace(/[.,;:!?)\]]+$/, ""));
     } catch {
       continue;
     }
-    const fileName = url.pathname.split("/").pop() ?? "";
-    const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
-    if (!fileName.includes(".") || !DOCUMENT_EXTENSIONS.includes(extension)) continue;
-    if (!links.has(url.href)) links.set(url.href, safeDecode(fileName));
+    if (links.has(url.href)) continue;
+    const fileName = safeDecode(url.pathname.split("/").pop() ?? "");
+    const name = candidate.name ?? (isDocumentName(fileName) ? fileName : undefined);
+    if (name) links.set(url.href, name);
   }
   return [...links].map(([url, name]) => ({ url, name }));
 }
