@@ -21,15 +21,18 @@ const responseSchema = z.object({
 });
 
 // Chat completion whose answer must match the given schema (structured output).
-// The model is OPENROUTER_MODEL, or Claude Opus by default.
+// The model is OPENROUTER_MODEL, or Claude Opus by default. With `webSearch`, the model can
+// search the web (the provider's own search when it has one).
 export async function structuredCompletion<T>({
   messages,
   schema,
   schemaName,
+  webSearch = false,
 }: {
   messages: Message[];
   schema: z.ZodType<T>;
   schemaName: string;
+  webSearch?: boolean;
 }): Promise<T> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
@@ -47,7 +50,10 @@ export async function structuredCompletion<T>({
         json_schema: { name: schemaName, strict: true, schema: jsonSchema },
       },
       // Let models that read PDFs natively (like Claude) see the file as is, tables included.
-      plugins: [{ id: "file-parser", pdf: { engine: "native" } }],
+      plugins: [
+        { id: "file-parser", pdf: { engine: "native" } },
+        ...(webSearch ? [{ id: "web", max_results: 5 }] : []),
+      ],
     }),
   });
   if (!response.ok) {

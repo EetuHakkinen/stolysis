@@ -209,19 +209,26 @@ function containsWord(source: string, word: string, flags: string): boolean {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, flags).test(source);
 }
 
-type CategoryCandidate = { id: number; keywords: string[] };
+type CategoryCandidate = { id: number; keywords: string[]; generic?: boolean };
 
 // The first category (in the given order) with a keyword in the release line, or failing that
-// in the subject. Keywords match case-insensitively as whole words.
+// in the subject. Keywords match case-insensitively as whole words. Generic categories (e.g.
+// Yhtiötiedote) match only when no other category does: a release line can call an interim
+// report a company release, e.g. "Inderes Oyj, Yhtiötiedote, 27.10.2026 klo 8.30" for a
+// liiketoimintakatsaus.
 export function matchCategory<T extends CategoryCandidate>(
   categories: T[],
   { subject, releaseLine }: { subject: string; releaseLine?: string },
 ): T | undefined {
-  for (const source of [releaseLine ?? "", subject]) {
-    const match = categories.find((category) =>
-      category.keywords.some((keyword) => containsWord(source, keyword, "iu")),
-    );
-    if (match) return match;
+  for (const generic of [false, true]) {
+    for (const source of [releaseLine ?? "", subject]) {
+      const match = categories.find(
+        (category) =>
+          !!category.generic === generic &&
+          category.keywords.some((keyword) => containsWord(source, keyword, "iu")),
+      );
+      if (match) return match;
+    }
   }
   return undefined;
 }

@@ -172,19 +172,33 @@ function decode(bytes: Buffer, contentType: string): string {
   }
 }
 
-// Absolute http(s) links of the page with their labels, without duplicates.
+// Absolute http(s) links of the page with their labels, without duplicates. Links are any
+// elements with an href, not just <a>: pages also use custom elements, e.g. Nasdaq's
+// <nef-link href="…">Report.pdf</nef-link>. The label is the element's text, or its aria-label.
 function findPageLinks(html: string, baseUrl: string): { url: string; label: string }[] {
+  const lowerHtml = html.toLowerCase();
   const links = new Map<string, string>();
-  for (const match of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+  for (const match of html.matchAll(/<([a-z][\w-]*)\b([^>]*\bhref\s*=[^>]*)>/gi)) {
+    // Elements without a closing tag (e.g. <link> to a stylesheet) aren't links on the page.
+    const contentStart = match.index + match[0].length;
+    const contentEnd = lowerHtml.indexOf(`</${match[1].toLowerCase()}`, contentStart);
+    if (contentEnd === -1) continue;
+
+    const attributes = match[2];
+    const href = /\bhref\s*=\s*["']([^"']+)["']/i.exec(attributes)?.[1];
+    if (!href) continue;
     let url: URL;
     try {
-      url = new URL(decodeEntities(match[1]), baseUrl);
+      url = new URL(decodeEntities(href), baseUrl);
     } catch {
       continue;
     }
     if (url.protocol !== "http:" && url.protocol !== "https:") continue;
     url.hash = "";
-    const label = htmlToText(match[2]).replace(/\s+/g, " ");
+    const ariaLabel = /\baria-label\s*=\s*["']([^"']*)["']/i.exec(attributes)?.[1];
+    const label =
+      htmlToText(html.slice(contentStart, contentEnd)).replace(/\s+/g, " ").trim() ||
+      decodeEntities(ariaLabel ?? "").trim();
     if (!links.get(url.href)) links.set(url.href, label);
   }
   return [...links].map(([url, label]) => ({ url, label }));

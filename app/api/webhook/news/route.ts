@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { extractResultsAfterResponse, saveNewsFromEmail } from "@/lib/news";
 import {
   emailAddress,
@@ -65,21 +66,27 @@ export async function POST(request: Request) {
   }
 
   const subject = field("subject");
-  const result = await saveNewsFromEmail({
+  const email = {
     subject,
     text: field("text"),
     html: field("html"),
     headers: field("headers"),
+  };
+  // Saving can take a while when the company is created from its report, so respond to SendGrid
+  // first. It gets 200 either way: retrying the same email won't change the outcome.
+  after(async () => {
+    try {
+      const result = await saveNewsFromEmail(email);
+      if (result.saved) {
+        console.log("Saved inbound news email", { subject, ...result });
+        extractResultsAfterResponse(result);
+      } else {
+        console.warn("Inbound news email was not saved", { from, subject, ...result });
+      }
+    } catch (error) {
+      console.error("Saving inbound news email failed", { from, subject, error });
+    }
   });
-
-  if (result.saved) {
-    console.log("Saved inbound news email", { subject, ...result });
-    // After responding to SendGrid.
-    extractResultsAfterResponse(result);
-  } else {
-    // Respond 200 anyway: retrying the same email won't change the outcome.
-    console.warn("Inbound news email was not saved", { from, subject, ...result });
-  }
 
   return new Response(null, { status: 200 });
 }

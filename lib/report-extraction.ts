@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { Unit } from "@/app/generated/prisma/client";
+import { seasonMonths } from "@/lib/financial-year";
 import { structuredCompletion } from "@/lib/openrouter";
 import { prisma } from "@/lib/prisma";
 import { findOrCreateReportingSeason, parseLocalDate } from "@/lib/reporting-season";
@@ -17,9 +18,17 @@ const MAX_PDF_BYTES = 30 * 1024 * 1024;
 
 const UNIT_MULTIPLIERS: Record<Unit, number> = { million: 1_000_000, thousand: 1_000, one: 1 };
 
-const INSTRUCTIONS = `You extract financial figures from the attached PDF report of a Finnish listed company: an interim report or a financial statements release.
+// Which period to read, by the length of the company's reporting seasons in months.
+const PERIODS: Record<number, string> = {
+  3: "the report's latest three-month period (for example 7–9/2026 in a Q3 interim report, 4–6/2026 in a half-year report, 10–12/2026 in a financial statements release)",
+  6: "the report's latest six-month period (for example 1–6/2026 in a half-year report, 7–12/2026 in a financial statements release)",
+  12: "the report's financial year (for example 1–12/2026 in a financial statements release)",
+};
 
-Return figures for the report's latest three-month period (for example 7–9/2026 in a Q3 interim report, 4–6/2026 in a half-year report, 10–12/2026 in a financial statements release) and for the same three-month period one year earlier. Prefer the consolidated income statement.
+function instructions(months: number) {
+  return `You extract financial figures from the attached PDF report of a Finnish listed company: an interim report, a half-year report or a financial statements release.
+
+Return figures for ${PERIODS[months]} and for the same period one year earlier. Prefer the consolidated income statement.
 
 Rules:
 - Use only figures printed in the report. Never calculate, estimate or infer a figure, for example from cumulative or full-year figures. If a field's figure isn't printed for a period, leave the field out of that period's list.
@@ -28,6 +37,7 @@ Rules:
 - Return all figures in the unit you report in \`unit\`, as plain numbers (the report may use decimal commas and spaces as thousand separators).
 
 Fields (names in Finnish):`;
+}
 
 const periodSchema = z.object({
   startDate: z.string().describe("First day of the period, YYYY-MM-DD"),
@@ -47,8 +57,8 @@ function reportSchema(fields: { id: number }[]) {
     unit: z
       .enum(["one", "thousand", "million"])
       .describe("Unit of all figures: euros, thousands of euros or millions of euros"),
-    period: periodSchema.describe("The report's latest three-month period"),
-    referencePeriod: periodSchema.describe("The same three-month period one year earlier"),
+    period: periodSchema.describe("The period to read figures for"),
+    referencePeriod: periodSchema.describe("The same period one year earlier"),
     current: figures.describe("Figures for `period`"),
     reference: figures.describe("Figures for `referencePeriod`"),
   });
@@ -83,7 +93,7 @@ function looksLikePdf(attachment: { url: string; name: string | null }) {
 
 // The first attachment that is a PDF, as a base64 data URL. Attachments named like PDFs are
 // tried first, then the rest by their content.
-async function findPdf(attachments: { url: string; name: string | null }[]) {
+export async function findPdf(attachments: { url: string; name: string | null }[]) {
   const candidates = [
     ...attachments.filter(looksLikePdf),
     ...attachments.filter((attachment) => !looksLikePdf(attachment)),
@@ -124,9 +134,10 @@ export type ExtractResultsResult =
     };
 
 // Extracts the income statement figures of the report attached to a news item with AI and saves
-// them for the report's quarter and the same quarter a year earlier, creating the earlier
-// financial year when missing. Report quarter values are added unless the season is confirmed;
-// reference quarter values only where the season has no value yet (also unless confirmed).
+// them for the report's latest reporting season (a quarter, half-year or financial year, as long as
+// the company's seasons) and the same season a year earlier, creating the earlier financial year
+// when missing. Report season values are added unless the season is confirmed; reference season
+// values only where the season has no value yet (also unless confirmed).
 export async function extractResultsFromNews(newsId: number): Promise<ExtractResultsResult> {
   const news = await prisma.news.findUnique({
     where: { id: newsId },
@@ -151,6 +162,15 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
   }));
   if (fields.length === 0) return { saved: false, reason: "noFields" };
 
+  // Reporting seasons are as long as in the company's latest financial year.
+  const latestYear = await prisma.financialYear.findFirst({
+    where: { companyId: news.companyId },
+    orderBy: [{ startTime: { sort: "desc", nulls: "last" } }, { id: "desc" }],
+    select: { _count: { select: { reportingSeasons: true } } },
+  });
+  const months = seasonMonths(latestYear?._count.reportingSeasons ?? 0);
+  if (!months) return { saved: false, reason: "noSeason" };
+
   // Downloaded only now: finding the PDF may take several downloads.
   const pdf = await findPdf(news.attachments);
   if (!pdf) return { saved: false, reason: "noPdf" };
@@ -161,7 +181,7 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
     messages: [
       {
         role: "system",
-        content: [INSTRUCTIONS, ...fields.map((field) => `- ${fieldKey(field.id)}: ${field.name}`)].join("\n"),
+        content: [instructions(months), ...fields.map((field) => `- ${fieldKey(field.id)}: ${field.name}`)].join("\n"),
       },
       {
         role: "user",

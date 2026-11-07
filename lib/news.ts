@@ -10,6 +10,7 @@ import {
   parseDateHeader,
   parseReleaseTime,
 } from "@/lib/news-email";
+import { findOrCreateCompanyFromReport } from "@/lib/company-from-report";
 import { extractResultsFromNews, isReportCategory } from "@/lib/report-extraction";
 
 // Not server actions: these are also called by the SendGrid webhook, which has no Clerk session.
@@ -34,6 +35,9 @@ export async function saveNews({ attachments, ...news }: NewsInput) {
 // Category for news that match no other category.
 const FALLBACK_CATEGORY = "Muu";
 
+// Release types that say little about the content, so a more specific category wins over them.
+const GENERIC_CATEGORIES = ["Yhtiötiedote", "Muut pörssin sääntöjen nojalla julkistettavat tiedot"];
+
 // Category of a news item by its subject and release line, falling back to Muu.
 export async function categorizeNews({
   subject,
@@ -47,7 +51,13 @@ export async function categorizeNews({
     select: { id: true, name: true, keywords: true },
   });
   const category =
-    matchCategory(categories, { subject, releaseLine }) ??
+    matchCategory(
+      categories.map((category) => ({
+        ...category,
+        generic: GENERIC_CATEGORIES.includes(category.name),
+      })),
+      { subject, releaseLine },
+    ) ??
     categories.find((category) => category.name === FALLBACK_CATEGORY);
   if (!category) throw new Error(`News category "${FALLBACK_CATEGORY}" is missing`);
   return { id: category.id, name: category.name };
@@ -61,7 +71,7 @@ export type NewsEmail = {
 };
 
 export type SaveNewsResult =
-  | { saved: true; newsId: number; companyId: number; category: string }
+  | { saved: true; newsId: number; companyId: number; companyCreated: boolean; category: string }
   | { saved: false; reason: "noSubject" | "noCompany" | "noReleaseTime" };
 
 // Saves a stock exchange release email as news for the company it mentions.
@@ -91,19 +101,27 @@ export async function saveRelease({
   const title = rawTitle?.trim();
   if (!title) return { saved: false, reason: "noSubject" };
 
-  const companies = await prisma.company.findMany({
-    select: { id: true, name: true, ticker: true },
-  });
-  const company = matchCompany(companies, { subject: title, text: description });
-  if (!company) return { saved: false, reason: "noCompany" };
-
   const releasedAt = parseReleaseTime(description) ?? fallbackReleasedAt;
   if (!releasedAt) return { saved: false, reason: "noReleaseTime" };
 
-  const category = await categorizeNews({
-    subject: title,
-    releaseLine: findReleaseLine(description),
+  const releaseLine = findReleaseLine(description);
+  const category = await categorizeNews({ subject: title, releaseLine });
+
+  const companies = await prisma.company.findMany({
+    select: { id: true, name: true, ticker: true },
   });
+  let company: { id: number } | undefined = matchCompany(companies, {
+    subject: title,
+    text: description,
+  });
+  // Reports tell enough about a company to add it to the database.
+  let companyCreated = false;
+  if (!company && autoCreateCompanies() && isReportCategory(category.name)) {
+    const found = await findOrCreateCompanyFromReport({ title, description, attachments });
+    company = found;
+    companyCreated = found?.created ?? false;
+  }
+  if (!company) return { saved: false, reason: "noCompany" };
 
   const news = await saveNews({
     companyId: company.id,
@@ -113,7 +131,18 @@ export async function saveRelease({
     categoryId: category.id,
     attachments,
   });
-  return { saved: true, newsId: news.id, companyId: company.id, category: category.name };
+  return {
+    saved: true,
+    newsId: news.id,
+    companyId: company.id,
+    companyCreated,
+    category: category.name,
+  };
+}
+
+// Companies are created from reports unless AUTO_CREATE_COMPANIES is "false".
+function autoCreateCompanies(): boolean {
+  return process.env.AUTO_CREATE_COMPANIES !== "false";
 }
 
 // Extracts results from saved report news after the response is sent: reading a report takes a
