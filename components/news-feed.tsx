@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { NewsFeedPage } from "@/actions/news";
+import { AddNewsDialog } from "@/components/add-news-dialog";
 import { CompanyBadge } from "@/components/company-badge";
 import { NewsCategoryBadge } from "@/components/news-category-badge";
 import { Pagination } from "@/components/pagination";
@@ -21,7 +22,10 @@ export async function NewsFeed({
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-xl font-semibold">{t("title")}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">{t("title")}</h2>
+        <AddNewsDialog />
+      </div>
       {news.length === 0 ? (
         <p className="text-muted-foreground">{t("empty")}</p>
       ) : (

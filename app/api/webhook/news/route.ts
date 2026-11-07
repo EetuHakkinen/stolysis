@@ -1,6 +1,4 @@
-import { after } from "next/server";
-import { saveNewsFromEmail } from "@/lib/news";
-import { extractResultsFromNews, isReportCategory } from "@/lib/report-extraction";
+import { extractResultsAfterResponse, saveNewsFromEmail } from "@/lib/news";
 import {
   emailAddress,
   parseAddressList,
@@ -76,19 +74,8 @@ export async function POST(request: Request) {
 
   if (result.saved) {
     console.log("Saved inbound news email", { subject, ...result });
-    if (isReportCategory(result.category)) {
-      // Only reports have results to extract. Reading one takes a while, so do it after
-      // responding to SendGrid.
-      const { newsId } = result;
-      after(async () => {
-        try {
-          const extraction = await extractResultsFromNews(newsId);
-          console.log("Extracted results from news", { newsId, ...extraction });
-        } catch (error) {
-          console.error("Extracting results from news failed", { newsId, error });
-        }
-      });
-    }
+    // After responding to SendGrid.
+    extractResultsAfterResponse(result);
   } else {
     // Respond 200 anyway: retrying the same email won't change the outcome.
     console.warn("Inbound news email was not saved", { from, subject, ...result });

@@ -30,6 +30,29 @@
     "empty": "Ei vielä uutisia.",
     "attachments": "Liitteet"
   },
+  "AddNews": {
+    "open": "Lisää uutisia",
+    "title": "Lisää uutisia",
+    "description": "Syötä tiedotesivujen tai PDF-raporttien osoitteet, yksi per rivi (enintään {max}). Ne käsitellään kuten sähköpostilla saapuneet uutiset.",
+    "urls": "Osoitteet",
+    "save": "Lisää",
+    "saving": "Lisätään…",
+    "cancel": "Peruuta",
+    "saved": "{count, plural, one {# uutinen lisätty.} other {# uutista lisätty.}}",
+    "errors": {
+      "required": "Syötä vähintään yksi osoite.",
+      "tooMany": "Enintään {max} osoitetta kerrallaan.",
+      "invalidUrl": "Ei kelvollinen http(s)-osoite.",
+      "fetchFailed": "Sivua ei voitu hakea.",
+      "tooLarge": "Tiedosto on liian suuri.",
+      "unsupportedContent": "Ei verkkosivu tai PDF.",
+      "notRelease": "Osoitteesta ei löytynyt tiedotetta.",
+      "noSubject": "Otsikkoa ei löytynyt.",
+      "noCompany": "Tiedotteelle ei löytynyt yhtiötä.",
+      "noReleaseTime": "Julkaisuaikaa ei löytynyt.",
+      "failed": "Käsittely epäonnistui."
+    }
+  },
   "Pagination": {
     "label": "Sivutus",
     "previous": "Edellinen",

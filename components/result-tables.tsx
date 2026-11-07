@@ -108,7 +108,8 @@ async function ResultTable({ group, columns }: { group: ResultGroup; columns: Re
   function formatValue(value: bigint | null, unit: Unit) {
     if (value == null) return "–";
     return format.number(Number(value) / UNIT_DIVISORS[unit], {
-      maximumFractionDigits: unit === "million" ? 1 : 0,
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
     });
   }
 

@@ -30,6 +30,29 @@
     "empty": "No news yet.",
     "attachments": "Attachments"
   },
+  "AddNews": {
+    "open": "Add news",
+    "title": "Add news",
+    "description": "Enter the addresses of release pages or PDF reports, one per line (at most {max}). They're processed like news received by email.",
+    "urls": "URLs",
+    "save": "Add",
+    "saving": "Adding…",
+    "cancel": "Cancel",
+    "saved": "{count, plural, one {# news item added.} other {# news items added.}}",
+    "errors": {
+      "required": "Enter at least one URL.",
+      "tooMany": "At most {max} URLs at a time.",
+      "invalidUrl": "Not a valid http(s) URL.",
+      "fetchFailed": "The page could not be fetched.",
+      "tooLarge": "The file is too large.",
+      "unsupportedContent": "Not a web page or PDF.",
+      "notRelease": "No release found at the address.",
+      "noSubject": "No title found.",
+      "noCompany": "No company could be matched to the release.",
+      "noReleaseTime": "No release time found.",
+      "failed": "Processing failed."
+    }
+  },
   "Pagination": {
     "label": "Pagination",
     "previous": "Previous",

@@ -111,7 +111,7 @@ const DOCUMENT_EXTENSIONS = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
 
 const DOCUMENT_NAME = `[^\\s<>"']+\\.(?:${DOCUMENT_EXTENSIONS.join("|")})`;
 
-function isDocumentName(name: string): boolean {
+export function isDocumentName(name: string): boolean {
   return new RegExp(`^${DOCUMENT_NAME}$`, "i").test(name);
 }
 
@@ -150,7 +150,7 @@ export function findDocumentLinks(text: string, html = ""): { url: string; name:
   return [...links].map(([url, name]) => ({ url, name }));
 }
 
-function safeDecode(value: string): string {
+export function safeDecode(value: string): string {
   try {
     return decodeURIComponent(value);
   } catch {
@@ -158,7 +158,7 @@ function safeDecode(value: string): string {
   }
 }
 
-function decodeEntities(html: string): string {
+export function decodeEntities(html: string): string {
   return html
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")

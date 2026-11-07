@@ -1,6 +1,11 @@
 "use server";
 
+import { refresh } from "next/cache";
+import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
+import { extractResultsAfterResponse } from "@/lib/news";
+import { saveNewsFromUrl, type SaveNewsUrlResult } from "@/lib/news-url";
+import { MAX_NEWS_URLS } from "@/lib/news-urls";
 import { prisma } from "@/lib/prisma";
 
 const NEWS_PAGE_SIZE = 100;
@@ -77,6 +82,43 @@ export async function getNews(id: number) {
       attachments: { orderBy: { id: "asc" } },
     },
   });
+}
+
+// Error values are translation keys under AddNews.errors.
+export type AddNewsError =
+  | "invalidUrl"
+  | "failed"
+  | Extract<SaveNewsUrlResult, { saved: false }>["reason"];
+
+export type AddNewsResult = { url: string } & ({ saved: true } | { saved: false; error: AddNewsError });
+
+const urlSchema = z.url({ protocol: /^https?$/ });
+
+// Fetches the releases at the given URLs and saves them like news received by email.
+export async function addNewsFromUrls({ urls }: { urls: string[] }): Promise<AddNewsResult[]> {
+  await requireUserId();
+
+  // Parameters come from the client, so validate them despite the type.
+  if (!Array.isArray(urls) || urls.length > MAX_NEWS_URLS) return [];
+
+  const results = await Promise.all(
+    urls.map(async (input): Promise<AddNewsResult> => {
+      const url = typeof input === "string" ? input.trim() : "";
+      if (!urlSchema.safeParse(url).success) return { url, saved: false, error: "invalidUrl" };
+      try {
+        const result = await saveNewsFromUrl(url);
+        if (!result.saved) return { url, saved: false, error: result.reason };
+        extractResultsAfterResponse(result);
+        return { url, saved: true };
+      } catch (error) {
+        console.error("Adding news from URL failed", { url, error });
+        return { url, saved: false, error: "failed" };
+      }
+    }),
+  );
+
+  if (results.some((result) => result.saved)) refresh();
+  return results;
 }
 
 function preview(description: string): string {

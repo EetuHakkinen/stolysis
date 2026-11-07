@@ -71,18 +71,48 @@ function fieldKey(id: number) {
   return `field_${id}`;
 }
 
-function isPdf(attachment: { url: string; name: string | null }) {
+// Links don't always name the file (e.g. ".../Resource/Download/0f79…" labelled
+// "Harvia-Oyj-Osavuosikatsaus-Q2-2026-FIN"), so at most this many are downloaded to check.
+const MAX_PDF_CANDIDATES = 5;
+
+function looksLikePdf(attachment: { url: string; name: string | null }) {
   return [attachment.name ?? "", new URL(attachment.url).pathname].some((name) =>
     name.toLowerCase().endsWith(".pdf"),
   );
 }
 
-async function downloadPdf(url: string): Promise<string> {
+// The first attachment that is a PDF, as a base64 data URL. Attachments named like PDFs are
+// tried first, then the rest by their content.
+async function findPdf(attachments: { url: string; name: string | null }[]) {
+  const candidates = [
+    ...attachments.filter(looksLikePdf),
+    ...attachments.filter((attachment) => !looksLikePdf(attachment)),
+  ].slice(0, MAX_PDF_CANDIDATES);
+  for (const attachment of candidates) {
+    const fileData = await downloadPdf(attachment.url);
+    if (fileData) return { name: attachment.name, fileData };
+  }
+  return undefined;
+}
+
+// The file at the URL as a base64 data URL, or undefined when it isn't a PDF.
+async function downloadPdf(url: string): Promise<string | undefined> {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`PDF download failed: ${response.status} ${url}`);
+  if (!response.ok) {
+    console.warn("Attachment download failed", { url, status: response.status });
+    await response.body?.cancel();
+    return undefined;
+  }
+  // Skip pages and images without downloading them. Servers that don't know the type send
+  // octet-stream or nothing, so those are checked by content.
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (contentType && !/pdf|octet-stream/.test(contentType)) {
+    await response.body?.cancel();
+    return undefined;
+  }
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.length > MAX_PDF_BYTES) throw new Error(`PDF is too large: ${bytes.length} bytes`);
-  if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") throw new Error(`Not a PDF: ${url}`);
+  if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return undefined;
   return `data:application/pdf;base64,${bytes.toString("base64")}`;
 }
 
@@ -109,9 +139,6 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
   if (!news) return { saved: false, reason: "notFound" };
   if (!isReportCategory(news.category.name)) return { saved: false, reason: "notReport" };
 
-  const pdf = news.attachments.find(isPdf);
-  if (!pdf) return { saved: false, reason: "noPdf" };
-
   const fields = (
     await prisma.resultField.findMany({
       where: { resultFieldGroup: { companyId: news.companyId } },
@@ -124,6 +151,10 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
   }));
   if (fields.length === 0) return { saved: false, reason: "noFields" };
 
+  // Downloaded only now: finding the PDF may take several downloads.
+  const pdf = await findPdf(news.attachments);
+  if (!pdf) return { saved: false, reason: "noPdf" };
+
   const report = await structuredCompletion({
     schemaName: "report_figures",
     schema: reportSchema(fields),
@@ -135,7 +166,7 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
       {
         role: "user",
         content: [
-          { type: "file", file: { filename: pdf.name ?? "report.pdf", file_data: await downloadPdf(pdf.url) } },
+          { type: "file", file: { filename: pdf.name ?? "report.pdf", file_data: pdf.fileData } },
         ],
       },
     ],
