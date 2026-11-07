@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+app/generated
+.env*
+.claude
+*.tsbuildinfo
+next-env.d.ts
+test-email.txt
+npm-debug.log*
+.DS_Store
+Dockerfile
+.dockerignore
