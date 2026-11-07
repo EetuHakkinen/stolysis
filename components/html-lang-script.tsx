@@ -1,3 +1,4 @@
+import { InlineScript } from "@/components/inline-script";
 import { defaultLocale, localeCookie, locales } from "@/i18n/config";
 
 // Sets <html lang> from the locale cookie (or browser languages) before paint,
@@ -10,12 +11,5 @@ const script = `(() => {
 })();`;
 
 export function HtmlLangScript() {
-  // text/plain on the client keeps React from warning about rendering a script
-  return (
-    <script
-      type={typeof window === "undefined" ? "text/javascript" : "text/plain"}
-      suppressHydrationWarning
-      dangerouslySetInnerHTML={{ __html: script }}
-    />
-  );
+  return <InlineScript html={script} />;
 }

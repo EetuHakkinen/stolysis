@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { NextIntlClientProvider } from "next-intl";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardLayout({
   children,
@@ -10,7 +11,8 @@ export default function DashboardLayout({
     <Suspense>
       <Protected>
         <NextIntlClientProvider>
-          <header className="flex justify-end p-4">
+          <header className="flex justify-end gap-2 p-4">
+            <ThemeToggle />
             <LocaleSwitcher />
           </header>
           {children}
