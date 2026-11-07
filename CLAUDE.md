@@ -45,8 +45,12 @@ Server actions take the values as typed parameters (for example `createCompany({
 the Clerk session (`auth()`), translations (`getTranslations`), or db reads via server
 actions — must render inside a `<Suspense>` boundary, or Next.js reports a blocking-route error.
 
-- Pages under /dashboard are covered by `app/dashboard/loading.tsx`. New route segments
+- Static pages under /dashboard are covered by `app/dashboard/loading.tsx`. New route segments
   outside /dashboard need their own `loading.tsx` (or a `<Suspense>` in the page).
+- Dynamic segments (`[id]`, `[ticker]`, …) always need their own `loading.tsx`, also under
+  /dashboard: a client navigation between two pages of the same dynamic route (e.g.
+  `/dashboard/news/1` → `/dashboard/news/2`) only re-renders below the shared layout, so the
+  `/dashboard` boundary doesn't cover it.
 - Layouts must not await request-time data at the top level. Move it into a child
   component wrapped in `<Suspense>`, as in `app/dashboard/layout.tsx`.
 - The root layout must stay static. Values that depend on cookies and affect `<html>`

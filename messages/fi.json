@@ -24,5 +24,20 @@
       "tooLong": "Liian pitkä.",
       "tickerTaken": "Tällä tunnuksella on jo yhtiö."
     }
+  },
+  "News": {
+    "title": "Uutiset",
+    "empty": "Ei vielä uutisia.",
+    "attachments": "Liitteet"
+  },
+  "Pagination": {
+    "label": "Sivutus",
+    "previous": "Edellinen",
+    "next": "Seuraava",
+    "pageOf": "Sivu {page} / {pageCount}"
+  },
+  "Breadcrumbs": {
+    "label": "Murupolku",
+    "dashboard": "Etusivu"
   }
 }

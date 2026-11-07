@@ -24,5 +24,20 @@
       "tooLong": "Too long.",
       "tickerTaken": "A company with this ticker already exists."
     }
+  },
+  "News": {
+    "title": "News",
+    "empty": "No news yet.",
+    "attachments": "Attachments"
+  },
+  "Pagination": {
+    "label": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} / {pageCount}"
+  },
+  "Breadcrumbs": {
+    "label": "Breadcrumb",
+    "dashboard": "Dashboard"
   }
 }

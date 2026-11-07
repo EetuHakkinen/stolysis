@@ -12,6 +12,11 @@ export async function getCompanies() {
   return prisma.company.findMany({ orderBy: { name: "asc" } });
 }
 
+export async function getCompany(ticker: string) {
+  await requireUserId();
+  return prisma.company.findUnique({ where: { ticker } });
+}
+
 export type CompanyInput = { name: string; ticker: string };
 
 // Error values are translation keys under CompanyForm.errors.

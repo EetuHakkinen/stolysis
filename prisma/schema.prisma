@@ -76,6 +76,9 @@ model News {
   company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   attachments NewsAttachment[]
 
+  // Feeds list news newest first, either all of them or one company's.
+  @@index([releasedAt(sort: Desc)])
+  @@index([companyId, releasedAt(sort: Desc)])
   @@map("news")
 }
 
