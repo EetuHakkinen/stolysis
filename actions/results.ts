@@ -23,14 +23,14 @@ export type ResultGroup = {
 
 export type CompanyResults = { seasons: ResultSeason[]; groups: ResultGroup[] };
 
-// A company's result fields by group with their values, and its reporting seasons
-// oldest first.
+// A company's result fields by group with their values, and its reporting seasons that have
+// started, oldest first.
 export async function getCompanyResults(companyId: number): Promise<CompanyResults> {
   await requireUserId();
 
   const [seasons, groups] = await Promise.all([
     prisma.reportingSeason.findMany({
-      where: { financialYear: { companyId } },
+      where: { financialYear: { companyId }, startTime: { lte: new Date() } },
       orderBy: [{ financialYear: { startTime: "asc" } }, { startTime: "asc" }, { id: "asc" }],
       select: {
         id: true,

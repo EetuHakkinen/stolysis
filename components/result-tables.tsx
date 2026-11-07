@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+// Columns shown per tab: the latest ones.
+const MAX_COLUMNS = 8;
+
 const UNIT_DIVISORS: Record<Unit, number> = { million: 1_000_000, thousand: 1_000, one: 1 };
 
 // A table column: the sum of the given reporting seasons, shown in the given unit.
@@ -67,8 +70,8 @@ export async function ResultTables({ results: { seasons, groups } }: { results: 
   const t = await getTranslations("Results");
 
   const tabs = [
-    { value: "quarterly", columns: quarterlyColumns(seasons) },
-    { value: "yearly", columns: yearlyColumns(seasons) },
+    { value: "quarterly", columns: quarterlyColumns(seasons).slice(-MAX_COLUMNS) },
+    { value: "yearly", columns: yearlyColumns(seasons).slice(-MAX_COLUMNS) },
   ] as const;
 
   return (
