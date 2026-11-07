@@ -27,3 +27,17 @@ UI must have both finnish and english version.
 All server actions must be placed under /actions -folder. All db operations must be done in the server actions.
 
 Server actions take the values as typed parameters (for example `createCompany({ name, ticker })`), not `FormData`. Forms keep their values in state and call the action with them.
+
+## Rendering (Cache Components)
+
+`cacheComponents` is enabled. Anything that reads request-time data — cookies, headers,
+the Clerk session (`auth()`), translations (`getTranslations`), or db reads via server
+actions — must render inside a `<Suspense>` boundary, or Next.js reports a blocking-route error.
+
+- Pages under /dashboard are covered by `app/dashboard/loading.tsx`. New route segments
+  outside /dashboard need their own `loading.tsx` (or a `<Suspense>` in the page).
+- Layouts must not await request-time data at the top level. Move it into a child
+  component wrapped in `<Suspense>`, as in `app/dashboard/layout.tsx`.
+- The root layout must stay static. Values that depend on cookies and affect `<html>`
+  (`lang`, theme) are set with an inline script (`InlineScript`), not read on the server.
+- Do not use `export const instant = false` to silence the error without asking.
