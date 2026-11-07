@@ -20,6 +20,7 @@ model Company {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   financialYears FinancialYear[]
+  news           News[]
 
   @@map("company")
 }
@@ -61,4 +62,32 @@ model ReportingSeason {
   financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
 
   @@map("reporting_season")
+}
+
+model News {
+  id          Int      @id @default(autoincrement())
+  companyId   Int      @map("company")
+  title       String
+  description String
+  releasedAt  DateTime @map("released_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  attachments NewsAttachment[]
+
+  @@map("news")
+}
+
+model NewsAttachment {
+  id        Int      @id @default(autoincrement())
+  newsId    Int      @map("news")
+  url       String
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  @@map("news_attachment")
 }

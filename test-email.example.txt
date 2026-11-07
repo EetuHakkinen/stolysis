@@ -1,0 +1,12 @@
+From: "ACME Oyj" <ir@acme.fi>
+To: news@parse.stolysis.fi
+Subject: ACME Oyj: Interim report January–September 2026
+# Attachment: ./test-files/report.pdf
+
+ACME Oyj stock exchange release 7 November 2026 at 9:00 EET
+
+ACME Oyj interim report January–September 2026
+
+Net sales grew 12% to EUR 145.2 million.
+
+Full report: https://example.com/acme/interim-report-q3-2026.pdf

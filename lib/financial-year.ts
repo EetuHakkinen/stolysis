@@ -1,32 +1,10 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { helsinkiTime, TIME_ZONE } from "@/lib/helsinki-time";
 
-// Financial years and reporting seasons start and end at local midnight in Finland.
-const TIME_ZONE = "Europe/Helsinki";
-
-// Offset of the time zone from UTC (in ms) at the given instant.
-function timeZoneOffset(date: Date): number {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: TIME_ZONE,
-      hourCycle: "h23",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    })
-      .formatToParts(date)
-      .map(({ type, value }) => [type, Number(value)]),
-  );
-  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
-  return asUtc - Math.floor(date.getTime() / 1000) * 1000;
-}
-
-// Instant of local midnight at the start of the given day (month is 0-based, may overflow).
+// Financial years and reporting seasons start and end at local midnight in Finland
+// (month is 0-based, may overflow).
 function startOfDay(year: number, month: number, day: number): Date {
-  const utcMidnight = Date.UTC(year, month, day);
-  return new Date(utcMidnight - timeZoneOffset(new Date(utcMidnight)));
+  return helsinkiTime(year, month, day);
 }
 
 // Local year of the given instant.

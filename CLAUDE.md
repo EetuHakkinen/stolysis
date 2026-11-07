@@ -33,7 +33,9 @@ resource name in singular. Unless advised otherwise, for example:
 
 ## Data access
 
-All server actions must be placed under /actions -folder. All db operations must be done in the server actions.
+All server actions must be placed under /actions -folder. No db operations must be done from the ui component code, place it instead to server actions (or util functions in lib in case it's general logic)
+
+So all re-usable backend logic must be in /lib instead of actions.
 
 Server actions take the values as typed parameters (for example `createCompany({ name, ticker })`), not `FormData`. Forms keep their values in state and call the action with them.
 
