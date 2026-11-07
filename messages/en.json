@@ -1,0 +1,11 @@
+{
+  "Companies": {
+    "title": "Companies",
+    "name": "Name",
+    "ticker": "Ticker",
+    "empty": "No companies yet."
+  },
+  "LocaleSwitcher": {
+    "label": "Language"
+  }
+}

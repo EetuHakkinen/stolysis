@@ -1,0 +1,11 @@
+{
+  "Companies": {
+    "title": "Yhtiöt",
+    "name": "Nimi",
+    "ticker": "Kaupankäyntitunnus",
+    "empty": "Ei vielä yhtiöitä."
+  },
+  "LocaleSwitcher": {
+    "label": "Kieli"
+  }
+}

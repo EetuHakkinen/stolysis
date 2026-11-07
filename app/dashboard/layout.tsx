@@ -1,12 +1,21 @@
 import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
+import { NextIntlClientProvider } from "next-intl";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 export default function DashboardLayout({
   children,
 }: LayoutProps<"/dashboard">) {
   return (
     <Suspense>
-      <Protected>{children}</Protected>
+      <Protected>
+        <NextIntlClientProvider>
+          <header className="flex justify-end p-4">
+            <LocaleSwitcher />
+          </header>
+          {children}
+        </NextIntlClientProvider>
+      </Protected>
     </Suspense>
   );
 }
