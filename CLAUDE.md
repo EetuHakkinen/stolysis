@@ -25,3 +25,5 @@ UI must have both finnish and english version.
 ## Data access
 
 All server actions must be placed under /actions -folder. All db operations must be done in the server actions.
+
+Server actions take the values as typed parameters (for example `createCompany({ name, ticker })`), not `FormData`. Forms keep their values in state and call the action with them.

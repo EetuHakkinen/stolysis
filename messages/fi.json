@@ -3,12 +3,26 @@
     "title": "Yhtiöt",
     "name": "Nimi",
     "ticker": "Kaupankäyntitunnus",
-    "empty": "Ei vielä yhtiöitä."
+    "empty": "Ei vielä yhtiöitä.",
+    "new": "Uusi yhtiö"
   },
   "LocaleSwitcher": {
     "label": "Kieli"
   },
   "ThemeToggle": {
     "label": "Vaihda teema"
+  },
+  "CompanyForm": {
+    "title": "Uusi yhtiö",
+    "name": "Nimi",
+    "ticker": "Kaupankäyntitunnus",
+    "save": "Tallenna",
+    "saving": "Tallennetaan…",
+    "cancel": "Peruuta",
+    "errors": {
+      "required": "Pakollinen kenttä.",
+      "tooLong": "Liian pitkä.",
+      "tickerTaken": "Tällä tunnuksella on jo yhtiö."
+    }
   }
 }

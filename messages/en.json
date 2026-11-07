@@ -3,12 +3,26 @@
     "title": "Companies",
     "name": "Name",
     "ticker": "Ticker",
-    "empty": "No companies yet."
+    "empty": "No companies yet.",
+    "new": "New company"
   },
   "LocaleSwitcher": {
     "label": "Language"
   },
   "ThemeToggle": {
     "label": "Toggle theme"
+  },
+  "CompanyForm": {
+    "title": "New company",
+    "name": "Name",
+    "ticker": "Ticker",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "errors": {
+      "required": "This field is required.",
+      "tooLong": "Too long.",
+      "tickerTaken": "A company with this ticker already exists."
+    }
   }
 }
