@@ -19,5 +19,46 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  financialYears FinancialYear[]
+
   @@map("company")
+}
+
+enum Unit {
+  million
+  thousand
+  one
+
+  @@map("unit")
+}
+
+model FinancialYear {
+  id        Int       @id @default(autoincrement())
+  companyId Int       @map("company")
+  name      String?
+  unit      Unit?
+  startTime DateTime? @map("start_time")
+  endTime   DateTime? @map("end_time")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reportingSeasons ReportingSeason[]
+
+  @@map("financial_year")
+}
+
+model ReportingSeason {
+  id              Int       @id @default(autoincrement())
+  financialYearId Int       @map("financial_year")
+  name            String?
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  estimate        Boolean?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
+
+  @@map("reporting_season")
 }

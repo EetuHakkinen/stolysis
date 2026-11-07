@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
+import { calendarFinancialYear } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
 
@@ -35,7 +36,10 @@ export async function createCompany(
   }
 
   try {
-    await prisma.company.create({ data: parsed.data });
+    // Nested create keeps the company, its financial year and quarters in one transaction.
+    await prisma.company.create({
+      data: { ...parsed.data, financialYears: { create: calendarFinancialYear() } },
+    });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { errors: { ticker: ["tickerTaken"] } };
