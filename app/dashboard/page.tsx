@@ -12,7 +12,7 @@ export default async function Dashboard() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 p-6">
       <PageHeader title={t("title")}>
-        <ButtonLink href="/dashboard/create-company">
+        <ButtonLink href="/dashboard/company/create">
           <PlusIcon />
           {t("new")}
         </ButtonLink>

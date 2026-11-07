@@ -22,6 +22,15 @@ All routes under /dashboard -route must be authenticated with Clerk. Make sure t
 
 UI must have both finnish and english version.
 
+## Routes
+
+Use a REST-style route structure: `/<area>/<resource>/<action-or-identifier>`, with the
+resource name in singular. Unless advised otherwise, for example:
+
+- `/dashboard/company/create` — create a company
+- `/dashboard/company/{ticker}` — view a single company
+- `/dashboard/company/{ticker}/edit` — edit a company
+
 ## Data access
 
 All server actions must be placed under /actions -folder. All db operations must be done in the server actions.

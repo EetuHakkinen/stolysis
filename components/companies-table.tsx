@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { Company } from "@/app/generated/prisma/client";
 import {
@@ -30,7 +31,14 @@ export async function CompaniesTable({ companies }: { companies: Company[] }) {
         ) : (
           companies.map((company) => (
             <TableRow key={company.id}>
-              <TableCell>{company.name}</TableCell>
+              <TableCell>
+                <Link
+                  href={`/dashboard/company/${encodeURIComponent(company.ticker)}`}
+                  className="font-medium hover:underline"
+                >
+                  {company.name}
+                </Link>
+              </TableCell>
               <TableCell className="font-mono">{company.ticker}</TableCell>
             </TableRow>
           ))
