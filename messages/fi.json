@@ -39,5 +39,18 @@
   "Breadcrumbs": {
     "label": "Murupolku",
     "dashboard": "Etusivu"
+  },
+  "Results": {
+    "title": "Taloustiedot",
+    "empty": "Ei vielä taloustietoja.",
+    "units": {
+      "million": "milj. €",
+      "thousand": "tuhatta €",
+      "one": "€"
+    },
+    "tabs": {
+      "quarterly": "Neljännesvuosi",
+      "yearly": "Vuosi"
+    }
   }
 }

@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { getCompany } from "@/actions/companies";
 import { getNewsFeed } from "@/actions/news";
+import { getCompanyResults } from "@/actions/results";
 import { NewsFeed } from "@/components/news-feed";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { parsePage } from "@/components/pagination";
+import { ResultTables } from "@/components/result-tables";
 
 export default async function CompanyPage({
   params,
@@ -14,7 +16,10 @@ export default async function CompanyPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const feed = await getNewsFeed({ page: parsePage(page), ticker: company.ticker });
+  const [results, feed] = await Promise.all([
+    getCompanyResults(company.id),
+    getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
+  ]);
   const path = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
 
   return (
@@ -23,6 +28,7 @@ export default async function CompanyPage({
         <PageBreadcrumbs items={[{ label: company.name }]} />
         <PageHeader title={company.name} />
       </div>
+      <ResultTables results={results} />
       <NewsFeed feed={feed} pageHref={(page) => `${path}?page=${page}`} />
     </main>
   );

@@ -19,8 +19,9 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  financialYears FinancialYear[]
-  news           News[]
+  financialYears    FinancialYear[]
+  news              News[]
+  resultFieldGroups ResultFieldGroup[]
 
   @@map("company")
 }
@@ -60,8 +61,69 @@ model ReportingSeason {
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
+  resultRows    ResultRow[]
 
   @@map("reporting_season")
+}
+
+// A section of a company's financial statements, e.g. tuloslaskelma, tase or rahavirtalaskelma.
+model ResultFieldGroup {
+  id        Int      @id @default(autoincrement())
+  companyId Int      @map("company")
+  order     Int?
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  resultFields ResultField[]
+
+  @@map("result_field_group")
+}
+
+// A single line in a group, e.g. liikevaihto in tuloslaskelma.
+model ResultField {
+  id                 Int      @id @default(autoincrement())
+  resultFieldGroupId Int      @map("result_field_group")
+  order              Int?
+  name               String?
+  fieldDefinitionId  Int?     @map("field_definition")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  resultFieldGroup ResultFieldGroup @relation(fields: [resultFieldGroupId], references: [id], onDelete: Cascade)
+  fieldDefinition  FieldDefinition? @relation(fields: [fieldDefinitionId], references: [id], onDelete: SetNull)
+  resultRows       ResultRow[]
+
+  @@map("result_field")
+}
+
+// Definition for calculated fields.
+model FieldDefinition {
+  id         Int      @id @default(autoincrement())
+  definition Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  resultFields ResultField[]
+
+  @@map("field_definition")
+}
+
+// The value of a result field for one reporting season, in whole euros.
+model ResultRow {
+  id                Int      @id @default(autoincrement())
+  reportingSeasonId Int      @map("reporting_season")
+  resultFieldId     Int      @map("result_field")
+  value             BigInt?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+
+  reportingSeason ReportingSeason @relation(fields: [reportingSeasonId], references: [id], onDelete: Cascade)
+  resultField     ResultField     @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
+
+  @@unique([reportingSeasonId, resultFieldId])
+  @@map("result_row")
 }
 
 model News {

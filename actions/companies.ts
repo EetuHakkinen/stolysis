@@ -6,6 +6,7 @@ import { requireUserId } from "@/lib/auth";
 import { calendarFinancialYear } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
+import { defaultResultFieldGroups } from "@/lib/result-fields";
 
 export async function getCompanies() {
   await requireUserId();
@@ -41,9 +42,13 @@ export async function createCompany(
   }
 
   try {
-    // Nested create keeps the company, its financial year and quarters in one transaction.
+    // Nested create keeps the company, its financial year, quarters and result fields in one transaction.
     await prisma.company.create({
-      data: { ...parsed.data, financialYears: { create: calendarFinancialYear() } },
+      data: {
+        ...parsed.data,
+        financialYears: { create: calendarFinancialYear() },
+        resultFieldGroups: { create: defaultResultFieldGroups() },
+      },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {

@@ -39,5 +39,18 @@
   "Breadcrumbs": {
     "label": "Breadcrumb",
     "dashboard": "Dashboard"
+  },
+  "Results": {
+    "title": "Financials",
+    "empty": "No financial data yet.",
+    "units": {
+      "million": "€ million",
+      "thousand": "€ thousand",
+      "one": "€"
+    },
+    "tabs": {
+      "quarterly": "Quarterly",
+      "yearly": "Yearly"
+    }
   }
 }
