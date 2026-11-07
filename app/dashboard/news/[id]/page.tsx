@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getNews } from "@/actions/news";
 import { CompanyBadge } from "@/components/company-badge";
+import { NewsCategoryBadge } from "@/components/news-category-badge";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { ReleaseTime } from "@/components/release-time";
 
@@ -28,6 +29,7 @@ export default async function NewsPage({ params }: PageProps<"/dashboard/news/[i
           <div className="flex flex-wrap items-center gap-2">
             <ReleaseTime date={news.releasedAt} />
             <CompanyBadge company={news.company} />
+            <NewsCategoryBadge category={news.category} />
           </div>
           <h1 className="text-2xl font-semibold">{news.title}</h1>
         </header>

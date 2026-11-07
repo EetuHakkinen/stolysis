@@ -14,6 +14,7 @@ export type NewsFeedItem = {
   preview: string;
   releasedAt: Date;
   company: { name: string; ticker: string };
+  category: { name: string };
 };
 
 export type NewsFeedPage = {
@@ -50,6 +51,7 @@ export async function getNewsFeed({
       description: true,
       releasedAt: true,
       company: { select: { name: true, ticker: true } },
+      category: { select: { name: true } },
     },
   });
 
@@ -71,6 +73,7 @@ export async function getNews(id: number) {
     where: { id },
     include: {
       company: { select: { name: true, ticker: true } },
+      category: { select: { name: true } },
       attachments: { orderBy: { id: "asc" } },
     },
   });

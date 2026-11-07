@@ -2,7 +2,9 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import {
   findDocumentLinks,
+  findReleaseLine,
   htmlToText,
+  matchCategory,
   matchCompany,
   parseDateHeader,
   parseReleaseTime,
@@ -16,6 +18,7 @@ export type NewsInput = {
   title: string;
   description: string;
   releasedAt: Date;
+  categoryId: number;
   attachments: { url: string; name?: string }[];
 };
 
@@ -24,6 +27,28 @@ export async function saveNews({ attachments, ...news }: NewsInput) {
   return prisma.news.create({
     data: { ...news, attachments: { create: attachments } },
   });
+}
+
+// Category for news that match no other category.
+const FALLBACK_CATEGORY = "Muu";
+
+// Category of a news item by its subject and release line, falling back to Muu.
+export async function categorizeNews({
+  subject,
+  releaseLine,
+}: {
+  subject: string;
+  releaseLine?: string;
+}): Promise<number> {
+  const categories = await prisma.newsCategory.findMany({
+    orderBy: { id: "asc" },
+    select: { id: true, name: true, keywords: true },
+  });
+  const category =
+    matchCategory(categories, { subject, releaseLine }) ??
+    categories.find((category) => category.name === FALLBACK_CATEGORY);
+  if (!category) throw new Error(`News category "${FALLBACK_CATEGORY}" is missing`);
+  return category.id;
 }
 
 export type NewsEmail = {
@@ -53,11 +78,17 @@ export async function saveNewsFromEmail(email: NewsEmail): Promise<SaveNewsEmail
   const releasedAt = parseReleaseTime(description) ?? parseDateHeader(email.headers ?? "");
   if (!releasedAt) return { saved: false, reason: "noReleaseTime" };
 
+  const categoryId = await categorizeNews({
+    subject: title,
+    releaseLine: findReleaseLine(description),
+  });
+
   const news = await saveNews({
     companyId: company.id,
     title,
     description,
     releasedAt,
+    categoryId,
     attachments: findDocumentLinks(description, email.html),
   });
   return { saved: true, newsId: news.id, companyId: company.id };

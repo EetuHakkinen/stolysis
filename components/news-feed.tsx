@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { NewsFeedPage } from "@/actions/news";
 import { CompanyBadge } from "@/components/company-badge";
+import { NewsCategoryBadge } from "@/components/news-category-badge";
 import { Pagination } from "@/components/pagination";
 import { ReleaseTime } from "@/components/release-time";
 
@@ -30,6 +31,7 @@ export async function NewsFeed({
               <div className="flex flex-wrap items-center gap-2">
                 <ReleaseTime date={item.releasedAt} />
                 {showCompany && <CompanyBadge company={item.company} />}
+                <NewsCategoryBadge category={item.category} />
               </div>
               <Link href={`/dashboard/news/${item.id}`} className="group flex flex-col gap-1">
                 <span className="font-medium group-hover:underline">{item.title}</span>

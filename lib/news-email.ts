@@ -56,14 +56,28 @@ function monthIndex(name: string): number {
   return MONTHS.findIndex((month) => month.startsWith(prefix));
 }
 
-// Release time from the first release line in the text. Times without a time zone are Finnish local time.
-export function parseReleaseTime(text: string): Date | undefined {
-  const first = RELEASE_TIME_PATTERNS.map(({ regex, parts }) => {
+// The first release time in the text, with its position.
+function findReleaseTime(text: string) {
+  return RELEASE_TIME_PATTERNS.map(({ regex, parts }) => {
     const match = regex.exec(text);
     return match && { index: match.index, parts: parts(match) };
   })
     .filter((match) => match !== null)
     .sort((a, b) => a.index - b.index)[0];
+}
+
+// The line with the first release time, e.g. "Harvia Oyj, osavuosikatsaus 29.10.2026 klo 9.00".
+export function findReleaseLine(text: string): string | undefined {
+  const first = findReleaseTime(text);
+  if (!first) return undefined;
+  const start = text.lastIndexOf("\n", first.index) + 1;
+  const end = text.indexOf("\n", first.index);
+  return text.slice(start, end === -1 ? undefined : end).trim();
+}
+
+// Release time from the first release line in the text. Times without a time zone are Finnish local time.
+export function parseReleaseTime(text: string): Date | undefined {
+  const first = findReleaseTime(text);
   if (!first) return undefined;
 
   const [day, month, year, [hourText, minuteText, meridiem, zone]] = first.parts;
@@ -176,4 +190,21 @@ function containsWord(source: string, word: string, flags: string): boolean {
   if (!word.trim()) return false;
   const escaped = word.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, flags).test(source);
+}
+
+type CategoryCandidate = { id: number; keywords: string[] };
+
+// The first category (in the given order) with a keyword in the release line, or failing that
+// in the subject. Keywords match case-insensitively as whole words.
+export function matchCategory<T extends CategoryCandidate>(
+  categories: T[],
+  { subject, releaseLine }: { subject: string; releaseLine?: string },
+): T | undefined {
+  for (const source of [releaseLine ?? "", subject]) {
+    const match = categories.find((category) =>
+      category.keywords.some((keyword) => containsWord(source, keyword, "iu")),
+    );
+    if (match) return match;
+  }
+  return undefined;
 }
