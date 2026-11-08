@@ -11,9 +11,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Columns shown per tab: the latest ones.
-const MAX_COLUMNS = 8;
-
 const UNIT_DIVISORS: Record<Unit, number> = { million: 1_000_000, thousand: 1_000, one: 1 };
 
 // A table column: the sum of the given reporting seasons, shown in the given unit.
@@ -70,8 +67,8 @@ export async function ResultTables({ results: { seasons, groups } }: { results: 
   const t = await getTranslations("Results");
 
   const tabs = [
-    { value: "quarterly", columns: quarterlyColumns(seasons).slice(-MAX_COLUMNS) },
-    { value: "yearly", columns: yearlyColumns(seasons).slice(-MAX_COLUMNS) },
+    { value: "quarterly", columns: quarterlyColumns(seasons) },
+    { value: "yearly", columns: yearlyColumns(seasons) },
   ] as const;
 
   return (
@@ -101,7 +98,9 @@ export async function ResultTables({ results: { seasons, groups } }: { results: 
   );
 }
 
-// Each column is shown in its own financial year's unit.
+// Each column is shown in its own financial year's unit. The columns scroll beside the sticky
+// field names, starting from the latest ones: a right-to-left container starts scrolled fully
+// right without client code, also in tabs that are hidden on load.
 async function ResultTable({ group, columns }: { group: ResultGroup; columns: ResultColumn[] }) {
   const [t, format] = await Promise.all([getTranslations("Results"), getFormatter()]);
 
@@ -116,7 +115,7 @@ async function ResultTable({ group, columns }: { group: ResultGroup; columns: Re
   return (
     <div className="flex flex-col gap-2">
       <h3 className="font-medium">{group.name}</h3>
-      <Table>
+      <Table containerClassName="[direction:rtl]" className="[direction:ltr]">
         <TableHeader>
           <TableRow>
             <TableHead className="sticky left-0 bg-background" />

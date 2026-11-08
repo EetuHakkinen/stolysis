@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { helsinkiTime } from "@/lib/helsinki-time";
 import { decodeEntities, htmlToText, isDocumentName, safeDecode } from "@/lib/news-email";
-import { saveRelease, type SaveNewsResult } from "@/lib/news";
+import { autoCreateCompaniesFromUi, saveRelease, type SaveNewsResult } from "@/lib/news";
 import { structuredCompletion } from "@/lib/openrouter";
 
 // Stock exchange releases added by URL: a web page with the release, or a direct link to a
@@ -105,6 +105,7 @@ async function savePageRelease({ url, html }: { url: string; html: string }): Pr
     description: page.text.trim(),
     fallbackReleasedAt: parseLocalDateTime(page.releaseTime),
     attachments,
+    autoCreateCompany: autoCreateCompaniesFromUi(),
   });
 }
 
@@ -159,6 +160,7 @@ async function savePdfRelease({
     fallbackReleasedAt: parseLocalDateTime(report.releaseTime),
     // The ".pdf" name lets result extraction find the report.
     attachments: [{ url, name: fileName ?? `${report.title.trim() || "report"}.pdf` }],
+    autoCreateCompany: autoCreateCompaniesFromUi(),
   });
 }
 
