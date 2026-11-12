@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
@@ -58,4 +59,37 @@ export async function createCompany(
   }
 
   redirect("/dashboard");
+}
+
+// Updates the company's name and ticker. A changed ticker changes the company's URLs, so then this
+// redirects to the settings page under the new ticker.
+export async function updateCompany(
+  input: CompanyInput & { companyId: number },
+): Promise<{ errors?: CompanyFormErrors }> {
+  await requireUserId();
+
+  const parsed = companySchema.safeParse(input);
+  if (!parsed.success) {
+    const { fieldErrors } = z.flattenError(parsed.error);
+    return { errors: fieldErrors as CompanyFormErrors };
+  }
+  const id = z.number().int().positive().parse(input.companyId);
+
+  const company = await prisma.company.findUnique({ where: { id }, select: { ticker: true } });
+  if (!company) return {};
+
+  try {
+    await prisma.company.update({ where: { id }, data: parsed.data });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return { errors: { ticker: ["tickerTaken"] } };
+    }
+    throw error;
+  }
+
+  if (parsed.data.ticker !== company.ticker) {
+    redirect(`/dashboard/company/${encodeURIComponent(parsed.data.ticker)}/settings`);
+  }
+  refresh();
+  return {};
 }

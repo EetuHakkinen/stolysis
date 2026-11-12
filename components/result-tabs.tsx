@@ -223,7 +223,6 @@ export function ResultTabs({
   return (
     <div className="flex flex-col gap-4">
       <EstimateScenarioPicker
-        companyId={companyId}
         scenarios={scenarios}
         selected={scenario}
         onSelect={select}

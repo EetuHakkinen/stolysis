@@ -18,6 +18,7 @@
     "ticker": "Kaupankäyntitunnus",
     "save": "Tallenna",
     "saving": "Tallennetaan…",
+    "saved": "Tallennettu.",
     "cancel": "Peruuta",
     "errors": {
       "required": "Pakollinen kenttä.",
@@ -79,11 +80,13 @@
       "valuation": "Arvostuskertoimet",
       "discounting": "Diskonttaus"
     },
-    "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario ennusteiden tekemiseksi.",
+    "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario yhtiön asetuksissa ennusteiden tekemiseksi.",
     "noYears": "Yrityksellä ei ole kuluvaa tilikautta."
   },
   "Estimates": {
     "scenario": "Skenaario",
+    "scenarios": "Ennusteskenaariot",
+    "empty": "Ei vielä ennusteskenaarioita.",
     "name": "Nimi",
     "create": "Uusi skenaario",
     "createTitle": "Uusi ennusteskenaario",
@@ -140,5 +143,10 @@
       "cost_of_equity": "Oman pääoman kustannus",
       "wacc": "WACC"
     }
+  },
+  "CompanySettings": {
+    "title": "Asetukset",
+    "open": "Yhtiön asetukset",
+    "details": "Yhtiön tiedot"
   }
 }

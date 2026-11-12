@@ -39,11 +39,7 @@ export type CompanyEstimates = {
 export async function getEstimates(companyId: number): Promise<CompanyEstimates> {
   await requireUserId();
 
-  const scenarios = await prisma.estimateScenario.findMany({
-    where: { companyId },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, name: true },
-  });
+  const scenarios = await findScenarios(companyId);
 
   let years = await estimateYears(companyId);
   if (scenarios.length > 0 && (years.currentIndex < 0 || years.after < YEARS_AHEAD)) {
@@ -96,6 +92,20 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
     fields,
     estimates,
   };
+}
+
+// A company's estimate scenarios, oldest first.
+export async function getEstimateScenarios(companyId: number): Promise<EstimateScenarioSummary[]> {
+  await requireUserId();
+  return findScenarios(companyId);
+}
+
+function findScenarios(companyId: number) {
+  return prisma.estimateScenario.findMany({
+    where: { companyId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, name: true },
+  });
 }
 
 // The company's financial years up to YEARS_AHEAD after the current one, with the position of the

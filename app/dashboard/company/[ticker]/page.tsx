@@ -1,10 +1,13 @@
+import { SettingsIcon } from "lucide-react";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getCompany } from "@/actions/companies";
 import { getDiscountVariables } from "@/actions/discounting";
 import { getEstimates } from "@/actions/estimates";
 import { getNewsFeed } from "@/actions/news";
 import { getCompanyResults } from "@/actions/results";
 import { getValuation } from "@/actions/valuation";
+import { ButtonLink } from "@/components/button-link";
 import { NewsFeed } from "@/components/news-feed";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
@@ -15,7 +18,11 @@ export default async function CompanyPage({
   params,
   searchParams,
 }: PageProps<"/dashboard/company/[ticker]">) {
-  const [{ ticker }, { page, scenario }] = await Promise.all([params, searchParams]);
+  const [{ ticker }, { page, scenario }, t] = await Promise.all([
+    params,
+    searchParams,
+    getTranslations("CompanySettings"),
+  ]);
   const company = await getCompany(ticker);
   if (!company) notFound();
 
@@ -32,7 +39,11 @@ export default async function CompanyPage({
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6">
       <div className="flex flex-col gap-2">
         <PageBreadcrumbs items={[{ label: company.name }]} />
-        <PageHeader title={company.name} />
+        <PageHeader title={company.name}>
+          <ButtonLink href={`${path}/settings`} variant="ghost" size="icon" aria-label={t("open")}>
+            <SettingsIcon />
+          </ButtonLink>
+        </PageHeader>
       </div>
       <ResultTables
         companyId={company.id}

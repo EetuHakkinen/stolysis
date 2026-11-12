@@ -18,6 +18,7 @@
     "ticker": "Ticker",
     "save": "Save",
     "saving": "Saving…",
+    "saved": "Saved.",
     "cancel": "Cancel",
     "errors": {
       "required": "This field is required.",
@@ -79,11 +80,13 @@
       "valuation": "Valuation multiples",
       "discounting": "Discounting"
     },
-    "noScenarios": "No estimate scenarios yet. Create a scenario to make estimates.",
+    "noScenarios": "No estimate scenarios yet. Create a scenario in the company settings to make estimates.",
     "noYears": "The company has no current financial year."
   },
   "Estimates": {
     "scenario": "Scenario",
+    "scenarios": "Estimate scenarios",
+    "empty": "No estimate scenarios yet.",
     "name": "Name",
     "create": "New scenario",
     "createTitle": "New estimate scenario",
@@ -140,5 +143,10 @@
       "cost_of_equity": "Cost of equity",
       "wacc": "WACC"
     }
+  },
+  "CompanySettings": {
+    "title": "Settings",
+    "open": "Company settings",
+    "details": "Company details"
   }
 }
