@@ -1,5 +1,5 @@
-import type { Prisma, Unit } from "@/app/generated/prisma/client";
-import { helsinkiTime, TIME_ZONE } from "@/lib/helsinki-time";
+import type { FinancialYear, Prisma, ReportingSeason, Unit } from "@/app/generated/prisma/client";
+import { helsinkiDate, helsinkiTime, TIME_ZONE } from "@/lib/helsinki-time";
 
 // Financial years and reporting seasons start and end at local midnight in Finland
 // (month is 0-based, may overflow).
@@ -72,4 +72,77 @@ export function calendarFinancialYear(
   year: number = yearOf(new Date()),
 ): Prisma.FinancialYearCreateWithoutCompanyInput {
   return financialYear({ year });
+}
+
+// The given instant (a local midnight) moved by whole years.
+export function shiftStart(start: Date, years: number): Date {
+  const { year, month, day } = helsinkiDate(start);
+  return startOfDay(year + years, month, day);
+}
+
+// The given instant (the last millisecond of a local day) moved by whole years.
+export function shiftEnd(end: Date, years: number): Date {
+  return new Date(shiftStart(new Date(end.getTime() + 1), years).getTime() - 1);
+}
+
+type DatedFinancialYear = FinancialYear & {
+  startTime: Date;
+  endTime: Date;
+  reportingSeasons: ReportingSeason[];
+};
+
+// Copy of the financial year with its reporting seasons moved by whole years, the years in its
+// name included, ready to be created for the same company.
+export function shiftedFinancialYear(
+  year: DatedFinancialYear,
+  shift: number,
+  { estimate }: { estimate: boolean },
+): Omit<Prisma.FinancialYearUncheckedCreateInput, "companyId"> {
+  return {
+    name: year.name?.replace(/\d{4}/g, (name) => String(Number(name) + shift)) ?? null,
+    unit: year.unit,
+    startTime: shiftStart(year.startTime, shift),
+    endTime: shiftEnd(year.endTime, shift),
+    reportingSeasons: {
+      create: year.reportingSeasons.map((season) => ({
+        name: season.name,
+        estimate,
+        startTime: season.startTime && shiftStart(season.startTime, shift),
+        endTime: season.endTime && shiftEnd(season.endTime, shift),
+      })),
+    },
+  };
+}
+
+// Makes sure the company has financial years up to the given number of years after the one
+// covering the current day, creating the missing ones by moving its latest financial year (with
+// its reporting seasons) forward. Created seasons are marked as estimates. Does nothing for a
+// company without financial years.
+export async function ensureFinancialYears(
+  tx: Prisma.TransactionClient,
+  companyId: number,
+  yearsAhead: number,
+): Promise<void> {
+  // Serialize per company, so concurrent calls don't create the same years twice.
+  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext('financial_year'), ${companyId}::int)) AS lock`;
+
+  const latest = await tx.financialYear.findFirst({
+    where: { companyId, startTime: { not: null }, endTime: { not: null } },
+    orderBy: [{ startTime: "desc" }, { id: "desc" }],
+    include: { reportingSeasons: { orderBy: [{ startTime: "asc" }, { id: "asc" }] } },
+  });
+  if (!latest?.startTime || !latest.endTime) return;
+  const dated = { ...latest, startTime: latest.startTime, endTime: latest.endTime };
+
+  // Shift of the latest year that covers the current day, possibly negative.
+  const now = new Date();
+  let currentShift = 0;
+  while (shiftEnd(dated.endTime, currentShift - 1) >= now) currentShift--;
+  while (shiftEnd(dated.endTime, currentShift) < now) currentShift++;
+
+  for (let shift = 1; shift <= currentShift + yearsAhead; shift++) {
+    await tx.financialYear.create({
+      data: { companyId, ...shiftedFinancialYear(dated, shift, { estimate: true }) },
+    });
+  }
 }

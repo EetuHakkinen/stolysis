@@ -22,6 +22,7 @@ model Company {
   financialYears    FinancialYear[]
   news              News[]
   resultFieldGroups ResultFieldGroup[]
+  estimateScenarios EstimateScenario[]
 
   @@map("company")
 }
@@ -46,6 +47,7 @@ model FinancialYear {
 
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   reportingSeasons ReportingSeason[]
+  estimateRows     EstimateRow[]
 
   @@map("financial_year")
 }
@@ -64,6 +66,7 @@ model ReportingSeason {
 
   financialYear FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
   resultRows    ResultRow[]
+  estimateRows  EstimateRow[]
 
   @@map("reporting_season")
 }
@@ -85,17 +88,20 @@ model ResultFieldGroup {
 
 // A single line in a group, e.g. liikevaihto in tuloslaskelma.
 model ResultField {
-  id                 Int      @id @default(autoincrement())
-  resultFieldGroupId Int      @map("result_field_group")
+  id                 Int          @id @default(autoincrement())
+  resultFieldGroupId Int          @map("result_field_group")
   order              Int?
   name               String?
-  fieldDefinitionId  Int?     @map("field_definition")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+  fieldDefinitionId  Int?         @map("field_definition")
+  // How the field is estimated, in every scenario and period.
+  estimateType       EstimateType @default(relative) @map("estimate_type")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
 
   resultFieldGroup ResultFieldGroup @relation(fields: [resultFieldGroupId], references: [id], onDelete: Cascade)
   fieldDefinition  FieldDefinition? @relation(fields: [fieldDefinitionId], references: [id], onDelete: SetNull)
   resultRows       ResultRow[]
+  estimateRows     EstimateRow[]
 
   @@map("result_field")
 }
@@ -130,6 +136,57 @@ model ResultRow {
 
   @@index([reportingSeasonId, resultFieldId, createdAt(sort: Desc)])
   @@map("result_row")
+}
+
+// A named set of estimates for a company, e.g. "Base", "Bull" or "Bear".
+model EstimateScenario {
+  id        Int      @id @default(autoincrement())
+  companyId Int      @map("company")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  estimateRows EstimateRow[]
+
+  @@unique([companyId, name])
+  @@map("estimate_scenario")
+}
+
+enum EstimateType {
+  // Percent change compared to the same period a year earlier.
+  relative
+  // Value for the period in whole euros.
+  absolute
+
+  @@map("estimate_type")
+}
+
+// Estimate variable for one result field and period in a scenario. Insert-only like result_row:
+// the latest row (by createdAt, id) per scenario, field and period is current. Quarterly estimates
+// point to a reporting season, yearly ones to a financial year: exactly one of them is set
+// (enforced by a check constraint in the migration).
+model EstimateRow {
+  id                 Int          @id @default(autoincrement())
+  estimateScenarioId Int          @map("estimate_scenario")
+  resultFieldId      Int          @map("result_field")
+  reportingSeasonId  Int?         @map("reporting_season")
+  financialYearId    Int?         @map("financial_year")
+  // The field's estimate type when the value was entered. Rows of another type are ignored.
+  type               EstimateType
+  // relative: hundredths of a percent (348 = +3.48 %), absolute: whole euros. Null clears the
+  // estimate.
+  value              BigInt?
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  estimateScenario EstimateScenario @relation(fields: [estimateScenarioId], references: [id], onDelete: Cascade)
+  resultField      ResultField      @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
+  reportingSeason  ReportingSeason? @relation(fields: [reportingSeasonId], references: [id], onDelete: Cascade)
+  financialYear    FinancialYear?   @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
+
+  @@index([estimateScenarioId, createdAt(sort: Desc)])
+  @@map("estimate_row")
 }
 
 model News {

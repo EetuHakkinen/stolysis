@@ -73,7 +73,33 @@
     },
     "tabs": {
       "quarterly": "Neljännesvuosi",
-      "yearly": "Vuosi"
+      "yearly": "Vuosi",
+      "quarterlyEstimates": "Kvartaaliennusteet",
+      "yearlyEstimates": "Vuosiennusteet"
+    },
+    "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario ennusteiden tekemiseksi.",
+    "noYears": "Yrityksellä ei ole kuluvaa tilikautta."
+  },
+  "Estimates": {
+    "scenario": "Skenaario",
+    "name": "Nimi",
+    "create": "Uusi skenaario",
+    "createTitle": "Uusi ennusteskenaario",
+    "rename": "Nimeä uudelleen",
+    "renameTitle": "Nimeä skenaario uudelleen",
+    "delete": "Poista",
+    "deleting": "Poistetaan…",
+    "deleteTitle": "Poistetaanko skenaario?",
+    "deleteDescription": "Skenaario {name} ja kaikki sen ennusteet poistetaan pysyvästi.",
+    "cancel": "Peruuta",
+    "save": "Tallenna",
+    "saving": "Tallennetaan…",
+    "errors": {
+      "required": "Nimi on pakollinen.",
+      "tooLong": "Nimi on liian pitkä.",
+      "nameTaken": "Yrityksellä on jo tämän niminen skenaario.",
+      "invalid": "Arvo ei ole luku.",
+      "saveFailed": "Tallennus epäonnistui."
     }
   }
 }

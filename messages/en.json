@@ -73,7 +73,33 @@
     },
     "tabs": {
       "quarterly": "Quarterly",
-      "yearly": "Yearly"
+      "yearly": "Yearly",
+      "quarterlyEstimates": "Quarterly estimates",
+      "yearlyEstimates": "Yearly estimates"
+    },
+    "noScenarios": "No estimate scenarios yet. Create a scenario to make estimates.",
+    "noYears": "The company has no current financial year."
+  },
+  "Estimates": {
+    "scenario": "Scenario",
+    "name": "Name",
+    "create": "New scenario",
+    "createTitle": "New estimate scenario",
+    "rename": "Rename",
+    "renameTitle": "Rename scenario",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "deleteTitle": "Delete scenario?",
+    "deleteDescription": "Scenario {name} and all of its estimates will be deleted permanently.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "errors": {
+      "required": "Name is required.",
+      "tooLong": "Name is too long.",
+      "nameTaken": "The company already has a scenario with this name.",
+      "invalid": "The value isn't a number.",
+      "saveFailed": "Saving failed."
     }
   }
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCompany } from "@/actions/companies";
+import { getEstimates } from "@/actions/estimates";
 import { getNewsFeed } from "@/actions/news";
 import { getCompanyResults } from "@/actions/results";
 import { NewsFeed } from "@/components/news-feed";
@@ -12,12 +13,13 @@ export default async function CompanyPage({
   params,
   searchParams,
 }: PageProps<"/dashboard/company/[ticker]">) {
-  const [{ ticker }, { page }] = await Promise.all([params, searchParams]);
+  const [{ ticker }, { page, scenario }] = await Promise.all([params, searchParams]);
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [results, feed] = await Promise.all([
+  const [results, estimates, feed] = await Promise.all([
     getCompanyResults(company.id),
+    getEstimates(company.id),
     getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
   ]);
   const path = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
@@ -28,8 +30,18 @@ export default async function CompanyPage({
         <PageBreadcrumbs items={[{ label: company.name }]} />
         <PageHeader title={company.name} />
       </div>
-      <ResultTables results={results} />
+      <ResultTables
+        companyId={company.id}
+        results={results}
+        estimates={estimates}
+        scenarioId={parseScenarioId(scenario)}
+      />
       <NewsFeed feed={feed} pageHref={(page) => `${path}?page=${page}`} />
     </main>
   );
+}
+
+function parseScenarioId(value: string | string[] | undefined): number | undefined {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : undefined;
 }

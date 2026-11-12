@@ -2,6 +2,7 @@
 
 import type { Unit } from "@/app/generated/prisma/client";
 import { requireUserId } from "@/lib/auth";
+import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 
 export type ResultSeason = {
@@ -23,14 +24,14 @@ export type ResultGroup = {
 
 export type CompanyResults = { seasons: ResultSeason[]; groups: ResultGroup[] };
 
-// A company's result fields by group with their values, and its reporting seasons that have
-// started, oldest first.
+// A company's result fields by group with their values, and the reporting seasons of its financial
+// years that have started, oldest first. Seasons without data are estimated in the result tables.
 export async function getCompanyResults(companyId: number): Promise<CompanyResults> {
   await requireUserId();
 
   const [seasons, groups] = await Promise.all([
     prisma.reportingSeason.findMany({
-      where: { financialYear: { companyId }, startTime: { lte: new Date() } },
+      where: { financialYear: { companyId, startTime: { lte: new Date() } } },
       orderBy: [{ financialYear: { startTime: "asc" } }, { startTime: "asc" }, { id: "asc" }],
       select: {
         id: true,
@@ -74,9 +75,7 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
 
 // Value of the first (latest) row per reporting season.
 function latestValues(rows: { reportingSeasonId: number; value: bigint | null }[]) {
-  const values: Record<number, bigint | null> = {};
-  for (const row of rows) {
-    if (!(row.reportingSeasonId in values)) values[row.reportingSeasonId] = row.value;
-  }
-  return values;
+  return Object.fromEntries(
+    latestRows(rows, (row) => row.reportingSeasonId).map((row) => [row.reportingSeasonId, row.value]),
+  ) as Record<number, bigint | null>;
 }

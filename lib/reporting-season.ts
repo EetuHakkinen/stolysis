@@ -1,5 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/app/generated/prisma/client";
+import { shiftedFinancialYear, shiftEnd, shiftStart } from "@/lib/financial-year";
 import { helsinkiDate, helsinkiTime } from "@/lib/helsinki-time";
 
 // Local calendar date in Finland (month is 0-based).
@@ -23,15 +24,6 @@ function startOfDay({ year, month, day }: LocalDate): Date {
 
 function endOfDay({ year, month, day }: LocalDate): Date {
   return new Date(helsinkiTime(year, month, day + 1).getTime() - 1);
-}
-
-function shiftStart(start: Date, years: number): Date {
-  const { year, month, day } = helsinkiDate(start);
-  return startOfDay({ year: year + years, month, day });
-}
-
-function shiftEnd(end: Date, years: number): Date {
-  return new Date(shiftStart(new Date(end.getTime() + 1), years).getTime() - 1);
 }
 
 // The company's reporting season covering exactly the given days. When no financial year covers
@@ -81,21 +73,7 @@ export async function findOrCreateReportingSeason(
   if (shift === undefined) return undefined;
 
   await tx.financialYear.create({
-    data: {
-      companyId,
-      name: nearest.name?.replace(/\d{4}/g, (year) => String(Number(year) + shift)) ?? null,
-      unit: nearest.unit,
-      startTime: shiftStart(nearest.startTime, shift),
-      endTime: shiftEnd(nearest.endTime, shift),
-      reportingSeasons: {
-        create: nearest.reportingSeasons.map((season) => ({
-          name: season.name,
-          estimate: false,
-          startTime: season.startTime && shiftStart(season.startTime, shift),
-          endTime: season.endTime && shiftEnd(season.endTime, shift),
-        })),
-      },
-    },
+    data: { companyId, ...shiftedFinancialYear(nearest, shift, { estimate: false }) },
   });
   return (await findSeason()) ?? undefined;
 }
