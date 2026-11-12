@@ -13,6 +13,7 @@ describe("settingsProblems", () => {
 
   it("finds duplicate names, invalid formulas, unknown fields and loops", () => {
     const problems = settingsProblems({
+      estimateScenarios: ["Perusskenaario", "Perusskenaario"],
       resultFieldGroups: [
         {
           name: "Tuloslaskelma",
@@ -27,6 +28,7 @@ describe("settingsProblems", () => {
       ],
     });
     assert.deepEqual(problems, [
+      "Duplicate scenario name: Perusskenaario",
       "Duplicate field name: liikevaihto ",
       "Unknown field in actual formula of C: Puuttuva",
       "Invalid estimate formula of B: missingOperand at 2",

@@ -1,5 +1,6 @@
-// Settings every new company starts with, defined in default-company-settings.json: its result field
-// groups and fields in display order, with the formulas of calculated fields. Formulas refer to
+// Settings every new company starts with, defined in default-company-settings.json: its estimate
+// scenarios, and its result field groups and fields in display order, with the formulas of
+// calculated fields. Formulas refer to
 // fields by name, since the ids only exist once the company is created.
 
 import { z } from "zod";
@@ -11,6 +12,7 @@ import { checkFormula, formulaSchemaOf, hasCycle, type Formula } from "./formula
 const nameFormulaSchema = formulaSchemaOf(z.string().min(1));
 
 const settingsSchema = z.strictObject({
+  estimateScenarios: z.array(z.string().trim().min(1).max(100)),
   resultFieldGroups: z.array(
     z.strictObject({
       name: z.string().min(1),
@@ -43,6 +45,13 @@ export function settingsProblems(settings: CompanySettings): string[] {
   const fields = settings.resultFieldGroups.flatMap((group) => group.fields);
   const problems: string[] = [];
 
+  // Scenario names are unique within the company, as in the database.
+  const scenarioNames = new Set<string>();
+  for (const name of settings.estimateScenarios) {
+    if (scenarioNames.has(name)) problems.push(`Duplicate scenario name: ${name}`);
+    scenarioNames.add(name);
+  }
+
   const seen = new Set<string>();
   for (const { name } of fields) {
     const key = name.trim().toLowerCase();
@@ -68,16 +77,17 @@ export function settingsProblems(settings: CompanySettings): string[] {
   return problems;
 }
 
-// Creates the company with the settings' result field groups, fields and formulas. Call inside a
-// transaction, so a company is never left without its formulas.
+// Creates the company with the settings' estimate scenarios, result field groups, fields and
+// formulas. Call inside a transaction, so a company is never left without its formulas.
 export async function createCompanyWithSettings(
   tx: Prisma.TransactionClient,
-  data: Omit<Prisma.CompanyCreateInput, "resultFieldGroups">,
+  data: Omit<Prisma.CompanyCreateInput, "resultFieldGroups" | "estimateScenarios">,
   settings: CompanySettings = defaultCompanySettings,
 ): Promise<{ id: number }> {
   const company = await tx.company.create({
     data: {
       ...data,
+      estimateScenarios: { create: settings.estimateScenarios.map((name) => ({ name })) },
       resultFieldGroups: {
         create: settings.resultFieldGroups.map((group, groupIndex) => ({
           name: group.name,

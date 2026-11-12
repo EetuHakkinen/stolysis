@@ -1,4 +1,5 @@
 {
+  "estimateScenarios": ["Perusskenaario"],
   "resultFieldGroups": [
     {
       "name": "Tuloslaskelma",
