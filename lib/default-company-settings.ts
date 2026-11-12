@@ -7,7 +7,8 @@ import { z } from "zod";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { EstimateType, FieldDefinitionKind, ResultFieldType, YearlyValue } from "../app/generated/prisma/enums.ts";
 import settingsJson from "./default-company-settings.json" with { type: "json" };
-import { checkFormula, formulaSchemaOf, hasCycle, type Formula } from "./formulas.ts";
+import { checkFormula, formulaSchema, formulaSchemaOf, hasCycle, type Formula } from "./formulas.ts";
+import { mergeDefaults } from "./ordering.ts";
 
 const nameFormulaSchema = formulaSchemaOf(z.string().min(1));
 
@@ -84,50 +85,139 @@ export async function createCompanyWithSettings(
   data: Omit<Prisma.CompanyCreateInput, "resultFieldGroups" | "estimateScenarios">,
   settings: CompanySettings = defaultCompanySettings,
 ): Promise<{ id: number }> {
-  const company = await tx.company.create({
-    data: {
-      ...data,
-      estimateScenarios: { create: settings.estimateScenarios.map((name) => ({ name })) },
-      resultFieldGroups: {
-        create: settings.resultFieldGroups.map((group, groupIndex) => ({
-          name: group.name,
-          order: groupIndex,
-          resultFields: {
-            create: group.fields.map(({ name, type, yearlyValue, estimateType }, fieldIndex) => ({
-              name,
-              type,
-              yearlyValue,
-              estimateType,
-              order: fieldIndex,
-            })),
-          },
-        })),
+  const company = await tx.company.create({ data, select: { id: true } });
+  await applySettings(tx, company.id, settings);
+  return company;
+}
+
+// How many of each part of the settings were added to a company. Skipped formulas would have
+// formed a loop with the company's other formulas.
+export type AppliedSettings = {
+  scenarios: number;
+  groups: number;
+  fields: number;
+  formulas: number;
+  skippedFormulas: number;
+};
+
+const nameKey = (name: string | null) => (name ?? "").trim().toLowerCase();
+
+// Adds the parts of the settings the company doesn't have yet, matched by name ignoring case:
+// estimate scenarios, result field groups, result fields, and formulas of fields that have no
+// formula of that kind. Existing ones are otherwise left as they are, also fields that are in
+// another group than in the settings. Added groups and fields go right after the closest preceding
+// ones of the settings that the company has. An added field doesn't get a special type another
+// field already has. Call inside a transaction.
+export async function applySettings(
+  tx: Prisma.TransactionClient,
+  companyId: number,
+  settings: CompanySettings = defaultCompanySettings,
+): Promise<AppliedSettings> {
+  const applied: AppliedSettings = { scenarios: 0, groups: 0, fields: 0, formulas: 0, skippedFormulas: 0 };
+
+  const scenarios = await tx.estimateScenario.findMany({ where: { companyId }, select: { name: true } });
+  const scenarioNames = new Set(scenarios.map((scenario) => nameKey(scenario.name)));
+  const newScenarios = settings.estimateScenarios.filter((name) => !scenarioNames.has(nameKey(name)));
+  if (newScenarios.length > 0) {
+    await tx.estimateScenario.createMany({ data: newScenarios.map((name) => ({ companyId, name })) });
+    applied.scenarios = newScenarios.length;
+  }
+
+  const groups = await tx.resultFieldGroup.findMany({
+    where: { companyId },
+    orderBy: [{ order: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      order: true,
+      resultFields: {
+        orderBy: [{ order: "asc" }, { id: "asc" }],
+        select: { id: true, name: true, order: true, type: true, fieldDefinitions: { select: { kind: true, definition: true } } },
       },
     },
-    select: { id: true, resultFieldGroups: { select: { resultFields: { select: { id: true, name: true } } } } },
   });
+  type ExistingField = (typeof groups)[number]["resultFields"][number];
+  const existingFields = groups.flatMap((group) => group.resultFields);
+  // Field names are unique within the company, as in the settings page.
+  const fieldIds = new Map(existingFields.map((field) => [nameKey(field.name), field.id]));
+  const takenTypes = new Set(existingFields.flatMap((field) => (field.type ? [field.type] : [])));
 
-  const ids = new Map(
-    company.resultFieldGroups.flatMap((group) => group.resultFields.map((field) => [field.name, field.id])),
+  const targets = new Map<CompanySettings["resultFieldGroups"][number], { id: number; fields: ExistingField[] }>();
+  const mergedGroups = mergeDefaults(groups, settings.resultFieldGroups, (group) =>
+    groups.find((existing) => nameKey(existing.name) === nameKey(group.name)),
   );
+  for (const [order, entry] of mergedGroups.entries()) {
+    if ("existing" in entry) {
+      if (entry.existing.order !== order)
+        await tx.resultFieldGroup.update({ where: { id: entry.existing.id }, data: { order } });
+      continue;
+    }
+    const { id } = await tx.resultFieldGroup.create({
+      data: { companyId, name: entry.added.name, order },
+      select: { id: true },
+    });
+    targets.set(entry.added, { id, fields: [] });
+    applied.groups++;
+  }
+  for (const group of settings.resultFieldGroups) {
+    if (targets.has(group)) continue;
+    const existing = groups.find((candidate) => nameKey(candidate.name) === nameKey(group.name));
+    if (existing) targets.set(group, { id: existing.id, fields: existing.resultFields });
+  }
+
+  for (const group of settings.resultFieldGroups) {
+    const target = targets.get(group);
+    if (!target) throw new Error(`Group missing after applying settings: ${group.name}`);
+    const inGroup = (name: string) => target.fields.find((field) => nameKey(field.name) === nameKey(name));
+    // Fields the company has in another group stay there.
+    const fields = group.fields.filter((field) => inGroup(field.name) || !fieldIds.has(nameKey(field.name)));
+    const merged = mergeDefaults(target.fields, fields, (field) => inGroup(field.name));
+    for (const [order, entry] of merged.entries()) {
+      if ("existing" in entry) {
+        if (entry.existing.order !== order) await tx.resultField.update({ where: { id: entry.existing.id }, data: { order } });
+        continue;
+      }
+      const { name, type, yearlyValue, estimateType } = entry.added;
+      const freeType = type && !takenTypes.has(type) ? type : undefined;
+      if (freeType) takenTypes.add(freeType);
+      const { id } = await tx.resultField.create({
+        data: { resultFieldGroupId: target.id, name, type: freeType, yearlyValue, estimateType, order },
+        select: { id: true },
+      });
+      fieldIds.set(nameKey(name), id);
+      applied.fields++;
+    }
+  }
+
   const fieldId = (name: string) => {
-    const id = ids.get(name);
-    if (id == null) throw new Error(`Unknown field in default settings: ${name}`);
+    const id = fieldIds.get(nameKey(name));
+    if (id == null) throw new Error(`Unknown field in settings: ${name}`);
     return id;
   };
-
-  const definitions = settings.resultFieldGroups
-    .flatMap((group) => group.fields)
-    .flatMap((field) =>
-      Object.values(FieldDefinitionKind).flatMap((kind) => {
-        const formula = field[DEFINITION_KEYS[kind]];
-        if (!formula) return [];
-        const definition: Formula = formula.map((token) =>
-          "field" in token ? { field: fieldId(token.field), period: token.period } : token,
-        );
-        return [{ resultFieldId: fieldId(field.name), kind, definition }];
-      }),
+  for (const kind of Object.values(FieldDefinitionKind)) {
+    const formulas = new Map(
+      existingFields.flatMap((field) =>
+        field.fieldDefinitions
+          .filter((definition) => definition.kind === kind)
+          .map((definition) => [field.id, formulaSchema.parse(definition.definition)] as const),
+      ),
     );
-  if (definitions.length > 0) await tx.fieldDefinition.createMany({ data: definitions });
-  return { id: company.id };
+    for (const field of settings.resultFieldGroups.flatMap((group) => group.fields)) {
+      const formula = field[DEFINITION_KEYS[kind]];
+      const id = fieldId(field.name);
+      if (!formula || formulas.has(id)) continue;
+      const definition: Formula = formula.map((token) =>
+        "field" in token ? { field: fieldId(token.field), period: token.period } : token,
+      );
+      formulas.set(id, definition);
+      if (hasCycle(formulas)) {
+        formulas.delete(id);
+        applied.skippedFormulas++;
+        continue;
+      }
+      await tx.fieldDefinition.create({ data: { resultFieldId: id, kind, definition } });
+      applied.formulas++;
+    }
+  }
+  return applied;
 }

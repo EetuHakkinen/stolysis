@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
-import { createCompanyWithSettings } from "@/lib/default-company-settings";
+import { applySettings, createCompanyWithSettings, type AppliedSettings } from "@/lib/default-company-settings";
 import { calendarFinancialYear } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
@@ -88,4 +88,14 @@ export async function updateCompany(
   }
   refresh();
   return {};
+}
+
+// Adds the parts of the default settings the company doesn't have yet.
+export async function applyDefaultSettings(input: { companyId: number }): Promise<AppliedSettings> {
+  await requireUserId();
+  const companyId = z.number().int().positive().parse(input.companyId);
+
+  const applied = await prisma.$transaction((tx) => applySettings(tx, companyId));
+  refresh();
+  return applied;
 }

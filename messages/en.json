@@ -144,6 +144,17 @@
     "open": "Company settings",
     "details": "Company details"
   },
+  "DefaultSettings": {
+    "title": "Default settings",
+    "description": "Adds the estimate scenarios, result field groups, result fields and formulas of the default settings that the company doesn't have yet. Existing ones are matched by name and kept as they are.",
+    "apply": "Apply default settings",
+    "applying": "Applying…",
+    "confirmTitle": "Apply default settings?",
+    "confirmDescription": "Missing scenarios, groups and fields are added in the default order. Fields that have no formula but have one in the default settings get it, so their values are calculated instead of entered values from then on.",
+    "added": "Added {scenarios, plural, one {# scenario} other {# scenarios}}, {groups, plural, one {# group} other {# groups}}, {fields, plural, one {# field} other {# fields}} and {formulas, plural, one {# formula} other {# formulas}}.",
+    "nothingAdded": "The company already has all default settings.",
+    "skippedFormulas": "{count, plural, one {# formula was} other {# formulas were}} skipped because it would have formed a loop with the company's other formulas."
+  },
   "Dialogs": {
     "name": "Name",
     "cancel": "Cancel",

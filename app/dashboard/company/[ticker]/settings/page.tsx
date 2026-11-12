@@ -4,6 +4,7 @@ import { getCompany } from "@/actions/companies";
 import { getEstimateScenarios } from "@/actions/estimates";
 import { getResultFieldGroups } from "@/actions/result-field-groups";
 import { CompanyDetailsSettings } from "@/components/company-details-settings";
+import { DefaultSettingsSettings } from "@/components/default-settings-settings";
 import { EstimateScenarioSettings } from "@/components/estimate-scenario-settings";
 import { ResultFieldGroupSettings } from "@/components/result-field-group-settings";
 import { ResultFieldSettings } from "@/components/result-field-settings";
@@ -33,6 +34,7 @@ export default async function CompanySettingsPage({
       <EstimateScenarioSettings companyId={company.id} scenarios={scenarios} />
       <ResultFieldGroupSettings companyId={company.id} groups={groups} />
       <ResultFieldSettings groups={groups} />
+      <DefaultSettingsSettings companyId={company.id} />
     </main>
   );
 }
