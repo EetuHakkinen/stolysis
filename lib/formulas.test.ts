@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { checkFormula, formatFormula, formulaSchema, hasCycle, referencedFieldIds, type Formula } from "./formulas.ts";
+import {
+  checkFormula,
+  evaluateFormula,
+  evaluationOrder,
+  formatFormula,
+  formulaSchema,
+  hasCycle,
+  referencedFieldIds,
+  type Formula,
+} from "./formulas.ts";
 
 const field = (id: number, period: "current" | "previous" = "current") => ({ field: id, period });
 const op = (operator: "+" | "-" | "*" | "/") => ({ operator });
@@ -92,6 +101,36 @@ describe("hasCycle", () => {
       ),
       false,
     );
+  });
+});
+
+describe("evaluationOrder", () => {
+  it("puts fields after the fields their formulas use in the same period", () => {
+    const formulas = new Map<number, Formula>([
+      [1, [field(2), op("+"), field(3)]],
+      [3, [field(4), op("-"), field(1, "previous")]],
+    ]);
+    assert.deepEqual(evaluationOrder([1, 2, 3, 4], formulas), [2, 4, 3, 1]);
+  });
+});
+
+describe("evaluateFormula", () => {
+  const values: Record<string, number | null> = { "1:current": 200, "1:previous": 150, "2:current": -50, "3:current": null };
+  const value = (id: number, period: string) => values[`${id}:${period}`] ?? null;
+
+  it("calculates with precedence, parentheses and negation", () => {
+    assert.equal(evaluateFormula([field(1), op("+"), field(2), op("*"), num(2)], value), 100);
+    assert.equal(evaluateFormula([open, field(1), op("+"), field(2), close, op("*"), num(2)], value), 300);
+    assert.equal(evaluateFormula([num(10), op("-"), num(4), op("-"), num(3)], value), 3);
+    assert.equal(evaluateFormula([num(12), op("/"), num(3), op("/"), num(2)], value), 2);
+    assert.equal(evaluateFormula([op("-"), field(2), op("*"), op("-"), num(2)], value), -100);
+    assert.equal(evaluateFormula([field(1), op("-"), field(1, "previous")], value), 50);
+  });
+
+  it("is empty with a missing value, a division by zero or an invalid formula", () => {
+    assert.equal(evaluateFormula([field(1), op("+"), field(3)], value), null);
+    assert.equal(evaluateFormula([field(1), op("/"), num(0)], value), null);
+    assert.equal(evaluateFormula([field(1), op("+")], value), null);
   });
 });
 

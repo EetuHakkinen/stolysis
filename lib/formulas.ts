@@ -15,34 +15,52 @@ export type FormulaParenthesis = (typeof FORMULA_PARENTHESES)[number];
 export const FORMULA_PERIODS = ["current", "previous"] as const;
 export type FormulaPeriod = (typeof FORMULA_PERIODS)[number];
 
-export type FormulaToken =
+// Fields are referred to by id, or by name where the ids don't exist yet (default settings).
+export type FormulaToken<Field = number> =
   | { operator: FormulaOperator }
   | { parenthesis: FormulaParenthesis }
   | { number: number }
-  | { field: number; period: FormulaPeriod };
+  | { field: Field; period: FormulaPeriod };
 
-export type Formula = FormulaToken[];
+export type Formula<Field = number> = FormulaToken<Field>[];
 
-export const formulaSchema = z
-  .array(
-    z.union([
-      z.strictObject({ operator: z.enum(FORMULA_OPERATORS) }),
-      z.strictObject({ parenthesis: z.enum(FORMULA_PARENTHESES) }),
-      z.strictObject({ number: z.number().finite() }),
-      z.strictObject({ field: z.number().int().positive(), period: z.enum(FORMULA_PERIODS) }),
-    ]),
-  )
-  .max(200);
+// Schema of a formula whose fields are referred to as the given schema describes.
+export function formulaSchemaOf<Field extends z.ZodType>(field: Field) {
+  return z
+    .array(
+      z.union([
+        z.strictObject({ operator: z.enum(FORMULA_OPERATORS) }),
+        z.strictObject({ parenthesis: z.enum(FORMULA_PARENTHESES) }),
+        z.strictObject({ number: z.number().finite() }),
+        z.strictObject({ field, period: z.enum(FORMULA_PERIODS) }),
+      ]),
+    )
+    .max(200);
+}
+
+export const formulaSchema = formulaSchemaOf(z.number().int().positive());
+
+// A field's formulas from its field_definition rows, by kind; null for a kind without a row.
+export function fieldFormulas(rows: { kind: "actual" | "estimate"; definition: unknown }[]): {
+  actualDefinition: Formula | null;
+  estimateDefinition: Formula | null;
+} {
+  const formula = (kind: "actual" | "estimate") => {
+    const row = rows.find((row) => row.kind === kind);
+    return row ? formulaSchema.parse(row.definition) : null;
+  };
+  return { actualDefinition: formula("actual"), estimateDefinition: formula("estimate") };
+}
 
 // Error values are translation keys under ResultFields.errors.
 export type FormulaError = "empty" | "missingOperand" | "missingOperator" | "unbalancedParentheses";
 
-const isOperand = (token: FormulaToken) => "number" in token || "field" in token;
+const isOperand = (token: FormulaToken<unknown>) => "number" in token || "field" in token;
 
 // Checks that the tokens form a valid expression: operators between operands, balanced and
 // non-empty parentheses. A minus where an operand is expected negates it. On error, index is the
 // token where the formula goes wrong, or the token count if it ends too early.
-export function checkFormula(formula: Formula): { error: FormulaError; index: number } | undefined {
+export function checkFormula(formula: Formula<unknown>): { error: FormulaError; index: number } | undefined {
   if (formula.length === 0) return { error: "empty", index: 0 };
 
   let expectOperand = true;
@@ -65,7 +83,7 @@ export function checkFormula(formula: Formula): { error: FormulaError; index: nu
   return undefined;
 }
 
-export function referencedFieldIds(formula: Formula): number[] {
+export function referencedFieldIds<Field>(formula: Formula<Field>): Field[] {
   const ids = formula.flatMap((token) => ("field" in token ? [token.field] : []));
   return [...new Set(ids)];
 }
@@ -73,11 +91,11 @@ export function referencedFieldIds(formula: Formula): number[] {
 // Whether the formulas (by field id) depend on each other in a loop through current period values,
 // e.g. A = B + 1 and B = A * 2. A previous period value doesn't depend on the current period, so a
 // field may use its own previous value.
-export function hasCycle(formulas: Map<number, Formula>): boolean {
-  const done = new Set<number>();
-  const visiting = new Set<number>();
+export function hasCycle<Field>(formulas: Map<Field, Formula<Field>>): boolean {
+  const done = new Set<Field>();
+  const visiting = new Set<Field>();
 
-  function visit(fieldId: number): boolean {
+  function visit(fieldId: Field): boolean {
     if (done.has(fieldId)) return false;
     if (visiting.has(fieldId)) return true;
     visiting.add(fieldId);
@@ -90,6 +108,84 @@ export function hasCycle(formulas: Map<number, Formula>): boolean {
   }
 
   return [...formulas.keys()].some(visit);
+}
+
+// Fields in an order where each field comes after the fields its formula uses in the same period,
+// so they can be calculated one by one. Fields in a loop, which saving prevents, come last.
+export function evaluationOrder(fieldIds: number[], formulas: Map<number, Formula>): number[] {
+  const order: number[] = [];
+  const done = new Set<number>();
+  const visiting = new Set<number>();
+
+  function visit(fieldId: number) {
+    if (done.has(fieldId) || visiting.has(fieldId)) return;
+    visiting.add(fieldId);
+    for (const token of formulas.get(fieldId) ?? []) {
+      if ("field" in token && token.period === "current") visit(token.field);
+    }
+    visiting.delete(fieldId);
+    done.add(fieldId);
+    order.push(fieldId);
+  }
+
+  fieldIds.forEach(visit);
+  return order;
+}
+
+// Value of the formula with the given values of its fields, or null if the formula is invalid, any
+// of the values is missing or a division is by zero. Multiplication and division go before addition
+// and subtraction, and operators of the same level from left to right.
+export function evaluateFormula(
+  formula: Formula,
+  value: (fieldId: number, period: FormulaPeriod) => number | null,
+): number | null {
+  if (checkFormula(formula)) return null;
+  let index = 0;
+  let missing = false;
+
+  const isOperator = (operators: FormulaOperator[]) => {
+    const token = formula[index];
+    return token != null && "operator" in token && operators.includes(token.operator);
+  };
+
+  // A valid formula never runs out of tokens here.
+  function operand(): number {
+    const token = formula[index++];
+    if ("operator" in token) return -operand();
+    if ("parenthesis" in token) {
+      const result = sum();
+      index++;
+      return result;
+    }
+    if ("number" in token) return token.number;
+    const fieldValue = value(token.field, token.period);
+    if (fieldValue == null) missing = true;
+    return fieldValue ?? 0;
+  }
+
+  function product(): number {
+    let result = operand();
+    while (isOperator(["*", "/"])) {
+      const { operator } = formula[index++] as { operator: FormulaOperator };
+      const right = operand();
+      if (operator === "/" && right === 0) missing = true;
+      result = operator === "*" ? result * right : result / right;
+    }
+    return result;
+  }
+
+  function sum(): number {
+    let result = product();
+    while (isOperator(["+", "-"])) {
+      const { operator } = formula[index++] as { operator: FormulaOperator };
+      const right = product();
+      result = operator === "+" ? result + right : result - right;
+    }
+    return result;
+  }
+
+  const result = sum();
+  return missing || !Number.isFinite(result) ? null : result;
 }
 
 const OPERATOR_SYMBOLS: Record<FormulaOperator, string> = { "+": "+", "-": "−", "*": "×", "/": "÷" };

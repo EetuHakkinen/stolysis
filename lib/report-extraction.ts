@@ -137,7 +137,8 @@ export type ExtractResultsResult =
 // them for the report's latest reporting season (a quarter, half-year or financial year, as long as
 // the company's seasons) and the same season a year earlier, creating the earlier financial year
 // when missing. Report season values are added unless the season is confirmed; reference season
-// values only where the season has no value yet (also unless confirmed).
+// values only where the season has no value yet (also unless confirmed). Fields calculated from
+// actual values are skipped.
 export async function extractResultsFromNews(newsId: number): Promise<ExtractResultsResult> {
   const news = await prisma.news.findUnique({
     where: { id: newsId },
@@ -150,9 +151,10 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
   if (!news) return { saved: false, reason: "notFound" };
   if (!isReportCategory(news.category.name)) return { saved: false, reason: "notReport" };
 
+  // Fields calculated from actual values can't have results.
   const fields = (
     await prisma.resultField.findMany({
-      where: { resultFieldGroup: { companyId: news.companyId } },
+      where: { resultFieldGroup: { companyId: news.companyId }, fieldDefinitions: { none: { kind: "actual" } } },
       orderBy: [{ resultFieldGroup: { order: "asc" } }, { order: "asc" }, { id: "asc" }],
       select: { id: true, name: true, resultFieldGroup: { select: { name: true } } },
     })
@@ -214,10 +216,21 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
       const referenceSeason = await findOrCreateReportingSeason(tx, news.companyId, referencePeriod);
       if (!season || !referenceSeason) return { saved: false, reason: "noSeason" } as const;
 
+      // A field may have become calculated while the report was being read.
+      const calculated = new Set(
+        (
+          await tx.fieldDefinition.findMany({
+            where: { kind: "actual", resultFieldId: { in: fields.map((field) => field.id) } },
+            select: { resultFieldId: true },
+          })
+        ).map((definition) => definition.resultFieldId),
+      );
+      const savedFields = fields.filter((field) => !calculated.has(field.id));
+
       // result_row is insert-only, so new values are new rows.
       const rows: { reportingSeasonId: number; resultFieldId: number; value: bigint }[] = [];
       if (!season.confirmed) {
-        for (const field of fields) {
+        for (const field of savedFields) {
           const value = valueOf(field.id, "current");
           if (value !== undefined) rows.push({ reportingSeasonId: season.id, resultFieldId: field.id, value });
         }
@@ -231,7 +244,7 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
             })
           ).map((row) => row.resultFieldId),
         );
-        for (const field of fields) {
+        for (const field of savedFields) {
           const value = valueOf(field.id, "reference");
           if (value !== undefined && !filled.has(field.id)) {
             rows.push({ reportingSeasonId: referenceSeason.id, resultFieldId: field.id, value });

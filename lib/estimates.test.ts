@@ -16,6 +16,7 @@ function year(id: number, fromSeasons: boolean): EstimateYear {
   };
 }
 const years = [year(2025, true), year(2026, true), year(2027, true), year(2028, false)];
+const entered = { actualDefinition: null, estimateDefinition: null };
 
 const actuals = {
   // Revenue: 100 per quarter in 2025, 110 in 2026 Q1.
@@ -36,9 +37,9 @@ describe("predictCompany", () => {
   const prediction = predictCompany({
     years,
     fields: [
-      { id: 1, estimateType: "relative", yearlyValue: "sum" },
-      { id: 2, estimateType: "relative", yearlyValue: "sum" },
-      { id: 3, estimateType: "absolute", yearlyValue: "last_period" },
+      { id: 1, estimateType: "relative", yearlyValue: "sum", ...entered },
+      { id: 2, estimateType: "relative", yearlyValue: "sum", ...entered },
+      { id: 3, estimateType: "absolute", yearlyValue: "last_period", ...entered },
     ],
     actuals,
     estimates: [
@@ -106,6 +107,96 @@ describe("predictCompany", () => {
     assert.equal(costs[20263].value, null);
     // A year with an empty quarter is empty.
     assert.equal(prediction.yearly[2][2026].value, null);
+  });
+});
+
+describe("predictCompany with calculated fields", () => {
+  const field = (id: number, period: "current" | "previous" = "current") => ({ field: id, period });
+  const op = (operator: "+" | "-" | "*" | "/") => ({ operator });
+  const ebit = [field(1), op("+"), field(2)];
+  const margin = [field(3), op("/"), field(1), op("*"), { number: 100 }];
+  const growth = [field(1), op("-"), field(1, "previous")];
+
+  const quarters = (id: number, value: number) =>
+    Object.fromEntries([1, 2, 3, 4].map((quarter) => [id * 10 + quarter, BigInt(value)]));
+  // 2025 reported in full, 2026 Q1 reported, the rest estimated +10 % from a year earlier.
+  const prediction = predictCompany({
+    years,
+    fields: [
+      // Revenue and costs are estimated.
+      { id: 1, estimateType: "relative", yearlyValue: "sum", ...entered },
+      { id: 2, estimateType: "relative", yearlyValue: "sum", ...entered },
+      // EBIT is reported, but calculated for estimates.
+      { id: 3, estimateType: "relative", yearlyValue: "sum", actualDefinition: null, estimateDefinition: ebit },
+      // Margin, revenue growth and a division by zero are always calculated. The margin comes first to
+      // check that formulas are calculated after the fields they use.
+      { id: 4, estimateType: "relative", yearlyValue: "sum", actualDefinition: margin, estimateDefinition: margin },
+      { id: 5, estimateType: "relative", yearlyValue: "sum", actualDefinition: growth, estimateDefinition: growth },
+      {
+        id: 6,
+        estimateType: "relative",
+        yearlyValue: "sum",
+        actualDefinition: [field(1), op("/"), { parenthesis: "(" }, field(2), op("-"), field(2), { parenthesis: ")" }],
+        estimateDefinition: null,
+      },
+    ],
+    actuals: {
+      1: { ...quarters(2025, 100), 20261: BigInt(110) },
+      2: { ...quarters(2025, -60), 20261: BigInt(-66) },
+      3: { ...quarters(2025, 40), 20261: BigInt(44) },
+    },
+    estimates: [1, 2].flatMap((resultFieldId) =>
+      [20262, 20263, 20264, 20271, 20272, 20273, 20274].map((reportingSeasonId) => ({
+        resultFieldId,
+        reportingSeasonId,
+        financialYearId: null,
+        value: 10,
+      })),
+    ),
+  });
+  const { quarterly, yearly } = prediction;
+  const near = (actual: number | null, expected: number) => assert.ok(Math.abs(actual! - expected) < 1e-9);
+
+  it("uses reported values of fields calculated only for estimates", () => {
+    assert.deepEqual(quarterly[3][20251], { value: 40, source: "actual", change: null });
+    assert.equal(quarterly[3][20261].value, 44);
+    assert.deepEqual(yearly[3][2025], { value: 160, source: "actual", change: null });
+  });
+
+  it("calculates estimates from the fields' predicted values", () => {
+    near(quarterly[3][20262].value, 110 - 66);
+    assert.equal(quarterly[3][20262].source, "estimate");
+    near(quarterly[3][20271].value, 121 - 72.6);
+    near(quarterly[3][20262].change, 10);
+  });
+
+  it("calculates actual values from the fields' actual values", () => {
+    near(quarterly[4][20251].value, 40);
+    assert.equal(quarterly[4][20251].source, "actual");
+    near(yearly[4][2025].value, 40);
+    assert.equal(yearly[4][2025].source, "actual");
+  });
+
+  it("calculates years from the fields' yearly values", () => {
+    near(yearly[3][2026].value, 440 - 264);
+    assert.equal(yearly[3][2026].source, "estimate");
+    // A margin isn't the sum of the quarters' margins.
+    near(yearly[4][2026].value, 40);
+  });
+
+  it("uses the same period a year earlier for previous values", () => {
+    // The first year has nothing to compare with.
+    assert.equal(quarterly[5][20251].value, null);
+    near(quarterly[5][20261].value, 10);
+    assert.equal(quarterly[5][20261].source, "actual");
+    near(yearly[5][2026].value, 40);
+    assert.equal(yearly[5][2026].source, "estimate");
+  });
+
+  it("leaves the value empty when a field is missing or a division is by zero", () => {
+    assert.equal(quarterly[6][20251].value, null);
+    // Costs have no estimate for 2028, which is estimated as a whole.
+    assert.equal(yearly[3][2028].value, null);
   });
 });
 

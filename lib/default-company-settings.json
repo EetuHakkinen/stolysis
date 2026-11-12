@@ -1,0 +1,66 @@
+{
+  "resultFieldGroups": [
+    {
+      "name": "Tuloslaskelma",
+      "fields": [
+        { "name": "Liikevaihto" },
+        { "name": "Liiketoiminnan muut tuotot" },
+        { "name": "Materiaalit ja palvelut" },
+        { "name": "Henkilöstökulut" },
+        { "name": "Liiketoiminnan muut kulut" },
+        { "name": "Poistot" },
+        {
+          "name": "Liikevoitto",
+          "estimateDefinition": [
+            { "field": "Liikevaihto", "period": "current" },
+            { "operator": "+" },
+            { "field": "Liiketoiminnan muut tuotot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Materiaalit ja palvelut", "period": "current" },
+            { "operator": "+" },
+            { "field": "Henkilöstökulut", "period": "current" },
+            { "operator": "+" },
+            { "field": "Liiketoiminnan muut kulut", "period": "current" },
+            { "operator": "+" },
+            { "field": "Poistot", "period": "current" }
+          ]
+        },
+        { "name": "Rahoitustuotot" },
+        { "name": "Rahoituskulut" },
+        { "name": "Tuloverot" },
+        {
+          "name": "Kauden voitto",
+          "estimateDefinition": [
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "+" },
+            { "field": "Rahoitustuotot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Rahoituskulut", "period": "current" },
+            { "operator": "+" },
+            { "field": "Tuloverot", "period": "current" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tase",
+      "fields": [
+        {
+          "name": "Nettovelka",
+          "type": "net_debt",
+          "yearlyValue": "last_period"
+        }
+      ]
+    },
+    {
+      "name": "Osake",
+      "fields": [
+        {
+          "name": "Osakemäärä",
+          "type": "share_count",
+          "yearlyValue": "last_period"
+        }
+      ]
+    }
+  ]
+}

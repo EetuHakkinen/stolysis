@@ -11,6 +11,7 @@ import {
   type EstimateYear,
 } from "@/lib/estimates";
 import { ensureFinancialYears } from "@/lib/financial-year";
+import { fieldFormulas } from "@/lib/formulas";
 import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
@@ -47,10 +48,15 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
     years = await estimateYears(companyId);
   }
 
-  const [fields, rows] = await Promise.all([
+  const [fieldRows, rows] = await Promise.all([
     prisma.resultField.findMany({
       where: { resultFieldGroup: { companyId } },
-      select: { id: true, estimateType: true, yearlyValue: true },
+      select: {
+        id: true,
+        estimateType: true,
+        yearlyValue: true,
+        fieldDefinitions: { select: { kind: true, definition: true } },
+      },
     }),
     prisma.estimateRow.findMany({
       where: { estimateScenario: { companyId } },
@@ -67,7 +73,16 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
     }),
   ]);
 
-  const fieldTypes = new Map(fields.map((field) => [field.id, field.estimateType]));
+  const fields: EstimateField[] = fieldRows.map(({ fieldDefinitions, ...field }) => ({
+    ...field,
+    ...fieldFormulas(fieldDefinitions),
+  }));
+
+  // Fields calculated from estimates have no estimates of their own; rows saved before the field
+  // became calculated are ignored.
+  const fieldTypes = new Map(
+    fields.filter((field) => !field.estimateDefinition).map((field) => [field.id, field.estimateType]),
+  );
   const current = latestRows(
     rows.filter((row) => row.type === fieldTypes.get(row.resultFieldId)),
     (row) =>
@@ -245,7 +260,12 @@ export async function saveEstimate(input: {
   const { companyId } = scenario;
   const [field, periods] = await Promise.all([
     prisma.resultField.findFirst({
-      where: { id: resultFieldId, resultFieldGroup: { companyId } },
+      // Fields calculated from estimates have no estimates of their own.
+      where: {
+        id: resultFieldId,
+        resultFieldGroup: { companyId },
+        fieldDefinitions: { none: { kind: "estimate" } },
+      },
       select: { estimateType: true },
     }),
     reportingSeasonId != null

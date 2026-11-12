@@ -4,10 +4,10 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
+import { createCompanyWithSettings } from "@/lib/default-company-settings";
 import { calendarFinancialYear } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
-import { defaultResultFieldGroups } from "@/lib/result-fields";
 
 export async function getCompanies() {
   await requireUserId();
@@ -43,14 +43,10 @@ export async function createCompany(
   }
 
   try {
-    // Nested create keeps the company, its financial year, quarters and result fields in one transaction.
-    await prisma.company.create({
-      data: {
-        ...parsed.data,
-        financialYears: { create: calendarFinancialYear() },
-        resultFieldGroups: { create: defaultResultFieldGroups() },
-      },
-    });
+    // The company, its financial year, quarters, result fields and formulas in one transaction.
+    await prisma.$transaction((tx) =>
+      createCompanyWithSettings(tx, { ...parsed.data, financialYears: { create: calendarFinancialYear() } }),
+    );
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { errors: { ticker: ["tickerTaken"] } };

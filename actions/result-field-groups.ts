@@ -2,9 +2,9 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
-import type { EstimateType, FieldDefinitionKind, ResultFieldType, YearlyValue } from "@/app/generated/prisma/client";
+import type { EstimateType, ResultFieldType, YearlyValue } from "@/app/generated/prisma/client";
 import { requireUserId } from "@/lib/auth";
-import { formulaSchema, referencedFieldIds, type Formula } from "@/lib/formulas";
+import { fieldFormulas, referencedFieldIds, type Formula } from "@/lib/formulas";
 import { isReordering } from "@/lib/ordering";
 import { prisma } from "@/lib/prisma";
 
@@ -52,19 +52,12 @@ export async function getResultFieldGroups(companyId: number): Promise<ResultFie
   const withDefinitions = groups.map((group) => ({
     id: group.id,
     name: group.name ?? "",
-    fields: group.resultFields.map(({ fieldDefinitions, _count, ...field }) => {
-      const definition = (kind: FieldDefinitionKind) => {
-        const row = fieldDefinitions.find((row) => row.kind === kind);
-        return row ? formulaSchema.parse(row.definition) : null;
-      };
-      return {
-        ...field,
-        name: field.name ?? "",
-        actualDefinition: definition("actual"),
-        estimateDefinition: definition("estimate"),
-        hasResults: _count.resultRows > 0,
-      };
-    }),
+    fields: group.resultFields.map(({ fieldDefinitions, _count, ...field }) => ({
+      ...field,
+      name: field.name ?? "",
+      ...fieldFormulas(fieldDefinitions),
+      hasResults: _count.resultRows > 0,
+    })),
   }));
   // A field's own formula may use its previous value, and is deleted with the field.
   const usedInFormulas = new Set(

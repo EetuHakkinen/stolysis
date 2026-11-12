@@ -3,6 +3,7 @@
 // Values are in whole euros as numbers, since relative estimates produce fractions.
 
 import type { EstimateType, Unit, YearlyValue } from "@/app/generated/prisma/client";
+import { evaluateFormula, evaluationOrder, type Formula, type FormulaPeriod } from "./formulas.ts";
 
 export type EstimateSeason = { id: number; name: string | null };
 
@@ -18,7 +19,15 @@ export type EstimateYear = {
   fromSeasons: boolean;
 };
 
-export type EstimateField = { id: number; estimateType: EstimateType; yearlyValue: YearlyValue };
+export type EstimateField = {
+  id: number;
+  estimateType: EstimateType;
+  yearlyValue: YearlyValue;
+  // Formulas of a calculated field: actualDefinition for periods with data, estimateDefinition for
+  // the others. Null when the values are entered or estimated.
+  actualDefinition: Formula | null;
+  estimateDefinition: Formula | null;
+};
 
 // Current estimate variable of a field for one period (exactly one of the period ids is set):
 // relative is a percent change, absolute a value in whole euros. Null clears the estimate.
@@ -29,7 +38,8 @@ export type EstimateInput = {
   value: number | null;
 };
 
-// Actual values in whole euros by result field id and reporting season id.
+// Actual values in whole euros by result field id and reporting season id. Fields calculated from
+// actual values have none.
 export type ActualValues = Record<number, Record<number, bigint | null>>;
 
 export type PeriodValue = {
@@ -122,6 +132,27 @@ function summedValue(seasons: PeriodValue[], comparison: number | null): PeriodV
   return periodValue(total, source, comparison);
 }
 
+// Value of the formula with the values of its fields. The value is actual when all of them are; a
+// formula without fields takes the period's source.
+function calculatedValue(
+  formula: Formula,
+  input: (fieldId: number, period: FormulaPeriod) => PeriodValue | undefined,
+  periodSource: "actual" | "estimate",
+  comparison: number | null,
+): PeriodValue {
+  let usesFields = false;
+  let usesEstimates = false;
+  const value = evaluateFormula(formula, (fieldId, period) => {
+    const periodValue = input(fieldId, period);
+    usesFields = true;
+    if (periodValue?.source !== "actual") usesEstimates = true;
+    return periodValue?.value ?? null;
+  });
+  if (value == null) return EMPTY;
+  const source = usesFields ? (usesEstimates ? "estimate" : "actual") : periodSource;
+  return periodValue(value, source, comparison);
+}
+
 // Value of the last season, or empty if it is.
 function lastValue(seasons: PeriodValue[], comparison: number | null): PeriodValue {
   const last = seasons.at(-1);
@@ -139,6 +170,11 @@ function periodKey(fieldId: number, periodId: number) {
 // earlier (actual or predicted) by the percent. Without an estimate or a value to compare with, the
 // period is empty. A year formed from its seasons is their sum, or the last season's value for
 // last_period fields. The first year has nothing to compare with.
+//
+// Calculated fields use their formula instead: the actual one in seasons with data and in years
+// whose seasons all have data, the estimate one elsewhere. A year's formula is calculated from the
+// fields' yearly values, not summed from its seasons. Periods are calculated oldest first, and the
+// fields of a period in an order where a formula's fields come before it.
 export function predictCompany({
   years,
   fields,
@@ -160,37 +196,76 @@ export function predictCompany({
       yearlyInputs.set(periodKey(estimate.resultFieldId, estimate.financialYearId), estimate.value);
   }
 
+  const fieldIds = fields.map((field) => field.id);
+  const formulasOf = (key: "actualDefinition" | "estimateDefinition") => {
+    const formulas = new Map<number, Formula>();
+    for (const field of fields) if (field[key]) formulas.set(field.id, field[key]);
+    return { formulas, order: evaluationOrder(fieldIds, formulas) };
+  };
+  const actualFormulas = formulasOf("actualDefinition");
+  const estimateFormulas = formulasOf("estimateDefinition");
+  const fieldsById = new Map(fields.map((field) => [field.id, field]));
+
   const prediction: CompanyPrediction = { quarterly: {}, yearly: {} };
   for (const field of fields) {
-    const quarterly: Record<number, PeriodValue> = {};
-    const yearly: Record<number, PeriodValue> = {};
+    prediction.quarterly[field.id] = {};
+    prediction.yearly[field.id] = {};
+  }
+  const { quarterly, yearly } = prediction;
 
-    years.forEach((year, yearIndex) => {
-      const previousYear = years[yearIndex - 1];
+  years.forEach((year, yearIndex) => {
+    const previousYear = years[yearIndex - 1];
 
-      year.seasons.forEach((season, index) => {
-        const comparisonId = comparisonSeason(previousYear, year, index)?.id;
-        const comparison = comparisonId == null ? null : quarterly[comparisonId].value;
-        if (withData.has(season.id)) {
-          const actual = actuals[field.id]?.[season.id];
-          quarterly[season.id] = periodValue(actual == null ? null : Number(actual), "actual", comparison);
+    year.seasons.forEach((season, index) => {
+      const comparisonId = comparisonSeason(previousYear, year, index)?.id;
+      const hasData = withData.has(season.id);
+      const { formulas, order } = hasData ? actualFormulas : estimateFormulas;
+
+      for (const fieldId of order) {
+        const field = fieldsById.get(fieldId)!;
+        const comparison = comparisonId == null ? null : quarterly[fieldId][comparisonId].value;
+        const formula = formulas.get(fieldId);
+        if (formula) {
+          const periodId = (period: FormulaPeriod) => (period === "current" ? season.id : comparisonId);
+          quarterly[fieldId][season.id] = calculatedValue(
+            formula,
+            (id, period) => quarterly[id]?.[periodId(period) ?? -1],
+            hasData ? "actual" : "estimate",
+            comparison,
+          );
+        } else if (hasData) {
+          const actual = actuals[fieldId]?.[season.id];
+          quarterly[fieldId][season.id] = periodValue(actual == null ? null : Number(actual), "actual", comparison);
         } else {
-          const input = quarterlyInputs.get(periodKey(field.id, season.id));
-          quarterly[season.id] = estimatedValue(field.estimateType, input, comparison);
+          const input = quarterlyInputs.get(periodKey(fieldId, season.id));
+          quarterly[fieldId][season.id] = estimatedValue(field.estimateType, input, comparison);
         }
-      });
-
-      const comparison = previousYear ? yearly[previousYear.id].value : null;
-      const seasons = year.seasons.map((season) => quarterly[season.id]);
-      yearly[year.id] = year.fromSeasons
-        ? field.yearlyValue === "last_period"
-          ? lastValue(seasons, comparison)
-          : summedValue(seasons, comparison)
-        : estimatedValue(field.estimateType, yearlyInputs.get(periodKey(field.id, year.id)), comparison);
+      }
     });
 
-    prediction.quarterly[field.id] = quarterly;
-    prediction.yearly[field.id] = yearly;
-  }
+    const allData =
+      year.fromSeasons && year.seasons.length > 0 && year.seasons.every((season) => withData.has(season.id));
+    const { formulas, order } = allData ? actualFormulas : estimateFormulas;
+    for (const fieldId of order) {
+      const field = fieldsById.get(fieldId)!;
+      const comparison = previousYear ? yearly[fieldId][previousYear.id].value : null;
+      const formula = formulas.get(fieldId);
+      const seasons = year.seasons.map((season) => quarterly[fieldId][season.id]);
+      const periodId = (period: FormulaPeriod) => (period === "current" ? year.id : previousYear?.id);
+      yearly[fieldId][year.id] = formula
+        ? calculatedValue(
+            formula,
+            (id, period) => yearly[id]?.[periodId(period) ?? -1],
+            allData ? "actual" : "estimate",
+            comparison,
+          )
+        : year.fromSeasons
+          ? field.yearlyValue === "last_period"
+            ? lastValue(seasons, comparison)
+            : summedValue(seasons, comparison)
+          : estimatedValue(field.estimateType, yearlyInputs.get(periodKey(fieldId, year.id)), comparison);
+    }
+  });
+
   return prediction;
 }

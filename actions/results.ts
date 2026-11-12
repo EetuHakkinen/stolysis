@@ -17,7 +17,8 @@ export type ResultGroup = {
   fields: {
     id: number;
     name: string | null;
-    // Value in whole euros by reporting season id; seasons without a value are missing.
+    // Value in whole euros by reporting season id; seasons without a value are missing. Empty for
+    // fields calculated from actual values: their values are calculated with the estimates.
     values: Record<number, bigint | null>;
   }[];
 };
@@ -50,6 +51,8 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
           select: {
             id: true,
             name: true,
+            // Rows saved before the field became calculated are ignored.
+            fieldDefinitions: { where: { kind: "actual" }, select: { id: true } },
             // result_row is insert-only: newest first, so the first row per season is current.
             resultRows: {
               orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -65,9 +68,9 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
     seasons,
     groups: groups.map(({ resultFields, ...group }) => ({
       ...group,
-      fields: resultFields.map(({ resultRows, ...field }) => ({
+      fields: resultFields.map(({ resultRows, fieldDefinitions, ...field }) => ({
         ...field,
-        values: latestValues(resultRows),
+        values: fieldDefinitions.length > 0 ? {} : latestValues(resultRows),
       })),
     })),
   };

@@ -71,7 +71,8 @@ export function yearlyEstimateColumns(years: EstimateYear[], currentYearId: numb
   }));
 }
 
-export type EstimateTableField = { id: number; name: string | null; estimateType: EstimateType };
+// Fields calculated from estimates have no estimates of their own, so their cells are read-only.
+export type EstimateTableField = { id: number; name: string | null; estimateType: EstimateType; calculated: boolean };
 
 // One result field group's estimates, with result fields as rows and periods as columns. Editable
 // cells hold the estimate variable and save it when they lose focus; the predicted value is shown
@@ -100,7 +101,7 @@ export function EstimateTable({
       fields={fields}
       columns={columns}
       cell={(field, column) =>
-        column.editable ? (
+        column.editable && !field.calculated ? (
           <EstimateCell
             type={field.estimateType}
             unit={column.unit}

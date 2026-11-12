@@ -113,13 +113,14 @@ export function ResultTabs({
     return predictCompany({ years, fields, actuals, estimates: scenarioEstimates });
   }, [inputs, years, fields, actuals]);
 
-  const estimateTypes = new Map(fields.map((field) => [field.id, field.estimateType]));
+  const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const tableGroups = groups.map((group) => ({
     ...group,
     fields: group.fields.map((field) => ({
       id: field.id,
       name: field.name,
-      estimateType: estimateTypes.get(field.id) ?? "relative",
+      estimateType: fieldsById.get(field.id)?.estimateType ?? "relative",
+      calculated: fieldsById.get(field.id)?.estimateDefinition != null,
     })),
   }));
 
