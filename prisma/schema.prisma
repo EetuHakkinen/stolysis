@@ -114,7 +114,6 @@ model ResultField {
   resultFieldGroupId Int              @map("result_field_group")
   order              Int?
   name               String?
-  fieldDefinitionId  Int?             @map("field_definition")
   // Null for ordinary fields.
   type               ResultFieldType?
   // How the field is estimated, in every scenario and period.
@@ -124,7 +123,7 @@ model ResultField {
   updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at")
 
   resultFieldGroup   ResultFieldGroup    @relation(fields: [resultFieldGroupId], references: [id], onDelete: Cascade)
-  fieldDefinition    FieldDefinition?    @relation(fields: [fieldDefinitionId], references: [id], onDelete: SetNull)
+  fieldDefinitions   FieldDefinition[]
   resultRows         ResultRow[]
   estimateRows       EstimateRow[]
   valuationMultiples ValuationMultiple[]
@@ -132,15 +131,29 @@ model ResultField {
   @@map("result_field")
 }
 
-// Definition for calculated fields.
+// Which values a calculated field's formula produces.
+enum FieldDefinitionKind {
+  actual
+  estimate
+
+  @@map("field_definition_kind")
+}
+
+// Formula of a calculated field as a list of tokens (see lib/formulas.ts). A field with an actual
+// definition is always calculated from other fields' actual values, and its result rows are
+// ignored. A field with an estimate definition is calculated from other fields' predicted values,
+// and its estimate rows are ignored.
 model FieldDefinition {
-  id         Int      @id @default(autoincrement())
-  definition Json
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  id            Int                 @id @default(autoincrement())
+  resultFieldId Int                 @map("result_field")
+  kind          FieldDefinitionKind
+  definition    Json
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at")
 
-  resultFields ResultField[]
+  resultField ResultField @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
 
+  @@unique([resultFieldId, kind])
   @@map("field_definition")
 }
 

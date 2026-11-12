@@ -12,6 +12,7 @@ import {
   updateResultField,
 } from "@/actions/result-fields";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { useFormatFormula } from "@/components/formula-editor";
 import { ResultFieldDialog } from "@/components/result-field-dialog";
 import { SortableTableBody, SortableTableRow } from "@/components/sortable-table";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,8 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 // Company settings section with a table of result fields for each result field group, in display
 // order. Fields are created, edited (also moved to another group) and deleted with the buttons, and
-// reordered within their group by dragging. Only fields without results have a delete button.
+// reordered within their group by dragging. Only fields without results that no other field's
+// formula uses have a delete button. Calculated fields have badges with their formulas as tooltips.
 export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettingsData[] }) {
   const t = useTranslations("ResultFields");
 
@@ -48,7 +50,7 @@ function GroupFields({
   const t = useTranslations("ResultFields");
   const [fields, setFields] = useOptimistic(group.fields);
   const [, startTransition] = useTransition();
-  const groupOptions = groups.map(({ id, name }) => ({ id, name }));
+  const formatFormula = useFormatFormula(groups);
 
   function move(from: number, to: number) {
     const reordered = arrayMove(fields, from, to);
@@ -64,13 +66,15 @@ function GroupFields({
         <h3 className="font-semibold">{group.name}</h3>
         <ResultFieldDialog
           title={t("createTitle")}
-          groups={groupOptions}
+          groups={groups}
           initialValues={{
             groupId: group.id,
             name: "",
             yearlyValue: "sum",
             estimateType: "relative",
             type: null,
+            actualDefinition: null,
+            estimateDefinition: null,
           }}
           save={async (values) => (await createResultField(values)).errors}
           trigger={
@@ -96,6 +100,16 @@ function GroupFields({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{field.name}</span>
                     {field.type && <Badge variant="secondary">{t(`types.${field.type}`)}</Badge>}
+                    {field.actualDefinition && (
+                      <Badge variant="outline" title={formatFormula(field.actualDefinition)}>
+                        {t("calculatedActual")}
+                      </Badge>
+                    )}
+                    {field.estimateDefinition && (
+                      <Badge variant="outline" title={formatFormula(field.estimateDefinition)}>
+                        {t("calculatedEstimate")}
+                      </Badge>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{t(`yearlyValues.${field.yearlyValue}`)}</TableCell>
@@ -104,13 +118,16 @@ function GroupFields({
                   <div className="flex justify-end gap-1">
                     <ResultFieldDialog
                       title={t("editTitle")}
-                      groups={groupOptions}
+                      groups={groups}
+                      fieldId={field.id}
                       initialValues={{
                         groupId: group.id,
                         name: field.name,
                         yearlyValue: field.yearlyValue,
                         estimateType: field.estimateType,
                         type: field.type,
+                        actualDefinition: field.actualDefinition,
+                        estimateDefinition: field.estimateDefinition,
                       }}
                       save={async (values) => (await updateResultField({ fieldId: field.id, ...values })).errors}
                       trigger={
@@ -119,7 +136,7 @@ function GroupFields({
                         </Button>
                       }
                     />
-                    {!field.hasResults && (
+                    {!field.hasResults && !field.usedInFormulas && (
                       <DeleteDialog
                         title={t("deleteTitle")}
                         description={t("deleteDescription", { name: field.name })}

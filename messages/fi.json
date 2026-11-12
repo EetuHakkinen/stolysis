@@ -189,6 +189,18 @@
       "sum": "Kvartaalien summa",
       "last_period": "Viimeinen kvartaali"
     },
+    "actualValues": "Raportoidut luvut",
+    "actualModes": {
+      "entered": "Syötetty",
+      "calculated": "Laskettu"
+    },
+    "actualCalculatedDescription": "Arvo lasketaan aina kaavasta. Kentälle ei voi tallentaa tuloksia.",
+    "estimateValues": "Ennusteet",
+    "estimateModes": {
+      "entered": "Ennustettu",
+      "calculated": "Laskettu"
+    },
+    "estimateCalculatedDescription": "Ennuste lasketaan kaavasta muiden kenttien ennusteiden perusteella.",
     "estimateType": "Ennusteen tyyppi",
     "estimateTypes": {
       "relative": "Muutos % vuodentakaisesta",
@@ -202,10 +214,31 @@
       "share_count": "Osakemäärä"
     },
     "typeDescription": "Arvonmääritys käyttää näiden tyyppien kenttiä.",
+    "calculatedActual": "Laskettu: tulokset",
+    "calculatedEstimate": "Laskettu: ennusteet",
     "errors": {
       "required": "Nimi on pakollinen.",
       "tooLong": "Nimi on liian pitkä.",
-      "typeTaken": "Yhtiön toisella tuloskentällä on jo tämä tyyppi."
+      "typeTaken": "Yhtiön toisella tuloskentällä on jo tämä tyyppi.",
+      "nameTaken": "Yhtiön toisella tuloskentällä on jo tämä nimi.",
+      "empty": "Kaava on tyhjä.",
+      "missingOperand": "Kaavasta puuttuu kenttä tai luku.",
+      "missingOperator": "Kahden arvon välistä puuttuu operaattori.",
+      "unbalancedParentheses": "Sulkeet eivät täsmää.",
+      "unknownField": "Kaavassa on kenttä, joka ei kuulu yhtiölle.",
+      "cycle": "Kaavat käyttävät toisiaan kehässä."
     }
+  },
+  "FormulaEditor": {
+    "placeholder": "Napsauta tai vedä kenttiä, operaattoreita ja lukuja tähän.",
+    "number": "Luku",
+    "addNumber": "Lisää",
+    "currentPeriod": "Nykyinen kausi",
+    "previousPeriod": "Edellinen kausi",
+    "previousDescription": "Vuotta aiemman saman kvartaalin tai edellisen tilikauden arvo.",
+    "previousValue": "{name} (edellinen kausi)",
+    "remove": "Poista {name}",
+    "unknownField": "Tuntematon kenttä",
+    "noFields": "Ei käytettäviä kenttiä."
   }
 }

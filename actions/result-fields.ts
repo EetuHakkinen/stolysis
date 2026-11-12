@@ -3,8 +3,9 @@
 import { refresh } from "next/cache";
 import { z } from "zod";
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EstimateType, ResultFieldType, YearlyValue } from "@/app/generated/prisma/enums";
+import { EstimateType, FieldDefinitionKind, ResultFieldType, YearlyValue } from "@/app/generated/prisma/enums";
 import { requireUserId } from "@/lib/auth";
+import { checkFormula, formulaSchema, hasCycle, referencedFieldIds, type Formula, type FormulaError } from "@/lib/formulas";
 import { isReordering } from "@/lib/ordering";
 import { prisma } from "@/lib/prisma";
 
@@ -14,11 +15,28 @@ export type ResultFieldInput = {
   yearlyValue: YearlyValue;
   estimateType: EstimateType;
   type: ResultFieldType | null;
+  // Formulas of a calculated field by FieldDefinitionKind; null when the values are entered.
+  actualDefinition: Formula | null;
+  estimateDefinition: Formula | null;
 };
 
 // Error values are translation keys under ResultFields.errors.
-export type ResultFieldError = "required" | "tooLong" | "typeTaken";
-export type ResultFieldErrors = Partial<Record<"name" | "type", ResultFieldError>>;
+export type ResultFieldError =
+  | "required"
+  | "tooLong"
+  | "nameTaken"
+  | "typeTaken"
+  | FormulaError
+  | "unknownField"
+  | "cycle";
+export type ResultFieldErrors = Partial<
+  Record<"name" | "type" | "actualDefinition" | "estimateDefinition", ResultFieldError>
+>;
+
+const DEFINITION_KEYS = {
+  actual: "actualDefinition",
+  estimate: "estimateDefinition",
+} as const satisfies Record<FieldDefinitionKind, keyof ResultFieldErrors>;
 
 const idSchema = z.number().int().positive();
 
@@ -28,10 +46,42 @@ const fieldSchema = z.object({
   yearlyValue: z.enum(YearlyValue),
   estimateType: z.enum(EstimateType),
   type: z.enum(ResultFieldType).nullable(),
+  actualDefinition: formulaSchema.nullable(),
+  estimateDefinition: formulaSchema.nullable(),
 });
 
-// Validates the input and checks that its group belongs to the company. Errors are only returned
-// for the name; other invalid values can't come from the form, so they throw.
+// Error in a formula of the field: invalid expression, a field that isn't the company's, or a loop
+// with the company's other formulas of the same kind.
+async function definitionError(
+  tx: Prisma.TransactionClient,
+  companyId: number,
+  kind: FieldDefinitionKind,
+  formula: Formula,
+  fieldId: number | undefined,
+): Promise<ResultFieldError | undefined> {
+  const invalid = checkFormula(formula);
+  if (invalid) return invalid.error;
+
+  const ids = referencedFieldIds(formula);
+  const known = await tx.resultField.count({ where: { id: { in: ids }, resultFieldGroup: { companyId } } });
+  if (known !== ids.length) return "unknownField";
+
+  // A new field can't be referenced by any formula yet, so it can't be part of a loop.
+  if (fieldId == null) return undefined;
+  const others = await tx.fieldDefinition.findMany({
+    where: { kind, resultField: { resultFieldGroup: { companyId } }, resultFieldId: { not: fieldId } },
+    select: { resultFieldId: true, definition: true },
+  });
+  const formulas = new Map<number, Formula>(
+    others.map((other) => [other.resultFieldId, formulaSchema.parse(other.definition)]),
+  );
+  formulas.set(fieldId, formula);
+  return hasCycle(formulas) ? "cycle" : undefined;
+}
+
+// Validates the input and checks that its group belongs to the company. Errors are returned for the
+// name, the special type and the formulas; other invalid values can't come from the form, so they
+// throw.
 async function parseField(
   tx: Prisma.TransactionClient,
   input: ResultFieldInput,
@@ -49,6 +99,16 @@ async function parseField(
     where: { id: data.groupId },
     select: { companyId: true },
   });
+  // Formulas refer to fields by id, but users pick them by name.
+  const nameTaken = await tx.resultField.count({
+    where: {
+      name: { equals: data.name, mode: "insensitive" },
+      resultFieldGroup: { companyId: group.companyId },
+      id: { not: fieldId },
+    },
+  });
+  if (nameTaken > 0) return { errors: { name: "nameTaken" } };
+
   // Calculations rely on there being at most one field of each special type per company.
   if (data.type) {
     const taken = await tx.resultField.count({
@@ -56,7 +116,34 @@ async function parseField(
     });
     if (taken > 0) return { errors: { type: "typeTaken" } };
   }
+
+  const errors: ResultFieldErrors = {};
+  for (const kind of Object.values(FieldDefinitionKind)) {
+    const key = DEFINITION_KEYS[kind];
+    const formula = data[key];
+    const error = formula && (await definitionError(tx, group.companyId, kind, formula, fieldId));
+    if (error) errors[key] = error;
+  }
+  if (Object.keys(errors).length > 0) return { errors };
   return { data };
+}
+
+// Saves the field's formulas, deleting those that are null so the values are entered again.
+async function saveDefinitions(
+  tx: Prisma.TransactionClient,
+  fieldId: number,
+  definitions: Record<(typeof DEFINITION_KEYS)[FieldDefinitionKind], Formula | null>,
+) {
+  for (const kind of Object.values(FieldDefinitionKind)) {
+    const definition = definitions[DEFINITION_KEYS[kind]];
+    if (definition)
+      await tx.fieldDefinition.upsert({
+        where: { resultFieldId_kind: { resultFieldId: fieldId, kind } },
+        create: { resultFieldId: fieldId, kind, definition },
+        update: { definition },
+      });
+    else await tx.fieldDefinition.deleteMany({ where: { resultFieldId: fieldId, kind } });
+  }
 }
 
 // The next order in the group, so a field added or moved there goes last.
@@ -71,10 +158,12 @@ export async function createResultField(input: ResultFieldInput): Promise<{ erro
   const errors = await prisma.$transaction(async (tx) => {
     const { data, errors } = await parseField(tx, input);
     if (!data) return errors;
-    const { groupId, ...field } = data;
-    await tx.resultField.create({
+    const { groupId, actualDefinition, estimateDefinition, ...field } = data;
+    const { id } = await tx.resultField.create({
       data: { ...field, resultFieldGroupId: groupId, order: await nextOrder(tx, groupId) },
+      select: { id: true },
     });
+    await saveDefinitions(tx, id, { actualDefinition, estimateDefinition });
   });
   if (errors) return { errors };
   refresh();
@@ -95,7 +184,7 @@ export async function updateResultField(
     });
     const { data, errors } = await parseField(tx, input, fieldId);
     if (!data) return errors;
-    const { groupId, ...field } = data;
+    const { groupId, actualDefinition, estimateDefinition, ...field } = data;
 
     const moved = groupId !== current.resultFieldGroupId;
     if (moved) {
@@ -106,22 +195,29 @@ export async function updateResultField(
       where: { id: fieldId },
       data: { ...field, ...(moved && { resultFieldGroupId: groupId, order: await nextOrder(tx, groupId) }) },
     });
+    await saveDefinitions(tx, fieldId, { actualDefinition, estimateDefinition });
   });
   if (errors) return { errors };
   refresh();
   return {};
 }
 
-// Deletes the field with its estimates and valuation multiples if it has no results. Fields with
-// results are kept, so result rows are never deleted.
+// Deletes the field with its estimates, formulas and valuation multiples if it has no results and
+// no other field's formula uses it. Fields with results are kept, so result rows are never deleted.
 export async function deleteResultField(input: { fieldId: number }): Promise<{ deleted: boolean }> {
   await requireUserId();
+  const fieldId = idSchema.parse(input.fieldId);
 
-  const { count } = await prisma.resultField.deleteMany({
-    where: { id: idSchema.parse(input.fieldId), resultRows: { none: {} } },
+  const deleted = await prisma.$transaction(async (tx) => {
+    const usedBy = await tx.fieldDefinition.count({
+      where: { resultFieldId: { not: fieldId }, definition: { array_contains: [{ field: fieldId }] } },
+    });
+    if (usedBy > 0) return false;
+    const { count } = await tx.resultField.deleteMany({ where: { id: fieldId, resultRows: { none: {} } } });
+    return count > 0;
   });
   refresh();
-  return { deleted: count > 0 };
+  return { deleted };
 }
 
 const reorderSchema = z.object({

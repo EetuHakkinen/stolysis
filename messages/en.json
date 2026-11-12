@@ -189,6 +189,18 @@
       "sum": "Sum of quarters",
       "last_period": "Last quarter"
     },
+    "actualValues": "Results",
+    "actualModes": {
+      "entered": "Entered",
+      "calculated": "Calculated"
+    },
+    "actualCalculatedDescription": "The value is always calculated from the formula. Results can't be saved for the field.",
+    "estimateValues": "Estimates",
+    "estimateModes": {
+      "entered": "Estimated",
+      "calculated": "Calculated"
+    },
+    "estimateCalculatedDescription": "The estimate is calculated from the formula using the other fields' estimates.",
     "estimateType": "Estimate type",
     "estimateTypes": {
       "relative": "Change % from a year earlier",
@@ -202,10 +214,31 @@
       "share_count": "Share count"
     },
     "typeDescription": "The valuation uses the fields with these types.",
+    "calculatedActual": "Calculated: results",
+    "calculatedEstimate": "Calculated: estimates",
     "errors": {
       "required": "Name is required.",
       "tooLong": "Name is too long.",
-      "typeTaken": "Another result field of the company already has this type."
+      "typeTaken": "Another result field of the company already has this type.",
+      "nameTaken": "Another result field of the company already has this name.",
+      "empty": "The formula is empty.",
+      "missingOperand": "A field or number is missing from the formula.",
+      "missingOperator": "An operator is missing between two values.",
+      "unbalancedParentheses": "The parentheses don't match.",
+      "unknownField": "The formula uses a field that doesn't belong to the company.",
+      "cycle": "The formulas use each other in a loop."
     }
+  },
+  "FormulaEditor": {
+    "placeholder": "Click or drag fields, operators and numbers here.",
+    "number": "Number",
+    "addNumber": "Add",
+    "currentPeriod": "Current period",
+    "previousPeriod": "Previous period",
+    "previousDescription": "Value of the same quarter a year earlier, or of the previous financial year.",
+    "previousValue": "{name} (previous period)",
+    "remove": "Remove {name}",
+    "unknownField": "Unknown field",
+    "noFields": "No fields to use."
   }
 }
