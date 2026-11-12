@@ -14,17 +14,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-// Confirmation before deleting an estimate scenario with its estimates, which can't be undone.
-export function DeleteScenarioDialog({
+// Confirmation before deleting something that can't be restored.
+export function DeleteDialog({
   trigger,
-  name,
+  title,
+  description,
   remove,
 }: {
   trigger: React.ReactElement;
-  name: string;
-  remove: () => Promise<void>;
+  title: string;
+  description: string;
+  remove: () => Promise<unknown>;
 }) {
-  const t = useTranslations("Estimates");
+  const t = useTranslations("Dialogs");
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -40,8 +42,8 @@ export function DeleteScenarioDialog({
       <DialogTrigger render={trigger} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("deleteTitle")}</DialogTitle>
-          <DialogDescription>{t("deleteDescription", { name })}</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>{t("cancel")}</DialogClose>
@@ -53,3 +55,4 @@ export function DeleteScenarioDialog({
     </Dialog>
   );
 }
+

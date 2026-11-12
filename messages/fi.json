@@ -87,18 +87,13 @@
     "scenario": "Skenaario",
     "scenarios": "Ennusteskenaariot",
     "empty": "Ei vielä ennusteskenaarioita.",
-    "name": "Nimi",
     "create": "Uusi skenaario",
     "createTitle": "Uusi ennusteskenaario",
     "rename": "Nimeä uudelleen",
     "renameTitle": "Nimeä skenaario uudelleen",
     "delete": "Poista",
-    "deleting": "Poistetaan…",
     "deleteTitle": "Poistetaanko skenaario?",
     "deleteDescription": "Skenaario {name} ja kaikki sen ennusteet poistetaan pysyvästi.",
-    "cancel": "Peruuta",
-    "save": "Tallenna",
-    "saving": "Tallennetaan…",
     "errors": {
       "required": "Nimi on pakollinen.",
       "tooLong": "Nimi on liian pitkä.",
@@ -148,5 +143,69 @@
     "title": "Asetukset",
     "open": "Yhtiön asetukset",
     "details": "Yhtiön tiedot"
+  },
+  "Dialogs": {
+    "name": "Nimi",
+    "cancel": "Peruuta",
+    "save": "Tallenna",
+    "saving": "Tallennetaan…",
+    "delete": "Poista",
+    "deleting": "Poistetaan…",
+    "required": "Nimi on pakollinen."
+  },
+  "ResultFieldGroups": {
+    "title": "Tuloslaskelman osiot",
+    "empty": "Ei vielä tuloslaskelman osioita.",
+    "create": "Uusi osio",
+    "createTitle": "Uusi tuloslaskelman osio",
+    "rename": "Nimeä uudelleen",
+    "renameTitle": "Nimeä osio uudelleen",
+    "move": "Siirrä osiota {name}",
+    "fieldCount": "{count, plural, =0 {Ei kenttiä} one {# kenttä} other {# kenttää}}",
+    "delete": "Poista",
+    "deleteTitle": "Poistetaanko osio?",
+    "deleteDescription": "Osio {name} poistetaan pysyvästi.",
+    "errors": {
+      "required": "Nimi on pakollinen.",
+      "tooLong": "Nimi on liian pitkä."
+    }
+  },
+  "ResultFields": {
+    "title": "Tuloskentät",
+    "noGroups": "Lisää ensin tuloslaskelman osio.",
+    "empty": "Osiossa ei vielä ole tuloskenttiä.",
+    "create": "Uusi kenttä",
+    "createTitle": "Uusi tuloskenttä",
+    "edit": "Muokkaa",
+    "editTitle": "Muokkaa tuloskenttää",
+    "move": "Siirrä kenttää {name}",
+    "delete": "Poista",
+    "deleteTitle": "Poistetaanko tuloskenttä?",
+    "deleteDescription": "Tuloskenttä {name} ja sen ennusteet poistetaan pysyvästi.",
+    "name": "Nimi",
+    "group": "Osio",
+    "yearlyValue": "Vuoden arvo",
+    "yearlyValues": {
+      "sum": "Kvartaalien summa",
+      "last_period": "Viimeinen kvartaali"
+    },
+    "estimateType": "Ennusteen tyyppi",
+    "estimateTypes": {
+      "relative": "Muutos % vuodentakaisesta",
+      "absolute": "Arvo euroina"
+    },
+    "estimateTypeDescription": "Toisella tyypillä tallennettuja ennusteita ei näytetä tyypin vaihtamisen jälkeen.",
+    "type": "Erityistyyppi",
+    "types": {
+      "none": "Ei mitään",
+      "net_debt": "Nettovelka",
+      "share_count": "Osakemäärä"
+    },
+    "typeDescription": "Arvonmääritys käyttää näiden tyyppien kenttiä.",
+    "errors": {
+      "required": "Nimi on pakollinen.",
+      "tooLong": "Nimi on liian pitkä.",
+      "typeTaken": "Yhtiön toisella tuloskentällä on jo tämä tyyppi."
+    }
   }
 }

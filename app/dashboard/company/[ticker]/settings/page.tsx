@@ -2,8 +2,11 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getCompany } from "@/actions/companies";
 import { getEstimateScenarios } from "@/actions/estimates";
+import { getResultFieldGroups } from "@/actions/result-field-groups";
 import { CompanyDetailsSettings } from "@/components/company-details-settings";
 import { EstimateScenarioSettings } from "@/components/estimate-scenario-settings";
+import { ResultFieldGroupSettings } from "@/components/result-field-group-settings";
+import { ResultFieldSettings } from "@/components/result-field-settings";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 
@@ -14,7 +17,10 @@ export default async function CompanySettingsPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const scenarios = await getEstimateScenarios(company.id);
+  const [scenarios, groups] = await Promise.all([
+    getEstimateScenarios(company.id),
+    getResultFieldGroups(company.id),
+  ]);
   const companyPath = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
 
   return (
@@ -25,6 +31,8 @@ export default async function CompanySettingsPage({
       </div>
       <CompanyDetailsSettings company={company} />
       <EstimateScenarioSettings companyId={company.id} scenarios={scenarios} />
+      <ResultFieldGroupSettings companyId={company.id} groups={groups} />
+      <ResultFieldSettings groups={groups} />
     </main>
   );
 }

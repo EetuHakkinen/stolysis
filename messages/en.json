@@ -87,18 +87,13 @@
     "scenario": "Scenario",
     "scenarios": "Estimate scenarios",
     "empty": "No estimate scenarios yet.",
-    "name": "Name",
     "create": "New scenario",
     "createTitle": "New estimate scenario",
     "rename": "Rename",
     "renameTitle": "Rename scenario",
     "delete": "Delete",
-    "deleting": "Deleting…",
     "deleteTitle": "Delete scenario?",
     "deleteDescription": "Scenario {name} and all of its estimates will be deleted permanently.",
-    "cancel": "Cancel",
-    "save": "Save",
-    "saving": "Saving…",
     "errors": {
       "required": "Name is required.",
       "tooLong": "Name is too long.",
@@ -148,5 +143,69 @@
     "title": "Settings",
     "open": "Company settings",
     "details": "Company details"
+  },
+  "Dialogs": {
+    "name": "Name",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "required": "Name is required."
+  },
+  "ResultFieldGroups": {
+    "title": "Result field groups",
+    "empty": "No result field groups yet.",
+    "create": "New group",
+    "createTitle": "New result field group",
+    "rename": "Rename",
+    "renameTitle": "Rename group",
+    "move": "Move group {name}",
+    "fieldCount": "{count, plural, =0 {No fields} one {# field} other {# fields}}",
+    "delete": "Delete",
+    "deleteTitle": "Delete group?",
+    "deleteDescription": "Group {name} will be deleted permanently.",
+    "errors": {
+      "required": "Name is required.",
+      "tooLong": "Name is too long."
+    }
+  },
+  "ResultFields": {
+    "title": "Result fields",
+    "noGroups": "Add a result field group first.",
+    "empty": "No result fields in this group yet.",
+    "create": "New field",
+    "createTitle": "New result field",
+    "edit": "Edit",
+    "editTitle": "Edit result field",
+    "move": "Move field {name}",
+    "delete": "Delete",
+    "deleteTitle": "Delete result field?",
+    "deleteDescription": "Result field {name} and its estimates will be deleted permanently.",
+    "name": "Name",
+    "group": "Group",
+    "yearlyValue": "Yearly value",
+    "yearlyValues": {
+      "sum": "Sum of quarters",
+      "last_period": "Last quarter"
+    },
+    "estimateType": "Estimate type",
+    "estimateTypes": {
+      "relative": "Change % from a year earlier",
+      "absolute": "Value in euros"
+    },
+    "estimateTypeDescription": "Estimates saved with the other type are not shown after changing this.",
+    "type": "Special type",
+    "types": {
+      "none": "None",
+      "net_debt": "Net debt",
+      "share_count": "Share count"
+    },
+    "typeDescription": "The valuation uses the fields with these types.",
+    "errors": {
+      "required": "Name is required.",
+      "tooLong": "Name is too long.",
+      "typeTaken": "Another result field of the company already has this type."
+    }
   }
 }

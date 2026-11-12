@@ -7,9 +7,10 @@ import {
   deleteEstimateScenario,
   renameEstimateScenario,
   type EstimateScenarioSummary,
+  type ScenarioNameError,
 } from "@/actions/estimates";
-import { DeleteScenarioDialog } from "@/components/delete-scenario-dialog";
-import { ScenarioNameDialog } from "@/components/scenario-name-dialog";
+import { DeleteDialog } from "@/components/delete-dialog";
+import { NameDialog } from "@/components/name-dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
@@ -23,14 +24,15 @@ export function EstimateScenarioSettings({
   scenarios: EstimateScenarioSummary[];
 }) {
   const t = useTranslations("Estimates");
+  const errorMessage = (error: ScenarioNameError | undefined) => error && t(`errors.${error}`);
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold">{t("scenarios")}</h2>
-        <ScenarioNameDialog
+        <NameDialog
           title={t("createTitle")}
-          save={async (name) => (await createEstimateScenario({ companyId, name })).error}
+          save={async (name) => errorMessage((await createEstimateScenario({ companyId, name })).error)}
           trigger={
             <Button variant="outline" size="sm">
               <PlusIcon />
@@ -51,11 +53,11 @@ export function EstimateScenarioSettings({
                 <TableCell className="font-medium">{scenario.name}</TableCell>
                 <TableCell className="w-0">
                   <div className="flex justify-end gap-1">
-                    <ScenarioNameDialog
+                    <NameDialog
                       title={t("renameTitle")}
                       initialName={scenario.name}
                       save={async (name) =>
-                        (await renameEstimateScenario({ scenarioId: scenario.id, name })).error
+                        errorMessage((await renameEstimateScenario({ scenarioId: scenario.id, name })).error)
                       }
                       trigger={
                         <Button variant="ghost" size="icon-sm" aria-label={t("rename")}>
@@ -63,8 +65,9 @@ export function EstimateScenarioSettings({
                         </Button>
                       }
                     />
-                    <DeleteScenarioDialog
-                      name={scenario.name}
+                    <DeleteDialog
+                      title={t("deleteTitle")}
+                      description={t("deleteDescription", { name: scenario.name })}
                       remove={() => deleteEstimateScenario({ scenarioId: scenario.id })}
                       trigger={
                         <Button variant="ghost" size="icon-sm" aria-label={t("delete")}>
