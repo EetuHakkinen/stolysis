@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { getCompany } from "@/actions/companies";
+import { getDiscountVariables } from "@/actions/discounting";
 import { getEstimates } from "@/actions/estimates";
 import { getNewsFeed } from "@/actions/news";
 import { getCompanyResults } from "@/actions/results";
+import { getValuation } from "@/actions/valuation";
 import { NewsFeed } from "@/components/news-feed";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
@@ -17,9 +19,11 @@ export default async function CompanyPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [results, estimates, feed] = await Promise.all([
+  const [results, estimates, valuation, discountVariables, feed] = await Promise.all([
     getCompanyResults(company.id),
     getEstimates(company.id),
+    getValuation(company.id),
+    getDiscountVariables(company.id),
     getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
   ]);
   const path = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
@@ -34,6 +38,8 @@ export default async function CompanyPage({
         companyId={company.id}
         results={results}
         estimates={estimates}
+        valuation={valuation}
+        discountVariables={discountVariables}
         scenarioId={parseScenarioId(scenario)}
       />
       <NewsFeed feed={feed} pageHref={(page) => `${path}?page=${page}`} />

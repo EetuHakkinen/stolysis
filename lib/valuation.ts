@@ -1,0 +1,97 @@
+// A company's valuation in an estimate scenario from its valuation multiples and the predicted
+// values of the target year. Pure, so it runs on the client as well as on the server: like
+// predicted values, the valuation is never saved. Values are in whole euros.
+
+import type { ValuationBasis } from "@/app/generated/prisma/client";
+import type { CompanyPrediction } from "@/lib/estimates";
+
+export type ValuationMultipleInput = { id: number; resultFieldId: number; basis: ValuationBasis };
+
+export type ValuationRow = {
+  multipleId: number;
+  // Null for market value based multiples and when a value is missing.
+  enterpriseValue: number | null;
+  marketValue: number | null;
+};
+
+export type CompanyValuationResult = {
+  rows: ValuationRow[];
+  // Average of the multiples' market values, null if none has one.
+  averageMarketValue: number | null;
+  // Average market value divided by the share count.
+  valuePerShare: number | null;
+};
+
+// Multiple values are stored in hundredths (1250 = 12.50).
+const STORED_SCALE = 100;
+
+export function roundMultiple(value: number): number {
+  return Math.round(value * STORED_SCALE) / STORED_SCALE;
+}
+
+export function toStoredMultiple(value: number): number {
+  return Math.round(value * STORED_SCALE);
+}
+
+export function fromStoredMultiple(value: number): number {
+  return value / STORED_SCALE;
+}
+
+const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+
+// Years from now until the given time as a fraction, zero if it has passed.
+export function yearsUntil(time: Date, now: Date): number {
+  return Math.max(0, (time.getTime() - now.getTime()) / YEAR_MS);
+}
+
+// Value discounted to the present over the given years with an annual rate in percent.
+export function presentValue(value: number | null, ratePercent: number | null, years: number): number | null {
+  if (value == null || ratePercent == null) return null;
+  return value / (1 + ratePercent / 100) ** years;
+}
+
+// Each multiple's value times its field's value in the target year gives the enterprise value or
+// the market value. The market value is the enterprise value less net debt. A multiple without a
+// value, or whose inputs are missing, has no market value and is left out of the average.
+export function calculateValuation({
+  multiples,
+  values,
+  prediction,
+  targetYearId,
+  netDebtFieldId,
+  shareCountFieldId,
+}: {
+  multiples: ValuationMultipleInput[];
+  // Multiple values by multiple id.
+  values: Record<number, number | null | undefined>;
+  prediction: CompanyPrediction;
+  targetYearId: number;
+  netDebtFieldId: number | null;
+  shareCountFieldId: number | null;
+}): CompanyValuationResult {
+  const yearValue = (fieldId: number | null) =>
+    fieldId == null ? null : (prediction.yearly[fieldId]?.[targetYearId]?.value ?? null);
+  const netDebt = yearValue(netDebtFieldId);
+
+  const rows = multiples.map((multiple): ValuationRow => {
+    const value = values[multiple.id];
+    const base = yearValue(multiple.resultFieldId);
+    const result = value == null || base == null ? null : value * base;
+    if (multiple.basis === "market_value")
+      return { multipleId: multiple.id, enterpriseValue: null, marketValue: result };
+    return {
+      multipleId: multiple.id,
+      enterpriseValue: result,
+      marketValue: result == null || netDebt == null ? null : result - netDebt,
+    };
+  });
+
+  const marketValues = rows.flatMap((row) => (row.marketValue == null ? [] : [row.marketValue]));
+  const averageMarketValue =
+    marketValues.length === 0 ? null : marketValues.reduce((sum, value) => sum + value, 0) / marketValues.length;
+  const shareCount = yearValue(shareCountFieldId);
+  const valuePerShare =
+    averageMarketValue == null || !shareCount ? null : averageMarketValue / shareCount;
+
+  return { rows, averageMarketValue, valuePerShare };
+}

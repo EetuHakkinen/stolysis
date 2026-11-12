@@ -2,7 +2,7 @@
 // client as well as on the server: predicted values are never saved, only estimate variables are.
 // Values are in whole euros as numbers, since relative estimates produce fractions.
 
-import type { EstimateType, Unit } from "@/app/generated/prisma/client";
+import type { EstimateType, Unit, YearlyValue } from "@/app/generated/prisma/client";
 
 export type EstimateSeason = { id: number; name: string | null };
 
@@ -10,13 +10,15 @@ export type EstimateYear = {
   id: number;
   name: string | null;
   unit: Unit | null;
+  endTime: Date;
   // Reporting seasons in order.
   seasons: EstimateSeason[];
-  // The year's total is the sum of its seasons; otherwise the year is estimated as a whole.
+  // The year's value is formed from its seasons (see YearlyValue); otherwise the year is estimated
+  // as a whole.
   fromSeasons: boolean;
 };
 
-export type EstimateField = { id: number; estimateType: EstimateType };
+export type EstimateField = { id: number; estimateType: EstimateType; yearlyValue: YearlyValue };
 
 // Current estimate variable of a field for one period (exactly one of the period ids is set):
 // relative is a percent change, absolute a value in whole euros. Null clears the estimate.
@@ -120,6 +122,13 @@ function summedValue(seasons: PeriodValue[], comparison: number | null): PeriodV
   return periodValue(total, source, comparison);
 }
 
+// Value of the last season, or empty if it is.
+function lastValue(seasons: PeriodValue[], comparison: number | null): PeriodValue {
+  const last = seasons.at(-1);
+  if (last?.value == null) return EMPTY;
+  return periodValue(last.value, last.source!, comparison);
+}
+
 function periodKey(fieldId: number, periodId: number) {
   return `${fieldId}:${periodId}`;
 }
@@ -128,7 +137,8 @@ function periodKey(fieldId: number, periodId: number) {
 // first). A season with data uses actual values; otherwise each field is predicted from its
 // estimate: an absolute estimate is the value, a relative one changes the same period a year
 // earlier (actual or predicted) by the percent. Without an estimate or a value to compare with, the
-// period is empty. The first year has nothing to compare with.
+// period is empty. A year formed from its seasons is their sum, or the last season's value for
+// last_period fields. The first year has nothing to compare with.
 export function predictCompany({
   years,
   fields,
@@ -171,8 +181,11 @@ export function predictCompany({
       });
 
       const comparison = previousYear ? yearly[previousYear.id].value : null;
+      const seasons = year.seasons.map((season) => quarterly[season.id]);
       yearly[year.id] = year.fromSeasons
-        ? summedValue(year.seasons.map((season) => quarterly[season.id]), comparison)
+        ? field.yearlyValue === "last_period"
+          ? lastValue(seasons, comparison)
+          : summedValue(seasons, comparison)
         : estimatedValue(field.estimateType, yearlyInputs.get(periodKey(field.id, year.id)), comparison);
     });
 

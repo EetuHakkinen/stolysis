@@ -10,6 +10,7 @@ function year(id: number, fromSeasons: boolean): EstimateYear {
     id,
     name: String(id),
     unit: "million",
+    endTime: new Date(`${id}-12-31T22:00:00Z`),
     fromSeasons,
     seasons: [1, 2, 3, 4].map((quarter) => ({ id: id * 10 + quarter, name: `Q${quarter}` })),
   };
@@ -21,6 +22,8 @@ const actuals = {
   1: { 20251: BigInt(100 * M), 20252: BigInt(100 * M), 20253: BigInt(100 * M), 20254: BigInt(100 * M), 20261: BigInt(110 * M) },
   // Costs: reported only for 2025 Q1; the other quarters still have data through revenue.
   2: { 20251: BigInt(-50 * M), 20261: null },
+  // Net debt at the end of each quarter in 2025.
+  3: { 20251: BigInt(10 * M), 20252: BigInt(11 * M), 20253: BigInt(12 * M), 20254: BigInt(13 * M) },
 };
 
 describe("seasonsWithData", () => {
@@ -33,8 +36,9 @@ describe("predictCompany", () => {
   const prediction = predictCompany({
     years,
     fields: [
-      { id: 1, estimateType: "relative" },
-      { id: 2, estimateType: "relative" },
+      { id: 1, estimateType: "relative", yearlyValue: "sum" },
+      { id: 2, estimateType: "relative", yearlyValue: "sum" },
+      { id: 3, estimateType: "absolute", yearlyValue: "last_period" },
     ],
     actuals,
     estimates: [
@@ -46,6 +50,14 @@ describe("predictCompany", () => {
       })),
       { resultFieldId: 1, reportingSeasonId: null, financialYearId: 2028, value: -5 },
       { resultFieldId: 2, reportingSeasonId: 20262, financialYearId: null, value: 10 },
+      // Net debt: absolute estimates for the rest of 2026, only Q4 for 2027.
+      ...[20262, 20263, 20264].map((id) => ({
+        resultFieldId: 3,
+        reportingSeasonId: id,
+        financialYearId: null,
+        value: (id - 20250) * M,
+      })),
+      { resultFieldId: 3, reportingSeasonId: 20274, financialYearId: null, value: 30 * M },
     ],
   });
   const revenue = prediction.quarterly[1];
@@ -69,6 +81,14 @@ describe("predictCompany", () => {
     assert.equal(Math.round(prediction.yearly[1][2026].value!), 440 * M);
     assert.equal(prediction.yearly[1][2026].source, "estimate");
     assert.equal(Math.round(prediction.yearly[1][2027].value!), 484 * M);
+  });
+
+  it("uses the last quarter as the year's value for last_period fields", () => {
+    assert.deepEqual(prediction.yearly[3][2025], { value: 13 * M, source: "actual", change: null });
+    assert.equal(prediction.yearly[3][2026].value, 14 * M);
+    assert.equal(prediction.yearly[3][2026].source, "estimate");
+    // Only the last quarter matters, even if earlier ones are empty.
+    assert.equal(prediction.yearly[3][2027].value, 30 * M);
   });
 
   it("estimates later years against the previous year's total", () => {

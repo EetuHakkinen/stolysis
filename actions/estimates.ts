@@ -54,7 +54,7 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
   const [fields, rows] = await Promise.all([
     prisma.resultField.findMany({
       where: { resultFieldGroup: { companyId } },
-      select: { id: true, estimateType: true },
+      select: { id: true, estimateType: true, yearlyValue: true },
     }),
     prisma.estimateRow.findMany({
       where: { estimateScenario: { companyId } },
@@ -124,6 +124,7 @@ async function estimateYears(companyId: number) {
     id: year.id,
     name: year.name,
     unit: year.unit,
+    endTime: year.endTime!,
     seasons: year.reportingSeasons,
     fromSeasons: currentIndex < 0 || index <= currentIndex + QUARTERLY_YEARS_AHEAD,
   }));

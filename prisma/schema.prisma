@@ -19,10 +19,13 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  financialYears    FinancialYear[]
-  news              News[]
-  resultFieldGroups ResultFieldGroup[]
-  estimateScenarios EstimateScenario[]
+  financialYears     FinancialYear[]
+  news               News[]
+  resultFieldGroups  ResultFieldGroup[]
+  estimateScenarios  EstimateScenario[]
+  valuationMultiples ValuationMultiple[]
+  valuation          CompanyValuation?
+  discountVariables  CompanyDiscountVariable[]
 
   @@map("company")
 }
@@ -45,9 +48,10 @@ model FinancialYear {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   reportingSeasons ReportingSeason[]
   estimateRows     EstimateRow[]
+  valuations       CompanyValuation[]
 
   @@map("financial_year")
 }
@@ -86,22 +90,44 @@ model ResultFieldGroup {
   @@map("result_field_group")
 }
 
+// Special meaning of a result field that calculations rely on, e.g. the valuation.
+enum ResultFieldType {
+  net_debt
+  share_count
+
+  @@map("result_field_type")
+}
+
+// How a financial year's value is formed from its reporting seasons.
+enum YearlyValue {
+  // Sum of the seasons, e.g. liikevaihto.
+  sum
+  // Value of the last season, e.g. nettovelka.
+  last_period
+
+  @@map("yearly_value")
+}
+
 // A single line in a group, e.g. liikevaihto in tuloslaskelma.
 model ResultField {
-  id                 Int          @id @default(autoincrement())
-  resultFieldGroupId Int          @map("result_field_group")
+  id                 Int              @id @default(autoincrement())
+  resultFieldGroupId Int              @map("result_field_group")
   order              Int?
   name               String?
-  fieldDefinitionId  Int?         @map("field_definition")
+  fieldDefinitionId  Int?             @map("field_definition")
+  // Null for ordinary fields.
+  type               ResultFieldType?
   // How the field is estimated, in every scenario and period.
-  estimateType       EstimateType @default(relative) @map("estimate_type")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
+  estimateType       EstimateType     @default(relative) @map("estimate_type")
+  yearlyValue        YearlyValue      @default(sum) @map("yearly_value")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at")
 
-  resultFieldGroup ResultFieldGroup @relation(fields: [resultFieldGroupId], references: [id], onDelete: Cascade)
-  fieldDefinition  FieldDefinition? @relation(fields: [fieldDefinitionId], references: [id], onDelete: SetNull)
-  resultRows       ResultRow[]
-  estimateRows     EstimateRow[]
+  resultFieldGroup   ResultFieldGroup    @relation(fields: [resultFieldGroupId], references: [id], onDelete: Cascade)
+  fieldDefinition    FieldDefinition?    @relation(fields: [fieldDefinitionId], references: [id], onDelete: SetNull)
+  resultRows         ResultRow[]
+  estimateRows       EstimateRow[]
+  valuationMultiples ValuationMultiple[]
 
   @@map("result_field")
 }
@@ -146,8 +172,9 @@ model EstimateScenario {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  estimateRows EstimateRow[]
+  company        Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  estimateRows   EstimateRow[]
+  multipleValues ValuationMultipleValue[]
 
   @@unique([companyId, name])
   @@map("estimate_scenario")
@@ -187,6 +214,102 @@ model EstimateRow {
 
   @@index([estimateScenarioId, createdAt(sort: Desc)])
   @@map("estimate_row")
+}
+
+enum ValuationBasis {
+  // The multiple gives the enterprise value, e.g. EV/EBIT. Net debt is subtracted from it to get
+  // the market value.
+  enterprise_value
+  // The multiple gives the market value, e.g. P/E.
+  market_value
+
+  @@map("valuation_basis")
+}
+
+// A valuation multiple of a company, e.g. P/E or EV/EBIT. The same multiples are used in every
+// scenario; their values are per scenario.
+model ValuationMultiple {
+  id            Int            @id @default(autoincrement())
+  companyId     Int            @map("company")
+  name          String
+  order         Int?
+  // The field whose value in the target year is multiplied by the multiple.
+  resultFieldId Int            @map("result_field")
+  basis         ValuationBasis
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  company     Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  resultField ResultField              @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
+  values      ValuationMultipleValue[]
+
+  @@unique([companyId, name])
+  @@map("valuation_multiple")
+}
+
+// Value of a valuation multiple in an estimate scenario.
+model ValuationMultipleValue {
+  id                  Int      @id @default(autoincrement())
+  estimateScenarioId  Int      @map("estimate_scenario")
+  valuationMultipleId Int      @map("valuation_multiple")
+  // Hundredths (1250 = 12.50). Null clears the value.
+  value               Int?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+
+  estimateScenario  EstimateScenario  @relation(fields: [estimateScenarioId], references: [id], onDelete: Cascade)
+  valuationMultiple ValuationMultiple @relation(fields: [valuationMultipleId], references: [id], onDelete: Cascade)
+
+  @@unique([estimateScenarioId, valuationMultipleId])
+  @@map("valuation_multiple_value")
+}
+
+// A company's valuation settings, the same in every scenario.
+model CompanyValuation {
+  id                    Int      @id @default(autoincrement())
+  companyId             Int      @unique @map("company")
+  // The financial year whose estimates are valued.
+  targetFinancialYearId Int?     @map("target_financial_year")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  targetFinancialYear FinancialYear? @relation(fields: [targetFinancialYearId], references: [id], onDelete: SetNull)
+
+  @@map("company_valuation")
+}
+
+// Variables for discounting a company's future values to the present. The cost of equity and the
+// WACC are calculated from these, so they aren't stored.
+enum DiscountVariable {
+  tax_rate
+  // Share of debt in total capital, D / (D + E).
+  target_debt_ratio
+  cost_of_debt
+  beta
+  market_risk_premium
+  liquidity_premium
+  risk_free_rate
+  terminal_growth
+
+  @@map("discount_variable")
+}
+
+// Value of a discount variable for a company.
+model CompanyDiscountVariable {
+  id        Int              @id @default(autoincrement())
+  companyId Int              @map("company")
+  variable  DiscountVariable
+  // Hundredths: percentages in hundredths of a percent (850 = 8.50 %), beta in hundredths
+  // (120 = 1.20). Null clears the value.
+  value     Int?
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, variable])
+  @@map("company_discount_variable")
 }
 
 model News {

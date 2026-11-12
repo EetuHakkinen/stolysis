@@ -75,7 +75,9 @@
       "quarterly": "Neljännesvuosi",
       "yearly": "Vuosi",
       "quarterlyEstimates": "Kvartaaliennusteet",
-      "yearlyEstimates": "Vuosiennusteet"
+      "yearlyEstimates": "Vuosiennusteet",
+      "valuation": "Arvostuskertoimet",
+      "discounting": "Diskonttaus"
     },
     "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario ennusteiden tekemiseksi.",
     "noYears": "Yrityksellä ei ole kuluvaa tilikautta."
@@ -97,9 +99,46 @@
     "errors": {
       "required": "Nimi on pakollinen.",
       "tooLong": "Nimi on liian pitkä.",
-      "nameTaken": "Yrityksellä on jo tämän niminen skenaario.",
+      "nameTaken": "Yrityksellä on jo tämän niminen skenaario."
+    }
+  },
+  "SavedNumberInput": {
+    "errors": {
       "invalid": "Arvo ei ole luku.",
       "saveFailed": "Tallennus epäonnistui."
+    }
+  },
+  "Valuation": {
+    "targetYear": "Tavoitevuosi",
+    "chooseTargetYear": "Valitse vuosi",
+    "multiple": "Kerroin",
+    "value": "Arvo",
+    "enterpriseValue": "Yritysarvo (EV)",
+    "marketValue": "Markkina-arvo",
+    "averageMarketValue": "Markkina-arvo keskimäärin",
+    "valuePerShare": "Arvo per osake",
+    "perShareUnit": "€ / osake",
+    "noMultiples": "Yhtiölle ei ole vielä määritelty arvostuskertoimia. Kertoimet määritellään yhtiön asetuksissa.",
+    "noTargetYear": "Valitse tavoitevuosi, jonka ennusteilla yhtiö arvostetaan.",
+    "saveFailed": "Tavoitevuoden tallennus epäonnistui.",
+    "presentMarketValue": "Markkina-arvo nyt",
+    "presentValuePerShare": "Arvo per osake nyt"
+  },
+  "DiscountVariables": {
+    "variable": "Muuttuja",
+    "value": "Arvo",
+    "calculated": "laskettu",
+    "variables": {
+      "tax_rate": "Vero-%",
+      "target_debt_ratio": "Tavoiteltu velkaantumisaste",
+      "cost_of_debt": "Vieraan pääoman kustannus",
+      "beta": "Yrityksen beta",
+      "market_risk_premium": "Markkinoiden riskipreemio",
+      "liquidity_premium": "Likviditeettipreemio",
+      "risk_free_rate": "Riskitön korko",
+      "terminal_growth": "Terminaalikasvu",
+      "cost_of_equity": "Oman pääoman kustannus",
+      "wacc": "WACC"
     }
   }
 }

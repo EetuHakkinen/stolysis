@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter } from "next-intl";
 import type { EstimateType, Unit } from "@/app/generated/prisma/client";
 import {
   comparisonSeason,
@@ -11,8 +10,7 @@ import {
 } from "@/lib/estimates";
 import { UNIT_DIVISORS } from "@/lib/units";
 import { FormattedValue, PeriodTable, type PeriodTableColumn } from "@/components/period-table";
-import { Input } from "@/components/ui/input";
-import { cn } from "cn";
+import { SavedNumberInput } from "@/components/saved-number-input";
 
 // The period an estimate column shows: exactly one of the ids is set.
 export type EstimatePeriod = { reportingSeasonId: number | null; financialYearId: number | null };
@@ -118,15 +116,6 @@ export function EstimateTable({
   );
 }
 
-// Parses a number typed in either locale ("1 234,5", "-1234.5"). Empty text is null; undefined
-// means the text isn't a number.
-function parseNumber(text: string): number | null | undefined {
-  const normalized = text.replace(/\s/g, "").replace(",", ".").replace("−", "-");
-  if (normalized === "") return null;
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : undefined;
-}
-
 // Input for an estimate variable: a percent change for relative estimates, a value in the column's
 // unit for absolute ones. Saves on blur when the text has changed, rounded to what can be stored.
 // Relative estimates show the predicted value beneath, absolute ones the change it makes.
@@ -143,48 +132,18 @@ function EstimateCell({
   input: number | null;
   save: (value: number | null) => Promise<boolean>;
 }) {
-  const t = useTranslations("Estimates");
   const format = useFormatter();
   const divisor = type === "absolute" ? UNIT_DIVISORS[unit] : 1;
-
-  function formatInput(input: number | null) {
-    if (input == null) return "";
-    return format.number(input / divisor, { maximumFractionDigits: 6, useGrouping: false });
-  }
-
-  const [text, setText] = useState(() => formatInput(input));
-  const [savedText, setSavedText] = useState(text);
-  const [error, setError] = useState<"invalid" | "saveFailed">();
-  const [pending, startTransition] = useTransition();
-
-  function blur() {
-    if (text === savedText) return setError(undefined);
-    const parsed = parseNumber(text);
-    if (parsed === undefined) return setError("invalid");
-
-    // Saved as hundredths of a percent or whole euros, so show what's saved.
-    const value = parsed == null ? null : roundEstimate(type, parsed * divisor);
-    const rounded = formatInput(value);
-    setText(rounded);
-    startTransition(async () => {
-      const saved = await save(value);
-      if (!saved) return setError("saveFailed");
-      setError(undefined);
-      setSavedText(rounded);
-    });
-  }
 
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-1">
-        <Input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={blur}
-          inputMode="decimal"
-          aria-invalid={!!error}
-          title={error && t(`errors.${error}`)}
-          className={cn("h-7 w-20 text-right tabular-nums", pending && "opacity-60")}
+        {/* Saved as hundredths of a percent or whole euros, so show what's saved. */}
+        <SavedNumberInput
+          value={input}
+          toValue={(typed) => roundEstimate(type, typed * divisor)}
+          toNumber={(value) => value / divisor}
+          save={save}
         />
         {type === "relative" && <span className="text-xs text-muted-foreground">%</span>}
       </div>

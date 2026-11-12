@@ -75,7 +75,9 @@
       "quarterly": "Quarterly",
       "yearly": "Yearly",
       "quarterlyEstimates": "Quarterly estimates",
-      "yearlyEstimates": "Yearly estimates"
+      "yearlyEstimates": "Yearly estimates",
+      "valuation": "Valuation multiples",
+      "discounting": "Discounting"
     },
     "noScenarios": "No estimate scenarios yet. Create a scenario to make estimates.",
     "noYears": "The company has no current financial year."
@@ -97,9 +99,46 @@
     "errors": {
       "required": "Name is required.",
       "tooLong": "Name is too long.",
-      "nameTaken": "The company already has a scenario with this name.",
+      "nameTaken": "The company already has a scenario with this name."
+    }
+  },
+  "SavedNumberInput": {
+    "errors": {
       "invalid": "The value isn't a number.",
       "saveFailed": "Saving failed."
+    }
+  },
+  "Valuation": {
+    "targetYear": "Target year",
+    "chooseTargetYear": "Choose year",
+    "multiple": "Multiple",
+    "value": "Value",
+    "enterpriseValue": "Enterprise value",
+    "marketValue": "Market value",
+    "averageMarketValue": "Average market value",
+    "valuePerShare": "Value per share",
+    "perShareUnit": "€ / share",
+    "noMultiples": "The company has no valuation multiples yet. Multiples are defined in the company settings.",
+    "noTargetYear": "Choose the target year to value the company with its estimates.",
+    "saveFailed": "Saving the target year failed.",
+    "presentMarketValue": "Present market value",
+    "presentValuePerShare": "Present value per share"
+  },
+  "DiscountVariables": {
+    "variable": "Variable",
+    "value": "Value",
+    "calculated": "calculated",
+    "variables": {
+      "tax_rate": "Tax rate",
+      "target_debt_ratio": "Target debt ratio",
+      "cost_of_debt": "Cost of debt",
+      "beta": "Company beta",
+      "market_risk_premium": "Market risk premium",
+      "liquidity_premium": "Liquidity premium",
+      "risk_free_rate": "Risk-free rate",
+      "terminal_growth": "Terminal growth",
+      "cost_of_equity": "Cost of equity",
+      "wacc": "WACC"
     }
   }
 }
