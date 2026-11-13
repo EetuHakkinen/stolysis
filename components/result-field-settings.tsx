@@ -2,13 +2,14 @@
 
 import { useOptimistic, useTransition } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ResultFieldGroupSettingsData } from "@/actions/result-field-groups";
 import {
   createResultField,
   deleteResultField,
   reorderResultFields,
+  setResultFieldStarred,
   updateResultField,
 } from "@/actions/result-fields";
 import { DeleteDialog } from "@/components/delete-dialog";
@@ -21,7 +22,7 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 // Company settings section with a table of result fields for each result field group, in display
 // order. Fields are created, edited (also moved to another group) and deleted with the buttons, and
-// reordered within their group by dragging. Only fields without results that no other field's
+// reordered within their group by dragging, and starred with the star button. Only fields without results that no other field's
 // formula uses have a delete button. Calculated fields have badges with their formulas as tooltips.
 export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettingsData[] }) {
   const t = useTranslations("ResultFields");
@@ -38,7 +39,7 @@ export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettin
   );
 }
 
-// One group's fields. The new order after dragging shows right away and stays once the refreshed
+// One group's fields. The new order after dragging and a changed star show right away and stays once the refreshed
 // page has loaded it.
 function GroupFields({
   group,
@@ -57,6 +58,13 @@ function GroupFields({
     startTransition(async () => {
       setFields(reordered);
       await reorderResultFields({ groupId: group.id, fieldIds: reordered.map((field) => field.id) });
+    });
+  }
+
+  function toggleStar(fieldId: number, starred: boolean) {
+    startTransition(async () => {
+      setFields(fields.map((field) => (field.id === fieldId ? { ...field, starred } : field)));
+      await setResultFieldStarred({ fieldId, starred });
     });
   }
 
@@ -116,6 +124,15 @@ function GroupFields({
                 <TableCell className="text-muted-foreground">{t(`estimateTypes.${field.estimateType}`)}</TableCell>
                 <TableCell className="w-0">
                   <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t(field.starred ? "unstar" : "star", { name: field.name })}
+                      aria-pressed={field.starred}
+                      onClick={() => toggleStar(field.id, !field.starred)}
+                    >
+                      <StarIcon className={field.starred ? "fill-yellow-400 text-yellow-400" : undefined} />
+                    </Button>
                     <ResultFieldDialog
                       title={t("editTitle")}
                       groups={groups}

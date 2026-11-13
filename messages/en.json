@@ -190,6 +190,8 @@
     "edit": "Edit",
     "editTitle": "Edit result field",
     "move": "Move field {name}",
+    "star": "Star {name}",
+    "unstar": "Remove star from {name}",
     "delete": "Delete",
     "deleteTitle": "Delete result field?",
     "deleteDescription": "Result field {name} and its estimates will be deleted permanently.",

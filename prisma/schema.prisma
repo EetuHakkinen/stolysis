@@ -119,6 +119,8 @@ model ResultField {
   // How the field is estimated, in every scenario and period.
   estimateType       EstimateType     @default(relative) @map("estimate_type")
   yearlyValue        YearlyValue      @default(sum) @map("yearly_value")
+  // Marked by the user in the settings.
+  starred            Boolean          @default(false)
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at")
 

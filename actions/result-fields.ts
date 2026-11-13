@@ -220,6 +220,19 @@ export async function deleteResultField(input: { fieldId: number }): Promise<{ d
   return { deleted };
 }
 
+const starSchema = z.object({
+  fieldId: idSchema,
+  starred: z.boolean(),
+});
+
+export async function setResultFieldStarred(input: { fieldId: number; starred: boolean }) {
+  await requireUserId();
+  const { fieldId, starred } = starSchema.parse(input);
+
+  await prisma.resultField.update({ where: { id: fieldId }, data: { starred } });
+  refresh();
+}
+
 const reorderSchema = z.object({
   groupId: idSchema,
   fieldIds: z.array(idSchema),

@@ -190,6 +190,8 @@
     "edit": "Muokkaa",
     "editTitle": "Muokkaa tuloskenttää",
     "move": "Siirrä kenttää {name}",
+    "star": "Merkitse kenttä {name} tähdellä",
+    "unstar": "Poista tähti kentältä {name}",
     "delete": "Poista",
     "deleteTitle": "Poistetaanko tuloskenttä?",
     "deleteDescription": "Tuloskenttä {name} ja sen ennusteet poistetaan pysyvästi.",
