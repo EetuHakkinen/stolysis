@@ -4,11 +4,11 @@ import { useTranslations } from "next-intl";
 import { updateCompany } from "@/actions/companies";
 import { CompanyForm } from "@/components/company-form";
 
-// Company settings section for editing the company's name and ticker.
+// Company settings section for editing the company's name, ticker and price symbol.
 export function CompanyDetailsSettings({
   company,
 }: {
-  company: { id: number; name: string; ticker: string };
+  company: { id: number; name: string; ticker: string; priceSymbol: string | null };
 }) {
   const t = useTranslations("CompanySettings");
 
@@ -16,9 +16,10 @@ export function CompanyDetailsSettings({
     <section className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold">{t("details")}</h2>
       <CompanyForm
-        initialValues={{ name: company.name, ticker: company.ticker }}
+        initialValues={{ name: company.name, ticker: company.ticker, priceSymbol: company.priceSymbol ?? "" }}
         submit={(values) => updateCompany({ companyId: company.id, ...values })}
         inline
+        withPriceSymbol
       />
     </section>
   );

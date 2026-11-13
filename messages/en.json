@@ -16,6 +16,8 @@
     "title": "New company",
     "name": "Name",
     "ticker": "Ticker",
+    "priceSymbol": "Price symbol",
+    "priceSymbolDescription": "Symbol of the stock in EODHD. Leave empty to use {symbol}.",
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved.",
@@ -24,6 +26,17 @@
       "required": "This field is required.",
       "tooLong": "Too long.",
       "tickerTaken": "A company with this ticker already exists."
+    }
+  },
+  "StockPrices": {
+    "refresh": "Refresh stock prices",
+    "refreshing": "Fetching prices…",
+    "fetchedAt": "Prices fetched {time}",
+    "neverFetched": "No prices fetched yet",
+    "errors": {
+      "quota": "The daily EODHD request limit is used up. Try again tomorrow.",
+      "notFound": "EODHD has no stock with the symbol {symbol}. Check the price symbol in the settings.",
+      "failed": "Fetching prices failed."
     }
   },
   "News": {

@@ -5,14 +5,16 @@ import { useTranslations } from "next-intl";
 import type { CompanyFormErrors, CompanyInput } from "@/actions/companies";
 import { ButtonLink } from "@/components/button-link";
 import { Button } from "@/components/ui/button";
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { defaultPriceSymbol } from "@/lib/stock-price";
 import { cn } from "@/lib/utils";
 
 // Width of the inputs in an inline form, which sit at the right edge of the form.
 const INLINE_INPUT = "w-64";
 
-// Form for a company's name and ticker, for both creating and editing a company. Submit returns
+// Form for a company's name and ticker (and price symbol, with `withPriceSymbol`), for both
+// creating and editing a company. Submit returns
 // the validation errors; a successful submit that doesn't navigate away shows a saved note until
 // the values change. An inline form has each label on the same row as its input, with the inputs
 // and buttons aligned to the right.
@@ -21,11 +23,13 @@ export function CompanyForm({
   submit,
   cancelHref,
   inline = false,
+  withPriceSymbol = false,
 }: {
   initialValues?: CompanyInput;
   submit: (values: CompanyInput) => Promise<{ errors?: CompanyFormErrors }>;
   cancelHref?: string;
   inline?: boolean;
+  withPriceSymbol?: boolean;
 }) {
   const t = useTranslations("CompanyForm");
   const [values, setValues] = useState<CompanyInput>(initialValues);
@@ -37,6 +41,9 @@ export function CompanyForm({
     setValues((prev) => ({ ...prev, [field]: e.target.value }));
     setSaved(false);
   };
+
+  // The default price symbol follows the ticker being typed.
+  const defaultTicker = values.ticker.trim().toUpperCase();
 
   const errorsFor = (field: keyof CompanyInput) =>
     errors?.[field]?.map((key) => ({ message: t(`errors.${key}`) }));
@@ -50,12 +57,16 @@ export function CompanyForm({
     });
   }
 
-  function field(name: keyof CompanyInput, inputProps?: React.ComponentProps<typeof Input>) {
+  function field(
+    name: keyof CompanyInput,
+    inputProps?: React.ComponentProps<typeof Input>,
+    description?: string,
+  ) {
     const invalid = !!errors?.[name];
     const input = (
       <Input
         id={name}
-        value={values[name]}
+        value={values[name] ?? ""}
         onChange={set(name)}
         aria-invalid={invalid}
         required
@@ -63,6 +74,7 @@ export function CompanyForm({
       />
     );
     const error = <FieldError errors={errorsFor(name)} />;
+    const help = description && <FieldDescription>{description}</FieldDescription>;
 
     return inline ? (
       <Field orientation="horizontal" data-invalid={invalid}>
@@ -72,6 +84,7 @@ export function CompanyForm({
         </FieldLabel>
         <FieldContent className={cn("flex-none", INLINE_INPUT)}>
           {input}
+          {help}
           {error}
         </FieldContent>
       </Field>
@@ -79,6 +92,7 @@ export function CompanyForm({
       <Field data-invalid={invalid}>
         <FieldLabel htmlFor={name}>{t(name)}</FieldLabel>
         {input}
+        {help}
         {error}
       </Field>
     );
@@ -89,6 +103,12 @@ export function CompanyForm({
       <FieldGroup className={cn(inline && "gap-4")}>
         {field("name")}
         {field("ticker", { className: "uppercase" })}
+        {withPriceSymbol &&
+          field(
+            "priceSymbol",
+            { className: "uppercase", required: false, placeholder: defaultPriceSymbol(defaultTicker) },
+            t("priceSymbolDescription", { symbol: defaultPriceSymbol(defaultTicker) }),
+          )}
         <Field orientation="horizontal" className={cn(inline && "justify-end")}>
           <Button type="submit" disabled={pending}>
             {pending ? t("saving") : t("save")}

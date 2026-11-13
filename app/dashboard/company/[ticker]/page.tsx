@@ -16,8 +16,10 @@ import { NewsFeed } from "@/components/news-feed";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { parsePage } from "@/components/pagination";
+import { RefreshPricesButton } from "@/components/refresh-prices-button";
 import { ResultTables } from "@/components/result-tables";
 import { SelectedScenarioProvider } from "@/components/selected-scenario";
+import { priceSymbol } from "@/lib/stock-price";
 
 export default async function CompanyPage({
   params,
@@ -48,6 +50,11 @@ export default async function CompanyPage({
       <div className="flex flex-col gap-2">
         <PageBreadcrumbs items={[{ label: company.name }]} />
         <PageHeader title={company.name}>
+          <RefreshPricesButton
+            companyId={company.id}
+            symbol={priceSymbol(company)}
+            fetchedAt={company.pricesFetchedAt}
+          />
           <ButtonLink href={`${path}/settings`} variant="ghost" size="icon" aria-label={t("open")}>
             <SettingsIcon />
           </ButtonLink>

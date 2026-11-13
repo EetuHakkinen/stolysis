@@ -16,6 +16,8 @@
     "title": "Uusi yhtiö",
     "name": "Nimi",
     "ticker": "Kaupankäyntitunnus",
+    "priceSymbol": "Kurssitunnus",
+    "priceSymbolDescription": "Osakkeen tunnus EODHD:ssa. Jätä tyhjäksi, niin käytetään tunnusta {symbol}.",
     "save": "Tallenna",
     "saving": "Tallennetaan…",
     "saved": "Tallennettu.",
@@ -24,6 +26,17 @@
       "required": "Pakollinen kenttä.",
       "tooLong": "Liian pitkä.",
       "tickerTaken": "Tällä tunnuksella on jo yhtiö."
+    }
+  },
+  "StockPrices": {
+    "refresh": "Päivitä osakekurssit",
+    "refreshing": "Haetaan kursseja…",
+    "fetchedAt": "Kurssit haettu {time}",
+    "neverFetched": "Kursseja ei ole vielä haettu",
+    "errors": {
+      "quota": "EODHD:n päivittäinen hakuraja on täynnä. Yritä huomenna uudelleen.",
+      "notFound": "EODHD:ssa ei ole osaketta tunnuksella {symbol}. Tarkista kurssitunnus asetuksista.",
+      "failed": "Kurssien haku epäonnistui."
     }
   },
   "News": {

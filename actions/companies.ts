@@ -19,7 +19,8 @@ export async function getCompany(ticker: string) {
   return prisma.company.findUnique({ where: { ticker } });
 }
 
-export type CompanyInput = { name: string; ticker: string };
+// An empty price symbol stands for the default one (see lib/stock-price.ts).
+export type CompanyInput = { name: string; ticker: string; priceSymbol?: string };
 
 // Error values are translation keys under CompanyForm.errors.
 export type CompanyFormError = "required" | "tooLong" | "tickerTaken";
@@ -28,6 +29,13 @@ export type CompanyFormErrors = Partial<Record<keyof CompanyInput, CompanyFormEr
 const companySchema = z.object({
   name: z.string().trim().min(1, "required").max(200, "tooLong"),
   ticker: z.string().trim().toUpperCase().min(1, "required").max(20, "tooLong"),
+  priceSymbol: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(30, "tooLong")
+    .optional()
+    .transform((value) => value || null),
 });
 
 export async function createCompany(
@@ -57,7 +65,7 @@ export async function createCompany(
   redirect("/dashboard");
 }
 
-// Updates the company's name and ticker. A changed ticker changes the company's URLs, so then this
+// Updates the company's name, ticker and price symbol. A changed ticker changes the company's URLs, so then this
 // redirects to the settings page under the new ticker.
 export async function updateCompany(
   input: CompanyInput & { companyId: number },
