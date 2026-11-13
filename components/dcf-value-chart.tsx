@@ -3,6 +3,7 @@
 import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from "recharts";
 import { useFormatter, useTranslations } from "next-intl";
 import type { Unit } from "@/app/generated/prisma/client";
+import { SectionTitle } from "@/components/section-title";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { dcfValueParts, type DcfResult } from "@/lib/dcf";
 import type { EstimateYear } from "@/lib/estimates";
@@ -52,7 +53,7 @@ export function DcfValueChart({
 
   return (
     <figure className="flex min-w-0 flex-col gap-2">
-      <figcaption className="font-medium">{t("valueDistribution")}</figcaption>
+      <SectionTitle as="figcaption">{t("valueDistribution")}</SectionTitle>
       {data.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("noValue")}</p>
       ) : (

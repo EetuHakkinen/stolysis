@@ -2,6 +2,7 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
+import { SectionTitle } from "@/components/section-title";
 import {
   Table,
   TableBody,
@@ -38,7 +39,7 @@ export function PeriodTable<Field extends { id: number; name: string | null }, C
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="font-medium">{name}</h3>
+      <SectionTitle>{name}</SectionTitle>
       <Table
         containerClassName={scrollFromEnd ? "[direction:rtl]" : undefined}
         className={scrollFromEnd ? "[direction:ltr]" : undefined}

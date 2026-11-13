@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
+import { SectionTitle } from "@/components/section-title";
 import { Table, TableBody, TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { averageValuePerShare } from "@/lib/valuation";
 
@@ -24,7 +25,7 @@ export function ValuePerShareTable({ dcf, multiples }: { dcf: number | null; mul
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="font-medium">{t("title")}</h3>
+      <SectionTitle>{t("title")}</SectionTitle>
       <Table>
         <TableBody>
           {rows.map((row) => (

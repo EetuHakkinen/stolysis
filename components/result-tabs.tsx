@@ -356,9 +356,10 @@ export function ResultTabs({
         onSelect={select}
       />
       <Tabs defaultValue="summary">
-        <TabsList>
+        {/* The tabs fill the width; on narrow screens they scroll sideways. */}
+        <TabsList className="w-full justify-start overflow-x-auto group-data-horizontal/tabs:h-10">
           {tabs.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
+            <TabsTrigger key={tab.value} value={tab.value} className="px-3 text-base">
               {t(`tabs.${tab.value}`)}
             </TabsTrigger>
           ))}

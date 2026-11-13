@@ -4,6 +4,7 @@ import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts"
 import { useFormatter, useTranslations } from "next-intl";
 import type { GraphAxis, GraphFieldType, Unit, ValueFormat } from "@/app/generated/prisma/client";
 import type { ResultColumn } from "@/components/result-table";
+import { SectionTitle } from "@/components/section-title";
 import {
   ChartContainer,
   ChartLegend,
@@ -74,7 +75,7 @@ export function ResultGraph({
 
   return (
     <figure className="flex min-w-0 flex-col gap-2">
-      <figcaption className="font-medium">{name}</figcaption>
+      <SectionTitle as="figcaption">{name}</SectionTitle>
       <ChartContainer config={config} className="aspect-auto h-72 w-full">
         <ComposedChart data={data} margin={{ top: 8, left: 0, right: 0 }}>
           <CartesianGrid vertical={false} />
