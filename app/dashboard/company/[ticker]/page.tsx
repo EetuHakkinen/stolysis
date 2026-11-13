@@ -8,6 +8,7 @@ import { getGraphs } from "@/actions/graphs";
 import { getNewsFeed } from "@/actions/news";
 import { getNewsForNote, getNoteSnapshot, getNotes } from "@/actions/notes";
 import { getCompanyResults } from "@/actions/results";
+import { getStockPrices } from "@/actions/stock-prices";
 import { getValuation } from "@/actions/valuation";
 import { ButtonLink } from "@/components/button-link";
 import { CompanyNotes } from "@/components/company-notes";
@@ -16,10 +17,12 @@ import { NewsFeed } from "@/components/news-feed";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { parsePage } from "@/components/pagination";
-import { RefreshPricesButton } from "@/components/refresh-prices-button";
 import { ResultTables } from "@/components/result-tables";
 import { SelectedScenarioProvider } from "@/components/selected-scenario";
-import { priceSymbol } from "@/lib/stock-price";
+import { StockPriceFetchWarning } from "@/components/stock-price-fetch-warning";
+import { StockPriceSummary } from "@/components/stock-price-summary";
+import { StockPriceUpdater } from "@/components/stock-price-updater";
+import { needsPriceFetch, priceSymbol } from "@/lib/stock-price";
 
 export default async function CompanyPage({
   params,
@@ -33,7 +36,7 @@ export default async function CompanyPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [results, estimates, graphs, valuation, discountVariables, feed, notes, draft] = await Promise.all([
+  const [results, estimates, graphs, valuation, discountVariables, feed, notes, draft, stockPrices] = await Promise.all([
     getCompanyResults(company.id),
     getEstimates(company.id),
     getGraphs(company.id),
@@ -42,23 +45,33 @@ export default async function CompanyPage({
     getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
     getNotes({ companyId: company.id, page: parsePage(notesPage) }),
     noteDraft(company.id, newsId),
+    getStockPrices({ companyId: company.id }),
   ]);
   const path = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
+  const fetchPrices = needsPriceFetch({
+    latest: stockPrices.at(-1)?.date ?? null,
+    fetchedAt: company.pricesFetchedAt,
+    now: new Date(),
+  });
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6">
       <div className="flex flex-col gap-2">
         <PageBreadcrumbs items={[{ label: company.name }]} />
         <PageHeader title={company.name}>
-          <RefreshPricesButton
-            companyId={company.id}
-            symbol={priceSymbol(company)}
-            fetchedAt={company.pricesFetchedAt}
-          />
           <ButtonLink href={`${path}/settings`} variant="ghost" size="icon" aria-label={t("open")}>
             <SettingsIcon />
           </ButtonLink>
         </PageHeader>
+        <StockPriceSummary prices={stockPrices} />
+        {company.pricesFetchError && (
+          <StockPriceFetchWarning
+            error={company.pricesFetchError}
+            symbol={priceSymbol(company)}
+            settingsHref={`${path}/settings`}
+          />
+        )}
+        {fetchPrices && <StockPriceUpdater companyId={company.id} />}
       </div>
       <SelectedScenarioProvider initialId={parseId(scenario)}>
         <ResultTables
@@ -68,6 +81,7 @@ export default async function CompanyPage({
           graphs={graphs}
           valuation={valuation}
           discountVariables={discountVariables}
+          stockPrices={stockPrices}
         />
         <CompanyTabs
           // A note from a news item opens in the notes.

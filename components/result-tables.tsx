@@ -5,8 +5,9 @@ import type { DiscountValues } from "@/lib/discounting";
 import type { CompanyResults } from "@/actions/results";
 import type { CompanyValuationData } from "@/actions/valuation";
 import { ResultTabs } from "@/components/result-tabs";
+import type { StockPricePoint } from "@/lib/stock-price";
 
-// A valuation summary tab of the starred fields and the graphs, then result field groups in
+// A valuation summary tab of the starred fields and the graphs, a stock price tab, then result field groups in
 // quarterly and yearly tabs: one table per group, with result fields as
 // rows and reporting seasons or financial years as columns. Followed by the estimate tabs of the
 // selected scenario, whose predicted values also fill the results without data, the scenario's
@@ -19,6 +20,7 @@ export async function ResultTables({
   graphs,
   valuation,
   discountVariables,
+  stockPrices,
 }: {
   companyId: number;
   results: CompanyResults;
@@ -26,6 +28,7 @@ export async function ResultTables({
   graphs: GraphData[];
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
+  stockPrices: StockPricePoint[];
 }) {
   const t = await getTranslations("Results");
 
@@ -43,6 +46,7 @@ export async function ResultTables({
           graphs={graphs}
           valuation={valuation}
           discountVariables={discountVariables}
+          stockPrices={stockPrices}
         />
       )}
     </section>

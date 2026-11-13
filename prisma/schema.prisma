@@ -13,15 +13,17 @@ datasource db {
 }
 
 model Company {
-  id              Int       @id @default(autoincrement())
-  name            String
-  ticker          String    @unique
+  id               Int                   @id @default(autoincrement())
+  name             String
+  ticker           String                @unique
   // Symbol of the company's stock in EODHD; null for the default, the ticker on Nasdaq Helsinki.
-  priceSymbol     String?   @map("price_symbol")
-  // When the stock prices were last fetched.
-  pricesFetchedAt DateTime? @map("prices_fetched_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  priceSymbol      String?               @map("price_symbol")
+  // When the stock prices were last fetched, successfully or not.
+  pricesFetchedAt  DateTime?             @map("prices_fetched_at")
+  // Why the latest fetch of the stock prices failed; null when it succeeded.
+  pricesFetchError StockPriceFetchError? @map("prices_fetch_error")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at")
 
   financialYears     FinancialYear[]
   news               News[]
@@ -35,6 +37,16 @@ model Company {
   stockPrices        StockPrice[]
 
   @@map("company")
+}
+
+// Why fetching stock prices failed: the daily request limit was used up, EODHD has no stock with the
+// price symbol, or anything else.
+enum StockPriceFetchError {
+  quota
+  notFound @map("not_found")
+  failed
+
+  @@map("stock_price_fetch_error")
 }
 
 enum Unit {
@@ -475,15 +487,21 @@ model Note {
   @@map("note")
 }
 
-// A company's stock price at the close of a trading day, from EODHD. Prices are integers in
-// thousandths of the currency (41.3 € is 41300). The adjusted close also accounts for later
-// dividends and splits, so EODHD revises it for past days.
+// A company's stock prices on a trading day, from EODHD. Prices are integers in thousandths of the
+// currency (41.3 € is 41300). The adjusted close also accounts for later dividends and splits, so
+// EODHD revises it for past days. Open, high, low and volume are null for days saved before they
+// were fetched.
 model StockPrice {
   id            Int      @id @default(autoincrement())
   companyId     Int      @map("company")
   date          DateTime @db.Date
+  open          Int?
+  high          Int?
+  low           Int?
   close         Int
   adjustedClose Int      @map("adjusted_close")
+  // Number of shares traded.
+  volume        BigInt?
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 

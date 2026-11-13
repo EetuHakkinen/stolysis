@@ -20,12 +20,28 @@ export class EodhdError extends Error {
 }
 
 const responseSchema = z.array(
-  z.object({ date: z.string(), close: z.number(), adjusted_close: z.number() }),
+  z.object({
+    date: z.string(),
+    open: z.number(),
+    high: z.number(),
+    low: z.number(),
+    close: z.number(),
+    adjusted_close: z.number(),
+    volume: z.number().int(),
+  }),
 );
 
-export type DailyPrice = { date: string; close: number; adjustedClose: number };
+export type DailyPrice = {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjustedClose: number;
+  volume: number;
+};
 
-// Closing prices of the symbol (e.g. "HARVIA.HE") on each trading day between the given days
+// Prices of the symbol (e.g. "HARVIA.HE") on each trading day between the given days
 // ("YYYY-MM-DD", both included), oldest first.
 export async function fetchDailyPrices({
   symbol,
@@ -53,5 +69,5 @@ export async function fetchDailyPrices({
 
   const parsed = responseSchema.safeParse(await response.json());
   if (!parsed.success) throw new EodhdError("failed", `Unexpected EODHD response: ${parsed.error.message}`);
-  return parsed.data.map(({ date, close, adjusted_close }) => ({ date, close, adjustedClose: adjusted_close }));
+  return parsed.data.map(({ adjusted_close, ...price }) => ({ ...price, adjustedClose: adjusted_close }));
 }

@@ -37,6 +37,7 @@ import {
   yearlyGraphColumns,
 } from "@/components/result-graphs";
 import { useSelectedScenario } from "@/components/selected-scenario";
+import { StockPriceChart } from "@/components/stock-price-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValuationTab } from "@/components/valuation-tab";
 import { ValuePerShareTable } from "@/components/value-per-share-table";
@@ -49,6 +50,7 @@ import {
 } from "@/lib/estimates";
 import { calculateDcf } from "@/lib/dcf";
 import { costOfEquity, wacc, type DiscountValues } from "@/lib/discounting";
+import type { StockPricePoint } from "@/lib/stock-price";
 import { calculateValuation, presentValuation } from "@/lib/valuation";
 
 function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) {
@@ -56,7 +58,7 @@ function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) 
 }
 
 // Result tabs: a valuation summary of the starred fields' yearly values and the starred graphs
-// around the current financial year, quarterly and yearly results, the quarterly and yearly estimates of the scenario
+// around the current financial year, the stock price's development, quarterly and yearly results, the quarterly and yearly estimates of the scenario
 // selected above the tabs, the scenario's valuation, and the scenario's DCF cash flows and value with
 // the company's discount variables. Every tab
 // shows the same predicted values: the results use them for periods without data. The result and
@@ -71,6 +73,7 @@ export function ResultTabs({
   graphs,
   valuation,
   discountVariables,
+  stockPrices,
 }: {
   companyId: number;
   seasons: ResultSeason[];
@@ -79,6 +82,7 @@ export function ResultTabs({
   graphs: GraphData[];
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
+  stockPrices: StockPricePoint[];
 }) {
   const t = useTranslations("Results");
   const { selectedId, select } = useSelectedScenario();
@@ -313,10 +317,14 @@ export function ResultTabs({
   }
 
   const tabs: {
-    value: "summary" | "quarterly" | "yearly" | "quarterlyEstimates" | "yearlyEstimates" | "valuation" | "discounting";
+    value:
+      | "summary"
+      | "stockPrice"
+      | "quarterly" | "yearly" | "quarterlyEstimates" | "yearlyEstimates" | "valuation" | "discounting";
     content: React.ReactNode;
   }[] = [
     { value: "summary", content: summaryTab() },
+    { value: "stockPrice", content: <StockPriceChart prices={stockPrices} /> },
     { value: "quarterly", content: resultTables(quarterlyResultColumns(seasons, isEstimated)) },
     { value: "yearly", content: resultTables(yearlyResultColumns(seasons, isEstimated)) },
     {

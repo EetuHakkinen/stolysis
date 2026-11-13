@@ -29,14 +29,21 @@
     }
   },
   "StockPrices": {
-    "refresh": "Refresh stock prices",
-    "refreshing": "Fetching prices…",
-    "fetchedAt": "Prices fetched {time}",
-    "neverFetched": "No prices fetched yet",
+    "empty": "No stock prices yet. They are fetched automatically when the page is opened, at most once a day.",
+    "close": "Close",
+    "range": "Time range",
+    "ranges": {
+      "1M": "1M",
+      "3M": "3M",
+      "6M": "6M",
+      "1Y": "1Y",
+      "all": "All"
+    },
     "errors": {
-      "quota": "The daily EODHD request limit is used up. Try again tomorrow.",
-      "notFound": "EODHD has no stock with the symbol {symbol}. Check the price symbol in the settings.",
-      "failed": "Fetching prices failed."
+      "quota": "Fetching the stock price failed: the daily EODHD request limit is used up. It is tried again tomorrow.",
+      "notFound": "Fetching the stock price failed: EODHD has no stock with the symbol {symbol}.",
+      "failed": "Fetching the stock price failed. It is tried again tomorrow.",
+      "openSettings": "Change the price symbol in the settings"
     }
   },
   "News": {
@@ -57,6 +64,7 @@
     "removeNews": "Remove link to news",
     "selectNews": "Link to news",
     "changeNews": "Change news",
+    "stockPrice": "Share price",
     "estimates": "Estimates",
     "multiples": "Valuation multiples",
     "noYear": "No financial year covers the note's date.",
@@ -125,6 +133,7 @@
     },
     "tabs": {
       "summary": "Summary",
+      "stockPrice": "Stock price",
       "quarterly": "Quarterly",
       "yearly": "Yearly",
       "quarterlyEstimates": "Quarterly estimates",

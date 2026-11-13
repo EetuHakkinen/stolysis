@@ -8,6 +8,7 @@ import { applySettings, createCompanyWithSettings, type AppliedSettings } from "
 import { calendarFinancialYear } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
+import { priceSymbol } from "@/lib/stock-price";
 
 export async function getCompanies() {
   await requireUserId();
@@ -66,7 +67,9 @@ export async function createCompany(
 }
 
 // Updates the company's name, ticker and price symbol. A changed ticker changes the company's URLs, so then this
-// redirects to the settings page under the new ticker.
+// redirects to the settings page under the new ticker. A changed price symbol (also by a changed
+// ticker) clears the failure of the latest price fetch and lets the prices be fetched again right
+// away.
 export async function updateCompany(
   input: CompanyInput & { companyId: number },
 ): Promise<{ errors?: CompanyFormErrors }> {
@@ -79,11 +82,15 @@ export async function updateCompany(
   }
   const id = z.number().int().positive().parse(input.companyId);
 
-  const company = await prisma.company.findUnique({ where: { id }, select: { ticker: true } });
+  const company = await prisma.company.findUnique({ where: { id }, select: { ticker: true, priceSymbol: true } });
   if (!company) return {};
+  const symbolChanged = priceSymbol(parsed.data) !== priceSymbol(company);
 
   try {
-    await prisma.company.update({ where: { id }, data: parsed.data });
+    await prisma.company.update({
+      where: { id },
+      data: { ...parsed.data, ...(symbolChanged && { pricesFetchedAt: null, pricesFetchError: null }) },
+    });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { errors: { ticker: ["tickerTaken"] } };

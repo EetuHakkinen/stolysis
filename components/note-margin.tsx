@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TIME_ZONE } from "@/lib/helsinki-time";
 import { toLocalDate } from "@/lib/note-date";
 import type { NoteSnapshot, NoteSnapshotScenario } from "@/lib/note-snapshot";
+import { PRICE_FORMAT } from "@/lib/stock-price";
 
 function MarginSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -23,7 +24,8 @@ function MarginSection({ title, children }: { title: string; children: React.Rea
 }
 
 // Information beside a note: its date and linked news, which can be changed while editing, and
-// the company's starred fields and multiples at the end of the date in the selected scenario.
+// the company's closing price on the date, and its starred fields and multiples at the end of the
+// date in the selected scenario.
 export function NoteMargin({
   editing,
   date,
@@ -93,6 +95,20 @@ export function NoteMargin({
       )}
 
       <div className={loading ? "flex flex-col gap-5 opacity-60" : "flex flex-col gap-5"}>
+        {snapshot.stockPrice && (
+          <MarginSection title={t("stockPrice")}>
+            <div className="flex items-baseline justify-between gap-2 tabular-nums">
+              <span>{format.number(snapshot.stockPrice.close, PRICE_FORMAT)}</span>
+              {/* The price is from an earlier trading day when there was no trading on the date. */}
+              {snapshot.stockPrice.date !== date && (
+                <time dateTime={snapshot.stockPrice.date} className="text-xs text-muted-foreground">
+                  {format.dateTime(toLocalDate(snapshot.stockPrice.date), { dateStyle: "medium" })}
+                </time>
+              )}
+            </div>
+          </MarginSection>
+        )}
+
         {scenarios.length > 1 && (
           <EstimateScenarioPicker
             scenarios={scenarios}

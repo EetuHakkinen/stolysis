@@ -29,14 +29,21 @@
     }
   },
   "StockPrices": {
-    "refresh": "Päivitä osakekurssit",
-    "refreshing": "Haetaan kursseja…",
-    "fetchedAt": "Kurssit haettu {time}",
-    "neverFetched": "Kursseja ei ole vielä haettu",
+    "empty": "Osakekursseja ei ole vielä. Ne haetaan automaattisesti sivun avautuessa, enintään kerran päivässä.",
+    "close": "Päätöskurssi",
+    "range": "Aikaväli",
+    "ranges": {
+      "1M": "1 kk",
+      "3M": "3 kk",
+      "6M": "6 kk",
+      "1Y": "1 v",
+      "all": "Kaikki"
+    },
     "errors": {
-      "quota": "EODHD:n päivittäinen hakuraja on täynnä. Yritä huomenna uudelleen.",
-      "notFound": "EODHD:ssa ei ole osaketta tunnuksella {symbol}. Tarkista kurssitunnus asetuksista.",
-      "failed": "Kurssien haku epäonnistui."
+      "quota": "Osakekurssin haku epäonnistui: EODHD:n päivittäinen hakuraja on täynnä. Haku yritetään uudelleen huomenna.",
+      "notFound": "Osakekurssin haku epäonnistui: EODHD:ssa ei ole osaketta tunnuksella {symbol}.",
+      "failed": "Osakekurssin haku epäonnistui. Haku yritetään uudelleen huomenna.",
+      "openSettings": "Vaihda kurssitunnus asetuksista"
     }
   },
   "News": {
@@ -57,6 +64,7 @@
     "removeNews": "Poista linkki uutiseen",
     "selectNews": "Linkitä uutiseen",
     "changeNews": "Vaihda uutinen",
+    "stockPrice": "Osakekurssi",
     "estimates": "Ennusteet",
     "multiples": "Arvostuskertoimet",
     "noYear": "Muistiinpanon päivämäärälle ei ole tilikautta.",
@@ -125,11 +133,12 @@
     },
     "tabs": {
       "summary": "Yhteenveto",
-      "quarterly": "Neljännesvuosi",
+      "stockPrice": "Kurssi",
+      "quarterly": "Kvartaalit",
       "yearly": "Vuosi",
-      "quarterlyEstimates": "Kvartaaliennusteet",
-      "yearlyEstimates": "Vuosiennusteet",
-      "valuation": "Arvostuskertoimet",
+      "quarterlyEstimates": "Kvartaalienn.",
+      "yearlyEstimates": "Vuosienn.",
+      "valuation": "Kertoimet",
       "discounting": "DCF"
     },
     "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario yhtiön asetuksissa ennusteiden tekemiseksi.",

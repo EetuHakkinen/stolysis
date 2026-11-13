@@ -16,6 +16,8 @@ import {
 } from "@/lib/company-data";
 import { predictCompany, type PeriodValue } from "@/lib/estimates";
 import { endOfNoteDay } from "@/lib/note-date";
+import { priceOn, type StockPricePoint } from "@/lib/stock-price";
+import { loadStockPrices } from "@/lib/stock-prices";
 
 // Years shown after the financial year covering the note's date.
 const YEARS_AFTER = 2;
@@ -34,6 +36,8 @@ export type NoteSnapshotScenario = {
 // predicted from the results and estimates saved by then, in each scenario that had estimates or
 // multiple values then. Fields and multiples themselves aren't versioned, so they are current.
 export type NoteSnapshot = {
+  // The closing price on the date, or on the last trading day before it; null without one.
+  stockPrice: StockPricePoint | null;
   // The financial year covering the date and the YEARS_AFTER years after it; empty if no year
   // covers it.
   years: { id: number; name: string | null; unit: Unit }[];
@@ -45,7 +49,7 @@ export type NoteSnapshot = {
 
 // Everything a company's snapshots are calculated from, loaded once for any number of dates.
 export async function loadSnapshotData(companyId: number) {
-  const [groups, scenarios, { fields, valueFormats }, estimateRows, years, multiples, multipleValueRows] =
+  const [groups, scenarios, { fields, valueFormats }, estimateRows, years, multiples, multipleValueRows, prices] =
     await Promise.all([
       loadResultGroups(companyId),
       loadScenarios(companyId),
@@ -54,8 +58,9 @@ export async function loadSnapshotData(companyId: number) {
       loadFinancialYears(companyId),
       loadMultiples(companyId),
       loadMultipleValueRows(companyId),
+      loadStockPrices(companyId),
     ]);
-  return { groups, scenarios, fields, valueFormats, estimateRows, years, multiples, multipleValueRows };
+  return { groups, scenarios, fields, valueFormats, estimateRows, years, multiples, multipleValueRows, prices };
 }
 
 export type SnapshotData = Awaited<ReturnType<typeof loadSnapshotData>>;
@@ -106,6 +111,7 @@ export function noteSnapshot(data: SnapshotData, date: string): NoteSnapshot {
   );
 
   return {
+    stockPrice: priceOn(data.prices, date),
     years: shown.map((year) => ({ id: year.id, name: year.name, unit: year.unit ?? "one" })),
     fields: starred,
     multiples: data.multiples.map(({ id, name }) => ({ id, name })),
