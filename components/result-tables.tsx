@@ -6,7 +6,8 @@ import type { CompanyResults } from "@/actions/results";
 import type { CompanyValuationData } from "@/actions/valuation";
 import { ResultTabs } from "@/components/result-tabs";
 
-// Result field groups in quarterly and yearly tabs: one table per group, with result fields as
+// A valuation summary tab of the starred fields and the graphs, then result field groups in
+// quarterly and yearly tabs: one table per group, with result fields as
 // rows and reporting seasons or financial years as columns. Followed by the estimate tabs of the
 // selected scenario, whose predicted values also fill the results without data, the scenario's
 // valuation and the company's discount variables. The company's graphs are shown below the result

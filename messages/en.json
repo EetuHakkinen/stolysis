@@ -73,6 +73,7 @@
       "one": "€"
     },
     "tabs": {
+      "summary": "Summary",
       "quarterly": "Quarterly",
       "yearly": "Yearly",
       "quarterlyEstimates": "Quarterly estimates",
@@ -81,7 +82,8 @@
       "discounting": "Discounting"
     },
     "noScenarios": "No estimate scenarios yet. Create a scenario in the company settings to make estimates.",
-    "noYears": "The company has no current financial year."
+    "noYears": "The company has no current financial year.",
+    "starredFields": "Key figures"
   },
   "Estimates": {
     "scenario": "Scenario",
@@ -256,6 +258,8 @@
     "rename": "Rename",
     "renameTitle": "Rename graph",
     "move": "Move graph {name}",
+    "star": "Star graph {name}",
+    "unstar": "Remove star from graph {name}",
     "fieldCount": "{count, plural, =0 {No fields} one {# field} other {# fields}}",
     "delete": "Delete",
     "deleteTitle": "Delete graph?",

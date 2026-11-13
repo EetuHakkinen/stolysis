@@ -396,6 +396,8 @@ model Graph {
   companyId Int      @map("company")
   name      String
   order     Int?
+  // Marked by the user in the settings; only starred graphs are shown in the summary.
+  starred   Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 

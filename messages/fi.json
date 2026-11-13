@@ -73,6 +73,7 @@
       "one": "€"
     },
     "tabs": {
+      "summary": "Yhteenveto",
       "quarterly": "Neljännesvuosi",
       "yearly": "Vuosi",
       "quarterlyEstimates": "Kvartaaliennusteet",
@@ -81,7 +82,8 @@
       "discounting": "Diskonttaus"
     },
     "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario yhtiön asetuksissa ennusteiden tekemiseksi.",
-    "noYears": "Yrityksellä ei ole kuluvaa tilikautta."
+    "noYears": "Yrityksellä ei ole kuluvaa tilikautta.",
+    "starredFields": "Keskeiset luvut"
   },
   "Estimates": {
     "scenario": "Skenaario",
@@ -256,6 +258,8 @@
     "rename": "Nimeä uudelleen",
     "renameTitle": "Nimeä kaavio uudelleen",
     "move": "Siirrä kaaviota {name}",
+    "star": "Merkitse kaavio {name} tähdellä",
+    "unstar": "Poista tähti kaaviolta {name}",
     "fieldCount": "{count, plural, =0 {Ei kenttiä} one {# kenttä} other {# kenttää}}",
     "delete": "Poista",
     "deleteTitle": "Poistetaanko kaavio?",

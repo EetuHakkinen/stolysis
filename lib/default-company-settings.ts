@@ -32,6 +32,7 @@ const settingsSchema = z.strictObject({
           yearlyValue: z.enum(YearlyValue).optional(),
           valueFormat: z.enum(ValueFormat).optional(),
           estimateType: z.enum(EstimateType).optional(),
+          starred: z.boolean().optional(),
           actualDefinition: nameFormulaSchema.optional(),
           estimateDefinition: nameFormulaSchema.optional(),
         }),
@@ -41,6 +42,7 @@ const settingsSchema = z.strictObject({
   graphs: z.array(
     z.strictObject({
       name: z.string().trim().min(1).max(100),
+      starred: z.boolean().optional(),
       fields: z.array(
         z.strictObject({
           field: z.string().min(1),
@@ -213,11 +215,11 @@ export async function applySettings(
         if (entry.existing.order !== order) await tx.resultField.update({ where: { id: entry.existing.id }, data: { order } });
         continue;
       }
-      const { name, type, yearlyValue, valueFormat, estimateType } = entry.added;
+      const { name, type, yearlyValue, valueFormat, estimateType, starred } = entry.added;
       const freeType = type && !takenTypes.has(type) ? type : undefined;
       if (freeType) takenTypes.add(freeType);
       const { id } = await tx.resultField.create({
-        data: { resultFieldGroupId: target.id, name, type: freeType, yearlyValue, valueFormat, estimateType, order },
+        data: { resultFieldGroupId: target.id, name, type: freeType, yearlyValue, valueFormat, estimateType, starred, order },
         select: { id: true },
       });
       fieldIds.set(nameKey(name), id);
@@ -265,6 +267,7 @@ export async function applySettings(
       data: {
         companyId,
         name: graph.name,
+        starred: graph.starred,
         order: graphOrder++,
         fields: {
           create: graph.fields.map(({ field, type, axis }, order) => ({

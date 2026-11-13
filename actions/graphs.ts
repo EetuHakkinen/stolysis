@@ -10,7 +10,7 @@ import { isUniqueConstraintError } from "@/lib/prisma-errors";
 
 export type GraphFieldData = { id: number; resultFieldId: number; type: GraphFieldType; axis: GraphAxis };
 
-export type GraphData = { id: number; name: string; fields: GraphFieldData[] };
+export type GraphData = { id: number; name: string; starred: boolean; fields: GraphFieldData[] };
 
 // A company's graphs with their fields, both in display order.
 export async function getGraphs(companyId: number): Promise<GraphData[]> {
@@ -22,6 +22,7 @@ export async function getGraphs(companyId: number): Promise<GraphData[]> {
     select: {
       id: true,
       name: true,
+      starred: true,
       fields: {
         orderBy: [{ order: "asc" }, { id: "asc" }],
         select: { id: true, resultFieldId: true, type: true, axis: true },
@@ -102,6 +103,19 @@ export async function deleteGraph(input: { graphId: number }): Promise<{ deleted
   const { count } = await prisma.graph.deleteMany({ where: { id: graphId } });
   refresh();
   return { deleted: count > 0 };
+}
+
+const starSchema = z.object({
+  graphId: idSchema,
+  starred: z.boolean(),
+});
+
+export async function setGraphStarred(input: { graphId: number; starred: boolean }) {
+  await requireUserId();
+  const { graphId, starred } = starSchema.parse(input);
+
+  await prisma.graph.update({ where: { id: graphId }, data: { starred } });
+  refresh();
 }
 
 const reorderGraphsSchema = z.object({

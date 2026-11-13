@@ -18,6 +18,7 @@ export type ResultGroup = {
     id: number;
     name: string | null;
     valueFormat: ValueFormat;
+    starred: boolean;
     // Value in whole euros by reporting season id; seasons without a value are missing. Empty for
     // fields calculated from actual values: their values are calculated with the estimates.
     values: Record<number, bigint | null>;
@@ -53,6 +54,7 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
             id: true,
             name: true,
             valueFormat: true,
+            starred: true,
             // Rows saved before the field became calculated are ignored.
             fieldDefinitions: { where: { kind: "actual" }, select: { id: true } },
             // result_row is insert-only: newest first, so the first row per season is current.

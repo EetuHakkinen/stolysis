@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 
 // Financial years before the current one shown in the estimate graphs.
 const HISTORY_YEARS = 3;
+// Financial years before the current one and after it shown in the valuation summary.
+const SUMMARY_HISTORY_YEARS = 2;
+const SUMMARY_FUTURE_YEARS = 5;
 // Years after the current one with quarterly estimates (QUARTERLY_YEARS_AHEAD in actions/estimates).
 const QUARTERLY_YEARS_AHEAD = 1;
 
@@ -52,7 +55,25 @@ export function yearlyGraphColumns(
   currentYearId: number,
   isEstimated: IsEstimated,
 ): ResultColumn[] {
-  return years.slice(historyStart(years, currentYearId)).map((year) => {
+  return yearColumns(years.slice(historyStart(years, currentYearId)), isEstimated);
+}
+
+// The SUMMARY_HISTORY_YEARS financial years before the current one, the current one and the
+// SUMMARY_FUTURE_YEARS after it.
+export function summaryColumns(
+  years: EstimateYear[],
+  currentYearId: number,
+  isEstimated: IsEstimated,
+): ResultColumn[] {
+  const current = years.findIndex((year) => year.id === currentYearId);
+  return yearColumns(
+    years.slice(Math.max(0, current - SUMMARY_HISTORY_YEARS), current + SUMMARY_FUTURE_YEARS + 1),
+    isEstimated,
+  );
+}
+
+function yearColumns(years: EstimateYear[], isEstimated: IsEstimated): ResultColumn[] {
+  return years.map((year) => {
     const period = { reportingSeasonId: null, financialYearId: year.id };
     return {
       key: `year-${year.id}`,

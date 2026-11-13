@@ -27,7 +27,12 @@ import {
   yearlyResultColumns,
   type ResultColumn,
 } from "@/components/result-table";
-import { quarterlyGraphColumns, ResultGraphs, yearlyGraphColumns } from "@/components/result-graphs";
+import {
+  quarterlyGraphColumns,
+  ResultGraphs,
+  summaryColumns,
+  yearlyGraphColumns,
+} from "@/components/result-graphs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValuationTab } from "@/components/valuation-tab";
 import {
@@ -42,7 +47,8 @@ function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) 
   return `${scenarioId}:${fieldId}:${period.reportingSeasonId ?? ""}:${period.financialYearId ?? ""}`;
 }
 
-// Result tabs: quarterly and yearly results, the quarterly and yearly estimates of the scenario
+// Result tabs: a valuation summary of the starred fields' yearly values and the starred graphs
+// around the current financial year, quarterly and yearly results, the quarterly and yearly estimates of the scenario
 // selected above the tabs, the scenario's valuation and the company's discount variables. Every tab
 // shows the same predicted values: the results use them for periods without data. The result and
 // estimate tabs show the company's graphs below the tables. Estimates,
@@ -149,8 +155,8 @@ export function ResultTabs({
 
   const graphFields = new Map(groups.flatMap((group) => group.fields.map((field) => [field.id, field])));
 
-  function resultGraphs(columns: ResultColumn[]) {
-    return <ResultGraphs graphs={graphs} fields={graphFields} columns={columns} values={values} />;
+  function resultGraphs(columns: ResultColumn[], shown = graphs) {
+    return <ResultGraphs graphs={shown} fields={graphFields} columns={columns} values={values} />;
   }
 
   function resultTables(columns: ResultColumn[]) {
@@ -187,6 +193,20 @@ export function ResultTabs({
       <>
         {tables}
         {resultGraphs(graphColumns(currentYearId))}
+      </>
+    );
+  }
+
+  function summaryTab() {
+    if (currentYearId == null) return <p className="text-muted-foreground">{t("noYears")}</p>;
+    const columns = summaryColumns(years, currentYearId, isEstimated);
+    const starred = groups.flatMap((group) => group.fields.filter((field) => field.starred));
+    return (
+      <>
+        {starred.length > 0 && (
+          <ResultTable name={t("starredFields")} fields={starred} columns={columns} values={values} />
+        )}
+        {resultGraphs(columns, graphs.filter((graph) => graph.starred))}
       </>
     );
   }
@@ -230,9 +250,10 @@ export function ResultTabs({
   }
 
   const tabs: {
-    value: "quarterly" | "yearly" | "quarterlyEstimates" | "yearlyEstimates" | "valuation" | "discounting";
+    value: "summary" | "quarterly" | "yearly" | "quarterlyEstimates" | "yearlyEstimates" | "valuation" | "discounting";
     content: React.ReactNode;
   }[] = [
+    { value: "summary", content: summaryTab() },
     { value: "quarterly", content: resultTables(quarterlyResultColumns(seasons, isEstimated)) },
     { value: "yearly", content: resultTables(yearlyResultColumns(seasons, isEstimated)) },
     {
@@ -260,7 +281,7 @@ export function ResultTabs({
         selected={scenario}
         onSelect={select}
       />
-      <Tabs defaultValue="quarterly">
+      <Tabs defaultValue="summary">
         <TabsList>
           {tabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>

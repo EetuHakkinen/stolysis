@@ -2,7 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
-import { PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, StarIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   addGraphField,
@@ -12,6 +12,7 @@ import {
   renameGraph,
   reorderGraphFields,
   reorderGraphs,
+  setGraphStarred,
   updateGraphField,
   type GraphData,
   type GraphFieldData,
@@ -37,8 +38,9 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 // Company settings section for the graphs shown below the result and estimate tables: a table of
 // the graphs in display order, with buttons for creating, renaming and deleting them, followed by
-// each graph's result fields. Graphs and their fields are reordered by dragging; the new order
-// shows right away and stays once the refreshed page has loaded it.
+// each graph's result fields. Graphs and their fields are reordered by dragging, and graphs are
+// starred with the star button to show them in the summary tab; changes show right away and stay
+// once the refreshed page has loaded them.
 export function GraphSettings({
   companyId,
   graphs,
@@ -59,6 +61,13 @@ export function GraphSettings({
     startTransition(async () => {
       setShown(reordered);
       await reorderGraphs({ companyId, graphIds: reordered.map((graph) => graph.id) });
+    });
+  }
+
+  function toggleStar(graphId: number, starred: boolean) {
+    startTransition(async () => {
+      setShown(shown.map((graph) => (graph.id === graphId ? { ...graph, starred } : graph)));
+      await setGraphStarred({ graphId, starred });
     });
   }
 
@@ -94,6 +103,15 @@ export function GraphSettings({
                 </TableCell>
                 <TableCell className="w-0">
                   <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t(graph.starred ? "unstar" : "star", { name: graph.name })}
+                      aria-pressed={graph.starred}
+                      onClick={() => toggleStar(graph.id, !graph.starred)}
+                    >
+                      <StarIcon className={graph.starred ? "fill-yellow-400 text-yellow-400" : undefined} />
+                    </Button>
                     <NameDialog
                       title={t("renameTitle")}
                       initialName={graph.name}
