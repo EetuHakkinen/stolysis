@@ -66,7 +66,7 @@
     "changeNews": "Change news",
     "stockPrice": "Share price",
     "estimates": "Estimates",
-    "multiples": "Valuation multiples",
+    "multiples": "Multiples at the day's price",
     "noYear": "No financial year covers the note's date.",
     "write": "Write",
     "preview": "Preview",
@@ -186,12 +186,41 @@
     "potential": "Potential",
     "expectedReturn": "Expected return / year"
   },
+  "ValuationMultiples": {
+    "title": "Valuation multiples",
+    "empty": "No valuation multiples yet.",
+    "create": "New multiple",
+    "createTitle": "New valuation multiple",
+    "edit": "Edit multiple {name}",
+    "editTitle": "Edit valuation multiple",
+    "move": "Move multiple {name}",
+    "delete": "Delete multiple {name}",
+    "deleteTitle": "Delete valuation multiple?",
+    "deleteDescription": "The multiple {name} and its values in every scenario will be deleted permanently.",
+    "resultField": "Result field",
+    "chooseResultField": "Choose a field",
+    "basis": "Basis",
+    "basisDescription": "Net debt is subtracted from an enterprise value based multiple (e.g. EV/EBIT) to get the market value. A market value based multiple (e.g. P/E) gives the market value directly.",
+    "bases": {
+      "enterprise_value": "Enterprise value (EV)",
+      "market_value": "Market value"
+    },
+    "errors": {
+      "required": "Name is required.",
+      "tooLong": "Name is too long.",
+      "nameTaken": "The company already has a multiple with this name.",
+      "fieldRequired": "Choose a result field."
+    }
+  },
   "ValuePerShare": {
     "title": "Value per share",
     "dcf": "DCF",
     "multiples": "Multiples",
     "average": "Average",
     "potential": "Potential"
+  },
+  "PriceMultiples": {
+    "title": "Multiples at current price"
   },
   "Dcf": {
     "valueDistribution": "Cash flow distribution by period",

@@ -8,33 +8,35 @@ import {
   loadEstimateRows,
   loadFinancialYears,
   loadMultiples,
-  loadMultipleValueRows,
   loadResultGroups,
   loadScenarios,
-  multipleValuesAsOf,
+  loadTypedFieldIds,
   resultGroupsAsOf,
 } from "@/lib/company-data";
 import { predictCompany, type PeriodValue } from "@/lib/estimates";
 import { endOfNoteDay } from "@/lib/note-date";
 import { priceOn, type StockPricePoint } from "@/lib/stock-price";
 import { loadStockPrices } from "@/lib/stock-prices";
+import { priceMultiples } from "@/lib/valuation";
 
 // Years shown after the financial year covering the note's date.
 const YEARS_AFTER = 2;
 
 export type NoteSnapshotScenario = {
-  // Null when no scenario had estimates or multiple values: the values are then the actual ones.
+  // Null when no scenario had estimates: the values are then the actual ones.
   id: number | null;
   name: string | null;
   // Yearly values of the starred fields by field id, then by financial year id.
   values: Record<number, Record<number, PeriodValue>>;
-  // Multiple values by multiple id.
-  multiples: Record<number, number | null>;
+  // The multiples the stock price gives in each year (see priceMultiples), by multiple id and then
+  // by financial year id; empty without a price.
+  multiples: Record<number, Record<number, number | null>>;
 };
 
 // The company's starred fields and multiples as they were at the end of a note's date: values are
-// predicted from the results and estimates saved by then, in each scenario that had estimates or
-// multiple values then. Fields and multiples themselves aren't versioned, so they are current.
+// predicted from the results and estimates saved by then, in each scenario that had estimates then,
+// and the multiples are calculated from them at the date's stock price. Fields and multiples
+// themselves aren't versioned, so they are current.
 export type NoteSnapshot = {
   // The closing price on the date, or on the last trading day before it; null without one.
   stockPrice: StockPricePoint | null;
@@ -49,7 +51,7 @@ export type NoteSnapshot = {
 
 // Everything a company's snapshots are calculated from, loaded once for any number of dates.
 export async function loadSnapshotData(companyId: number) {
-  const [groups, scenarios, { fields, valueFormats }, estimateRows, years, multiples, multipleValueRows, prices] =
+  const [groups, scenarios, { fields, valueFormats }, estimateRows, years, multiples, fieldIds, prices] =
     await Promise.all([
       loadResultGroups(companyId),
       loadScenarios(companyId),
@@ -57,10 +59,10 @@ export async function loadSnapshotData(companyId: number) {
       loadEstimateRows(companyId),
       loadFinancialYears(companyId),
       loadMultiples(companyId),
-      loadMultipleValueRows(companyId),
+      loadTypedFieldIds(companyId),
       loadStockPrices(companyId),
     ]);
-  return { groups, scenarios, fields, valueFormats, estimateRows, years, multiples, multipleValueRows, prices };
+  return { groups, scenarios, fields, valueFormats, estimateRows, years, multiples, fieldIds, prices };
 }
 
 export type SnapshotData = Awaited<ReturnType<typeof loadSnapshotData>>;
@@ -86,7 +88,7 @@ export function noteSnapshot(data: SnapshotData, date: string): NoteSnapshot {
     scenarioIds: data.scenarios.map((scenario) => scenario.id),
     asOf,
   });
-  const multipleValues = multipleValuesAsOf(data.multipleValueRows, asOf);
+  const stockPrice = priceOn(data.prices, date);
 
   function scenario(id: number | null, name: string | null): NoteSnapshotScenario {
     const prediction = predictCompany({
@@ -101,17 +103,25 @@ export function noteSnapshot(data: SnapshotData, date: string): NoteSnapshot {
         Object.fromEntries(shown.map((year) => [year.id, prediction.yearly[field.id]?.[year.id]])),
       ]),
     );
-    return { id, name, values, multiples: id == null ? {} : (multipleValues[id] ?? {}) };
+    const multiples = stockPrice
+      ? priceMultiples({
+          multiples: data.multiples,
+          prediction,
+          yearIds: shown.map((year) => year.id),
+          price: stockPrice.close,
+          netDebtFieldId: data.fieldIds.net_debt,
+          shareCountFieldId: data.fieldIds.share_count,
+        })
+      : {};
+    return { id, name, values, multiples };
   }
 
-  const withData = data.scenarios.filter(
-    (scenario) =>
-      estimates[scenario.id].some((estimate) => estimate.value != null) ||
-      Object.values(multipleValues[scenario.id] ?? {}).some((value) => value != null),
+  const withData = data.scenarios.filter((scenario) =>
+    estimates[scenario.id].some((estimate) => estimate.value != null),
   );
 
   return {
-    stockPrice: priceOn(data.prices, date),
+    stockPrice,
     years: shown.map((year) => ({ id: year.id, name: year.name, unit: year.unit ?? "one" })),
     fields: starred,
     multiples: data.multiples.map(({ id, name }) => ({ id, name })),

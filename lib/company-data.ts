@@ -1,5 +1,6 @@
 import "server-only";
 import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
+import { ResultFieldType } from "@/app/generated/prisma/enums";
 import {
   fromStoredEstimate,
   type ActualValues,
@@ -218,6 +219,18 @@ export function estimateYears(
     fromSeasons: currentIndex < 0 || index <= currentIndex + QUARTERLY_YEARS_AHEAD,
   }));
   return { years, currentIndex, after: currentIndex < 0 ? 0 : all.length - currentIndex - 1 };
+}
+
+// Ids of the company's fields by special type; null if the company doesn't have one.
+export async function loadTypedFieldIds(companyId: number): Promise<Record<ResultFieldType, number | null>> {
+  const fields = await prisma.resultField.findMany({
+    where: { resultFieldGroup: { companyId }, type: { not: null } },
+    orderBy: { id: "asc" },
+    select: { id: true, type: true },
+  });
+  return Object.fromEntries(
+    Object.values(ResultFieldType).map((type) => [type, fields.find((field) => field.type === type)?.id ?? null]),
+  ) as Record<ResultFieldType, number | null>;
 }
 
 // A company's valuation multiples in order.

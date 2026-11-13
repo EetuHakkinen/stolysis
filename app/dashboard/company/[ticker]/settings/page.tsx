@@ -4,6 +4,7 @@ import { getCompany } from "@/actions/companies";
 import { getEstimateScenarios } from "@/actions/estimates";
 import { getGraphs } from "@/actions/graphs";
 import { getResultFieldGroups } from "@/actions/result-field-groups";
+import { getValuation } from "@/actions/valuation";
 import { CompanyDetailsSettings } from "@/components/company-details-settings";
 import { DefaultSettingsSettings } from "@/components/default-settings-settings";
 import { EstimateScenarioSettings } from "@/components/estimate-scenario-settings";
@@ -12,6 +13,7 @@ import { ResultFieldGroupSettings } from "@/components/result-field-group-settin
 import { ResultFieldSettings } from "@/components/result-field-settings";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
+import { ValuationMultipleSettings } from "@/components/valuation-multiple-settings";
 
 export default async function CompanySettingsPage({
   params,
@@ -20,10 +22,11 @@ export default async function CompanySettingsPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [scenarios, groups, graphs] = await Promise.all([
+  const [scenarios, groups, graphs, valuation] = await Promise.all([
     getEstimateScenarios(company.id),
     getResultFieldGroups(company.id),
     getGraphs(company.id),
+    getValuation(company.id),
   ]);
   const companyPath = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
 
@@ -38,6 +41,7 @@ export default async function CompanySettingsPage({
       <ResultFieldGroupSettings companyId={company.id} groups={groups} />
       <ResultFieldSettings groups={groups} />
       <GraphSettings companyId={company.id} graphs={graphs} groups={groups} />
+      <ValuationMultipleSettings companyId={company.id} multiples={valuation.multiples} groups={groups} />
       <DefaultSettingsSettings companyId={company.id} />
     </main>
   );

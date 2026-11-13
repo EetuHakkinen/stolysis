@@ -39,6 +39,7 @@ import {
 import { useSelectedScenario } from "@/components/selected-scenario";
 import { StockPriceChart } from "@/components/stock-price-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PriceMultiplesTable } from "@/components/price-multiples-table";
 import { ValuationTab } from "@/components/valuation-tab";
 import { ValuePerShareTable } from "@/components/value-per-share-table";
 import {
@@ -51,7 +52,10 @@ import {
 import { calculateDcf } from "@/lib/dcf";
 import { costOfEquity, wacc, type DiscountValues } from "@/lib/discounting";
 import type { StockPricePoint } from "@/lib/stock-price";
-import { calculateValuation, presentValuation } from "@/lib/valuation";
+import { calculateValuation, presentValuation, priceMultiples } from "@/lib/valuation";
+
+// The summary's multiples at the stock price: the current financial year and two after it.
+const PRICE_MULTIPLE_YEARS = 3;
 
 function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) {
   return `${scenarioId}:${fieldId}:${period.reportingSeasonId ?? ""}:${period.financialYearId ?? ""}`;
@@ -233,6 +237,26 @@ export function ResultTabs({
     return presentValuation(result, costOfEquity(discountValues), targetYear.endTime, new Date()).valuePerShare;
   }
 
+  // The multiples the latest stock price gives in the current financial year and the ones after it;
+  // nothing without a price or multiples.
+  function priceMultiplesTable(columns: ResultColumn[]) {
+    const price = stockPrices.at(-1)?.close;
+    if (price == null || valuation.multiples.length === 0) return null;
+    const yearIds = targetYears()
+      .slice(0, PRICE_MULTIPLE_YEARS)
+      .map((year) => year.id);
+    const shown = columns.filter((column) => yearIds.includes(column.period.financialYearId!));
+    const multiples = priceMultiples({
+      multiples: valuation.multiples,
+      prediction,
+      yearIds,
+      price,
+      netDebtFieldId: valuation.fieldIds.net_debt,
+      shareCountFieldId: valuation.fieldIds.share_count,
+    });
+    return <PriceMultiplesTable multiples={valuation.multiples} columns={shown} values={multiples} />;
+  }
+
   function summaryTab() {
     if (currentYearId == null) return <p className="text-muted-foreground">{t("noYears")}</p>;
     const columns = summaryColumns(years, currentYearId, isEstimated);
@@ -242,12 +266,13 @@ export function ResultTabs({
         {starred.length > 0 && (
           <ResultTable name={t("starredFields")} fields={starred} columns={columns} values={values} />
         )}
-        <div className="lg:w-1/2">
+        <div className="grid gap-8 lg:grid-cols-2">
           <ValuePerShareTable
             dcf={dcf(currentYearId).valuePerShare}
             multiples={multipleValuePerShare()}
             price={stockPrices.at(-1)?.close ?? null}
           />
+          {priceMultiplesTable(columns)}
         </div>
         {resultGraphs(columns, graphs.filter((graph) => graph.starred))}
       </>

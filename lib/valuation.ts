@@ -96,6 +96,50 @@ export function calculateValuation({
   return { rows, averageMarketValue, valuePerShare };
 }
 
+// The multiples the stock price gives in each of the years, by multiple id and then by year id: the
+// market value is the price times the year's share count, and the enterprise value adds the year's
+// net debt to it. Each is divided by the multiple's field in the year. Null when a value is
+// missing or the field is zero.
+export function priceMultiples({
+  multiples,
+  prediction,
+  yearIds,
+  price,
+  netDebtFieldId,
+  shareCountFieldId,
+}: {
+  multiples: ValuationMultipleInput[];
+  prediction: CompanyPrediction;
+  yearIds: number[];
+  price: number;
+  netDebtFieldId: number | null;
+  shareCountFieldId: number | null;
+}): Record<number, Record<number, number | null>> {
+  const yearValue = (fieldId: number | null, yearId: number) =>
+    fieldId == null ? null : (prediction.yearly[fieldId]?.[yearId]?.value ?? null);
+
+  return Object.fromEntries(
+    multiples.map((multiple) => [
+      multiple.id,
+      Object.fromEntries(
+        yearIds.map((yearId) => {
+          const shareCount = yearValue(shareCountFieldId, yearId);
+          const base = yearValue(multiple.resultFieldId, yearId);
+          const netDebt = yearValue(netDebtFieldId, yearId);
+          const marketValue = shareCount == null ? null : price * shareCount;
+          const value =
+            multiple.basis === "market_value"
+              ? marketValue
+              : marketValue == null || netDebt == null
+                ? null
+                : marketValue + netDebt;
+          return [yearId, value == null || !base ? null : value / base];
+        }),
+      ),
+    ]),
+  );
+}
+
 // The target year's market value and value per share discounted to the present with the cost of
 // equity, from now until the end of the target year.
 export function presentValuation(

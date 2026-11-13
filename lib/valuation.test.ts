@@ -7,6 +7,7 @@ import {
   calculateValuation,
   fromStoredMultiple,
   presentValuation,
+  priceMultiples,
   pricePotential,
   presentValue,
   roundMultiple,
@@ -102,6 +103,36 @@ describe("presentValuation", () => {
       marketValue: null,
       valuePerShare: null,
     });
+  });
+});
+
+describe("priceMultiples", () => {
+  it("divides the market value, or the enterprise value with net debt, by the year's field", () => {
+    const result = priceMultiples({
+      multiples,
+      prediction: prediction({ 1: 20 * M, 2: 12 * M, 3: 40 * M, 4: 10 * M, 5: null }),
+      yearIds: [YEAR, YEAR + 1],
+      price: 18,
+      netDebtFieldId: 3,
+      shareCountFieldId: 4,
+    });
+    assert.deepEqual(result, {
+      1: { [YEAR]: 11, [YEAR + 1]: null },
+      2: { [YEAR]: 15, [YEAR + 1]: null },
+      3: { [YEAR]: null, [YEAR + 1]: null },
+    });
+  });
+
+  it("has no value when the field is zero or net debt is missing", () => {
+    const result = priceMultiples({
+      multiples,
+      prediction: prediction({ 1: 20 * M, 2: 0, 4: 10 * M }),
+      yearIds: [YEAR],
+      price: 18,
+      netDebtFieldId: 3,
+      shareCountFieldId: 4,
+    });
+    assert.deepEqual(result, { 1: { [YEAR]: null }, 2: { [YEAR]: null }, 3: { [YEAR]: null } });
   });
 });
 

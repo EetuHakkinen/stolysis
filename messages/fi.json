@@ -186,12 +186,41 @@
     "potential": "Potentiaali",
     "expectedReturn": "Tuotto-odotus / vuosi"
   },
+  "ValuationMultiples": {
+    "title": "Arvostuskertoimet",
+    "empty": "Ei vielä arvostuskertoimia.",
+    "create": "Uusi kerroin",
+    "createTitle": "Uusi arvostuskerroin",
+    "edit": "Muokkaa kerrointa {name}",
+    "editTitle": "Muokkaa arvostuskerrointa",
+    "move": "Siirrä kerrointa {name}",
+    "delete": "Poista kerroin {name}",
+    "deleteTitle": "Poistetaanko arvostuskerroin?",
+    "deleteDescription": "Kerroin {name} ja sen arvot kaikissa skenaarioissa poistetaan pysyvästi.",
+    "resultField": "Tuloskenttä",
+    "chooseResultField": "Valitse kenttä",
+    "basis": "Peruste",
+    "basisDescription": "Yritysarvoon perustuvasta kertoimesta (esim. EV/EBIT) vähennetään nettovelka markkina-arvon saamiseksi. Markkina-arvoon perustuva kerroin (esim. P/E) antaa markkina-arvon suoraan.",
+    "bases": {
+      "enterprise_value": "Yritysarvo (EV)",
+      "market_value": "Markkina-arvo"
+    },
+    "errors": {
+      "required": "Nimi on pakollinen.",
+      "tooLong": "Nimi on liian pitkä.",
+      "nameTaken": "Yhtiöllä on jo tämänniminen kerroin.",
+      "fieldRequired": "Valitse tuloskenttä."
+    }
+  },
   "ValuePerShare": {
     "title": "Arvo per osake",
     "dcf": "DCF",
     "multiples": "Kerroinanalyysi",
     "average": "Keskiarvo",
     "potential": "Potentiaali"
+  },
+  "PriceMultiples": {
+    "title": "Kertoimet nykykurssilla"
   },
   "Dcf": {
     "valueDistribution": "Rahavirran jakauma jaksoittain",

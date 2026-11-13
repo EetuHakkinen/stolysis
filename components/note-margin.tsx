@@ -4,6 +4,7 @@ import Link from "next/link";
 import { XIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import type { NoteNews } from "@/actions/notes";
+import type { Unit } from "@/app/generated/prisma/client";
 import { DatePicker } from "@/components/date-picker";
 import { EstimateScenarioPicker } from "@/components/estimate-scenario-picker";
 import { FormattedValue } from "@/components/period-table";
@@ -24,8 +25,8 @@ function MarginSection({ title, children }: { title: string; children: React.Rea
 }
 
 // Information beside a note: its date and linked news, which can be changed while editing, and
-// the company's closing price on the date, and its starred fields and multiples at the end of the
-// date in the selected scenario.
+// the company's closing price on the date, and its starred fields at the end of the date in the
+// selected scenario with the multiples the price gives.
 export function NoteMargin({
   editing,
   date,
@@ -122,28 +123,42 @@ export function NoteMargin({
             {snapshot.years.length === 0 ? (
               <p className="text-muted-foreground">{t("noYear")}</p>
             ) : (
-              <StarredValues snapshot={snapshot} scenario={scenario} />
+              <YearValues
+                snapshot={snapshot}
+                scenario={scenario}
+                showUnits
+                rows={snapshot.fields.map((field) => ({
+                  id: field.id,
+                  name: field.name,
+                  value: (yearId, unit) => (
+                    <FormattedValue
+                      value={scenario.values[field.id]?.[yearId]?.value}
+                      unit={unit}
+                      valueFormat={field.valueFormat}
+                    />
+                  ),
+                }))}
+              />
             )}
           </MarginSection>
         )}
 
-        {scenario.id != null && snapshot.multiples.length > 0 && (
+        {snapshot.stockPrice && snapshot.years.length > 0 && snapshot.multiples.length > 0 && (
           <MarginSection title={t("multiples")}>
-            <dl className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1">
-              {snapshot.multiples.map((multiple) => {
-                const value = scenario.multiples[multiple.id];
-                return (
-                  <div key={multiple.id} className="contents">
-                    <dt>{multiple.name}</dt>
-                    <dd className="text-right tabular-nums">
-                      {value == null
-                        ? "–"
-                        : format.number(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
+            <YearValues
+              snapshot={snapshot}
+              scenario={scenario}
+              rows={snapshot.multiples.map((multiple) => ({
+                id: multiple.id,
+                name: multiple.name,
+                value: (yearId) => {
+                  const value = scenario.multiples[multiple.id]?.[yearId];
+                  return value == null
+                    ? "–"
+                    : format.number(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                },
+              }))}
+            />
           </MarginSection>
         )}
       </div>
@@ -151,8 +166,20 @@ export function NoteMargin({
   );
 }
 
-// The starred fields' yearly values, each field's name above its values to fit the narrow margin.
-function StarredValues({ snapshot, scenario }: { snapshot: NoteSnapshot; scenario: NoteSnapshotScenario }) {
+// Rows of yearly values, such as the starred fields' values, each row's name above its values to
+// fit the narrow margin. A year is marked estimated if any starred field's value in it is.
+function YearValues({
+  snapshot,
+  scenario,
+  rows,
+  showUnits = false,
+}: {
+  snapshot: NoteSnapshot;
+  scenario: NoteSnapshotScenario;
+  rows: { id: number; name: string | null; value: (yearId: number, unit: Unit) => React.ReactNode }[];
+  // Show each year's unit under its name.
+  showUnits?: boolean;
+}) {
   const t = useTranslations("Results");
   const columns = `repeat(${snapshot.years.length}, minmax(0, 1fr))`;
 
@@ -166,23 +193,17 @@ function StarredValues({ snapshot, scenario }: { snapshot: NoteSnapshot; scenari
           return (
             <div key={year.id}>
               <div className="font-medium">{`${year.name ?? ""}${estimated ? "e" : ""}`}</div>
-              <div className="text-muted-foreground">{t(`units.${year.unit}`)}</div>
+              {showUnits && <div className="text-muted-foreground">{t(`units.${year.unit}`)}</div>}
             </div>
           );
         })}
       </div>
-      {snapshot.fields.map((field) => (
-        <div key={field.id}>
-          <div className="text-xs text-muted-foreground">{field.name}</div>
+      {rows.map((row) => (
+        <div key={row.id}>
+          <div className="text-xs text-muted-foreground">{row.name}</div>
           <div className="grid gap-x-2 text-right" style={{ gridTemplateColumns: columns }}>
             {snapshot.years.map((year) => (
-              <div key={year.id}>
-                <FormattedValue
-                  value={scenario.values[field.id]?.[year.id]?.value}
-                  unit={year.unit}
-                  valueFormat={field.valueFormat}
-                />
-              </div>
+              <div key={year.id}>{row.value(year.id, year.unit)}</div>
             ))}
           </div>
         </div>
