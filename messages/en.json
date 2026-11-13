@@ -79,7 +79,7 @@
       "quarterlyEstimates": "Quarterly estimates",
       "yearlyEstimates": "Yearly estimates",
       "valuation": "Valuation multiples",
-      "discounting": "Discounting"
+      "discounting": "DCF"
     },
     "noScenarios": "No estimate scenarios yet. Create a scenario in the company settings to make estimates.",
     "noYears": "The company has no current financial year.",
@@ -124,6 +124,28 @@
     "presentMarketValue": "Present market value",
     "presentValuePerShare": "Present value per share"
   },
+  "Dcf": {
+    "valueDistribution": "Cash flow distribution by period",
+    "noValue": "The DCF value can't be calculated yet.",
+    "enterpriseValue": "Enterprise value DCF",
+    "netDebt": "− Net debt",
+    "dividend": "− Dividend / capital return",
+    "equityValue": "Equity value DCF",
+    "valuePerShare": "Equity value DCF per share",
+    "cashFlowTitle": "Discounted cash flows",
+    "terminal": "Terminal",
+    "rows": {
+      "ebit": "EBIT",
+      "depreciation": "+ Depreciation",
+      "taxesPaid": "− Taxes paid",
+      "workingCapitalChange": "− Change in working capital",
+      "operatingCashFlow": "Operating cash flow",
+      "capitalExpenditure": "− Capital expenditure",
+      "freeCashFlow": "Operating free cash flow",
+      "discountedFreeCashFlow": "Discounted free cash flow",
+      "cumulativeDiscountedFreeCashFlow": "Cumulative discounted free cash flow"
+    }
+  },
   "DiscountVariables": {
     "variable": "Variable",
     "value": "Value",
@@ -155,6 +177,7 @@
     "confirmDescription": "Missing scenarios, groups and fields are added in the default order. Fields that have no formula but have one in the default settings get it, so their values are calculated instead of entered values from then on.",
     "added": "Added {scenarios, plural, one {# scenario} other {# scenarios}}, {groups, plural, one {# group} other {# groups}}, {fields, plural, one {# field} other {# fields}}, {formulas, plural, one {# formula} other {# formulas}} and {graphs, plural, one {# graph} other {# graphs}}.",
     "nothingAdded": "The company already has all default settings.",
+    "typesSet": "{count, plural, one {# existing field got its special type} other {# existing fields got their special types}}.",
     "skippedFormulas": "{count, plural, one {# formula was} other {# formulas were}} skipped because it would have formed a loop with the company's other formulas."
   },
   "Dialogs": {
@@ -232,9 +255,16 @@
     "types": {
       "none": "None",
       "net_debt": "Net debt",
-      "share_count": "Share count"
+      "share_count": "Share count",
+      "operating_free_cash_flow": "Operating free cash flow",
+      "dividend": "Dividend / capital return",
+      "ebit": "EBIT",
+      "depreciation": "Depreciation",
+      "taxes_paid": "Taxes paid",
+      "working_capital_change": "Change in working capital",
+      "capital_expenditure": "Capital expenditure"
     },
-    "typeDescription": "The valuation uses the fields with these types.",
+    "typeDescription": "The valuation and the DCF use the fields with these types.",
     "calculatedActual": "Calculated: results",
     "calculatedEstimate": "Calculated: estimates",
     "errors": {

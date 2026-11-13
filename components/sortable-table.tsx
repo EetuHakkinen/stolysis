@@ -45,8 +45,16 @@ export function SortableTableBody({
   }
 
   return (
-    // A fixed id keeps dnd-kit's generated attributes the same on the server and the client.
-    <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
+    // A fixed id keeps dnd-kit's generated attributes the same on the server and the client. Its
+    // screen reader texts are divs, which can't be inside a table, so they go to the body; they're
+    // only rendered once mounted, so there's no document on the server to miss.
+    <DndContext
+      id={dndId}
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={dragEnd}
+      accessibility={{ container: typeof document === "undefined" ? undefined : document.body }}
+    >
       <TableBody>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           {children}

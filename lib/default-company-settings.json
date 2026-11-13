@@ -22,9 +22,10 @@
         },
         { "name": "Henkilöstökulut" },
         { "name": "Liiketoiminnan muut kulut" },
-        { "name": "Poistot" },
+        { "name": "Poistot", "type": "depreciation" },
         {
           "name": "Liikevoitto",
+          "type": "ebit",
           "estimateDefinition": [
             { "field": "Liikevaihto", "period": "current" },
             { "operator": "+" },
@@ -276,6 +277,7 @@
       "fields": [
         {
           "name": "Käyttöpääoman muutos",
+          "type": "working_capital_change",
           "actualDefinition": [
             { "field": "Käyttöpääoma", "period": "previous" },
             { "operator": "-" },
@@ -289,10 +291,12 @@
         },
         {
           "name": "Maksetut verot",
+          "type": "taxes_paid",
           "estimateDefinition": [{ "field": "Tuloverot", "period": "current" }]
         },
         {
           "name": "Bruttoinvestoinnit",
+          "type": "capital_expenditure",
           "estimateDefinition": [
             { "field": "Liikevaihto", "period": "current" },
             { "operator": "*" },
@@ -303,6 +307,7 @@
         },
         {
           "name": "Operatiivinen vapaa kassavirta",
+          "type": "operating_free_cash_flow",
           "actualDefinition": [
             { "field": "Liikevoitto", "period": "current" },
             { "operator": "-" },
@@ -325,6 +330,11 @@
             { "operator": "+" },
             { "field": "Bruttoinvestoinnit", "period": "current" }
           ]
+        },
+        {
+          "name": "Osinko/pääomanpalautus",
+          "type": "dividend",
+          "estimateType": "absolute"
         }
       ]
     },

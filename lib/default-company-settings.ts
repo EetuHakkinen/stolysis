@@ -129,12 +129,13 @@ export async function createCompanyWithSettings(
   return company;
 }
 
-// How many of each part of the settings were added to a company. Skipped formulas would have
-// formed a loop with the company's other formulas.
+// How many of each part of the settings were added to a company, and how many existing fields got
+// their special type. Skipped formulas would have formed a loop with the company's other formulas.
 export type AppliedSettings = {
   scenarios: number;
   groups: number;
   fields: number;
+  types: number;
   formulas: number;
   graphs: number;
   skippedFormulas: number;
@@ -144,14 +145,23 @@ export type AppliedSettings = {
 // estimate scenarios, result field groups, result fields, formulas of fields that have no formula
 // of that kind, and graphs (with their fields, after the company's own graphs). Existing ones are otherwise left as they are, also fields that are in
 // another group than in the settings. Added groups and fields go right after the closest preceding
-// ones of the settings that the company has. An added field doesn't get a special type another
-// field already has. Call inside a transaction.
+// ones of the settings that the company has. An existing field without a special type gets the one
+// of the settings. A field doesn't get a special type another field already has. Call inside a
+// transaction.
 export async function applySettings(
   tx: Prisma.TransactionClient,
   companyId: number,
   settings: CompanySettings = defaultCompanySettings,
 ): Promise<AppliedSettings> {
-  const applied: AppliedSettings = { scenarios: 0, groups: 0, fields: 0, formulas: 0, graphs: 0, skippedFormulas: 0 };
+  const applied: AppliedSettings = {
+    scenarios: 0,
+    groups: 0,
+    fields: 0,
+    types: 0,
+    formulas: 0,
+    graphs: 0,
+    skippedFormulas: 0,
+  };
 
   const scenarios = await tx.estimateScenario.findMany({ where: { companyId }, select: { name: true } });
   const scenarioNames = new Set(scenarios.map((scenario) => nameKey(scenario.name)));
@@ -225,6 +235,14 @@ export async function applySettings(
       fieldIds.set(nameKey(name), id);
       applied.fields++;
     }
+  }
+
+  for (const { name, type } of settings.resultFieldGroups.flatMap((group) => group.fields)) {
+    const existing = existingFields.find((field) => nameKey(field.name) === nameKey(name));
+    if (!type || !existing || existing.type || takenTypes.has(type)) continue;
+    await tx.resultField.update({ where: { id: existing.id }, data: { type } });
+    takenTypes.add(type);
+    applied.types++;
   }
 
   const fieldId = (name: string) => {

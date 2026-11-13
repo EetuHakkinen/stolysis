@@ -6,6 +6,7 @@ import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 import { fromStoredMultiple, toStoredMultiple } from "@/lib/valuation";
 import type { ValuationBasis } from "@/app/generated/prisma/client";
+import { ResultFieldType } from "@/app/generated/prisma/enums";
 
 export type ValuationMultipleSummary = {
   id: number;
@@ -19,13 +20,12 @@ export type CompanyValuationData = {
   // Multiple values by scenario id, then by multiple id.
   values: Record<number, Record<number, number | null>>;
   targetYearId: number | null;
-  // The company's net debt and share count fields; null if the company doesn't have one.
-  netDebtFieldId: number | null;
-  shareCountFieldId: number | null;
+  // Ids of the company's fields by special type; null if the company doesn't have one.
+  fieldIds: Record<ResultFieldType, number | null>;
 };
 
 // A company's valuation multiples with their values in every scenario, the target year and the
-// result fields the valuation needs.
+// result fields the valuation and the DCF need.
 export async function getValuation(companyId: number): Promise<CompanyValuationData> {
   await requireUserId();
 
@@ -64,8 +64,9 @@ export async function getValuation(companyId: number): Promise<CompanyValuationD
     multiples,
     values: scenarioValues,
     targetYearId: valuation?.targetFinancialYearId ?? null,
-    netDebtFieldId: typedFields.find((field) => field.type === "net_debt")?.id ?? null,
-    shareCountFieldId: typedFields.find((field) => field.type === "share_count")?.id ?? null,
+    fieldIds: Object.fromEntries(
+      Object.values(ResultFieldType).map((type) => [type, typedFields.find((field) => field.type === type)?.id ?? null]),
+    ) as Record<ResultFieldType, number | null>,
   };
 }
 

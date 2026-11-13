@@ -17,7 +17,7 @@ export function ValuationTab({
   scenarioId,
   years,
   prediction,
-  valuation: { multiples, netDebtFieldId, shareCountFieldId },
+  valuation: { multiples, fieldIds },
   values,
   discountValues,
   targetYearId,
@@ -50,8 +50,8 @@ export function ValuationTab({
       values,
       prediction,
       targetYearId: targetYear.id,
-      netDebtFieldId,
-      shareCountFieldId,
+      netDebtFieldId: fieldIds.net_debt,
+      shareCountFieldId: fieldIds.share_count,
     });
     const rate = costOfEquity(discountValues);
     const years = yearsUntil(targetYear.endTime, new Date());

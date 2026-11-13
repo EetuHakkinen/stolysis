@@ -91,10 +91,17 @@ model ResultFieldGroup {
   @@map("result_field_group")
 }
 
-// Special meaning of a result field that calculations rely on, e.g. the valuation.
+// Special meaning of a result field that calculations rely on, e.g. the valuation and the DCF.
 enum ResultFieldType {
   net_debt
   share_count
+  operating_free_cash_flow
+  dividend
+  ebit
+  depreciation
+  taxes_paid
+  working_capital_change
+  capital_expenditure
 
   @@map("result_field_type")
 }

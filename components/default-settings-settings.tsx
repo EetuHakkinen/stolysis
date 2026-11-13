@@ -14,7 +14,9 @@ export function DefaultSettingsSettings({ companyId }: { companyId: number }) {
   const t = useTranslations("DefaultSettings");
   const [applied, setApplied] = useState<AppliedSettings>();
 
-  const added = applied && applied.scenarios + applied.groups + applied.fields + applied.formulas + applied.graphs > 0;
+  const added =
+    applied &&
+    applied.scenarios + applied.groups + applied.fields + applied.types + applied.formulas + applied.graphs > 0;
 
   return (
     <section className="flex flex-col gap-4">
@@ -38,6 +40,7 @@ export function DefaultSettingsSettings({ companyId }: { companyId: number }) {
       {applied && (
         <p className="text-sm" role="status">
           {added ? t("added", applied) : t("nothingAdded")}
+          {applied.types > 0 && ` ${t("typesSet", { count: applied.types })}`}
           {applied.skippedFormulas > 0 && ` ${t("skippedFormulas", { count: applied.skippedFormulas })}`}
         </p>
       )}

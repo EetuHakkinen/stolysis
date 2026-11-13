@@ -12,6 +12,9 @@ import {
   type CompanyValuationData,
 } from "@/actions/valuation";
 import type { DiscountVariable } from "@/app/generated/prisma/client";
+import { DcfCashFlowTable } from "@/components/dcf-cash-flow-table";
+import { DcfTable } from "@/components/dcf-table";
+import { DcfValueChart } from "@/components/dcf-value-chart";
 import { DiscountVariablesTable } from "@/components/discount-variables-table";
 import { EstimateScenarioPicker } from "@/components/estimate-scenario-picker";
 import {
@@ -40,8 +43,10 @@ import {
   seasonsWithData,
   type ActualValues,
   type EstimateInput,
+  type EstimateYear,
 } from "@/lib/estimates";
-import type { DiscountValues } from "@/lib/discounting";
+import { calculateDcf } from "@/lib/dcf";
+import { wacc, type DiscountValues } from "@/lib/discounting";
 
 function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) {
   return `${scenarioId}:${fieldId}:${period.reportingSeasonId ?? ""}:${period.financialYearId ?? ""}`;
@@ -49,7 +54,8 @@ function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) 
 
 // Result tabs: a valuation summary of the starred fields' yearly values and the starred graphs
 // around the current financial year, quarterly and yearly results, the quarterly and yearly estimates of the scenario
-// selected above the tabs, the scenario's valuation and the company's discount variables. Every tab
+// selected above the tabs, the scenario's valuation, and the scenario's DCF cash flows and value with
+// the company's discount variables. Every tab
 // shows the same predicted values: the results use them for periods without data. The result and
 // estimate tabs show the company's graphs below the tables. Estimates,
 // multiple values, the valuation's target year and discount variables saved here are kept in state
@@ -211,6 +217,43 @@ export function ResultTabs({
     );
   }
 
+  // The DCF's cash flows take the full width; on large screens its value takes 3/8 of it beside the
+  // chart of how the value is divided, and the discount variables half.
+  function discountingTab() {
+    const variables = (
+      <div className="lg:w-1/2">
+        <DiscountVariablesTable values={discountValues} save={saveDiscount} />
+      </div>
+    );
+    if (currentYearId == null) return variables;
+    const dcf = calculateDcf({
+      years,
+      currentYearId,
+      prediction,
+      fieldIds: valuation.fieldIds,
+      wacc: wacc(discountValues),
+      terminalGrowth: discountValues.terminal_growth ?? null,
+      now: new Date(),
+    });
+    const unit = years.find((year) => year.id === currentYearId)?.unit ?? "one";
+    const yearLabel = (year: EstimateYear) =>
+      `${year.name ?? ""}${isEstimated({ reportingSeasonId: null, financialYearId: year.id }) ? "e" : ""}`;
+    return (
+      <>
+        <DcfCashFlowTable dcf={dcf} years={years} label={yearLabel} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-8">
+          <div className="lg:col-span-3">
+            <DcfTable dcf={dcf} unit={unit} />
+          </div>
+          <div className="lg:col-span-5">
+            <DcfValueChart dcf={dcf} years={years} unit={unit} label={yearLabel} />
+          </div>
+        </div>
+        {variables}
+      </>
+    );
+  }
+
   async function saveMultiple(scenarioId: number, multipleId: number, value: number | null) {
     const { saved } = await saveMultipleValue({ scenarioId, multipleId, value });
     if (saved)
@@ -271,7 +314,7 @@ export function ResultTabs({
       ),
     },
     { value: "valuation", content: valuationTab() },
-    { value: "discounting", content: <DiscountVariablesTable values={discountValues} save={saveDiscount} /> },
+    { value: "discounting", content: discountingTab() },
   ];
 
   return (

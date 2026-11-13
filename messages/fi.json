@@ -79,7 +79,7 @@
       "quarterlyEstimates": "Kvartaaliennusteet",
       "yearlyEstimates": "Vuosiennusteet",
       "valuation": "Arvostuskertoimet",
-      "discounting": "Diskonttaus"
+      "discounting": "DCF"
     },
     "noScenarios": "Ei vielä ennusteskenaarioita. Luo skenaario yhtiön asetuksissa ennusteiden tekemiseksi.",
     "noYears": "Yrityksellä ei ole kuluvaa tilikautta.",
@@ -124,6 +124,28 @@
     "presentMarketValue": "Markkina-arvo nyt",
     "presentValuePerShare": "Arvo per osake nyt"
   },
+  "Dcf": {
+    "valueDistribution": "Rahavirran jakauma jaksoittain",
+    "noValue": "DCF-arvoa ei voida vielä laskea.",
+    "enterpriseValue": "Velaton arvo DCF",
+    "netDebt": "− Nettovelka",
+    "dividend": "− Osinko/pääomanpalautus",
+    "equityValue": "Oman pääoman arvo DCF",
+    "valuePerShare": "Oman pääoman arvo DCF per osake",
+    "cashFlowTitle": "Diskontatut kassavirrat",
+    "terminal": "Terminaali",
+    "rows": {
+      "ebit": "EBIT",
+      "depreciation": "+ Poistot",
+      "taxesPaid": "− Maksetut verot",
+      "workingCapitalChange": "− Käyttöpääoman muutos",
+      "operatingCashFlow": "Operatiivinen kassavirta",
+      "capitalExpenditure": "− Bruttoinvestoinnit",
+      "freeCashFlow": "Vapaa operatiivinen kassavirta",
+      "discountedFreeCashFlow": "Diskontattu vapaa kassavirta",
+      "cumulativeDiscountedFreeCashFlow": "Diskontattu kumulatiivinen vapaa kassavirta"
+    }
+  },
   "DiscountVariables": {
     "variable": "Muuttuja",
     "value": "Arvo",
@@ -155,6 +177,7 @@
     "confirmDescription": "Puuttuvat skenaariot, osiot ja kentät lisätään oletusjärjestykseen. Kentät, joilla ei ole kaavaa mutta oletusasetuksissa on, saavat sen, jolloin niiden arvot lasketaan jatkossa syötettyjen arvojen sijaan.",
     "added": "Lisättiin {scenarios, plural, one {# skenaario} other {# skenaariota}}, {groups, plural, one {# osio} other {# osiota}}, {fields, plural, one {# kenttä} other {# kenttää}}, {formulas, plural, one {# kaava} other {# kaavaa}} ja {graphs, plural, one {# kaavio} other {# kaaviota}}.",
     "nothingAdded": "Yhtiöllä on jo kaikki oletusasetukset.",
+    "typesSet": "{count, plural, one {# olemassa oleva kenttä sai erityistyyppinsä} other {# olemassa olevaa kenttää sai erityistyyppinsä}}.",
     "skippedFormulas": "{count, plural, one {# kaava ohitettiin, koska se olisi muodostanut} other {# kaavaa ohitettiin, koska ne olisivat muodostaneet}} silmukan yhtiön muiden kaavojen kanssa."
   },
   "Dialogs": {
@@ -232,9 +255,16 @@
     "types": {
       "none": "Ei mitään",
       "net_debt": "Nettovelka",
-      "share_count": "Osakemäärä"
+      "share_count": "Osakemäärä",
+      "operating_free_cash_flow": "Operatiivinen vapaa kassavirta",
+      "dividend": "Osinko/pääomanpalautus",
+      "ebit": "Liikevoitto",
+      "depreciation": "Poistot",
+      "taxes_paid": "Maksetut verot",
+      "working_capital_change": "Käyttöpääoman muutos",
+      "capital_expenditure": "Bruttoinvestoinnit"
     },
-    "typeDescription": "Arvonmääritys käyttää näiden tyyppien kenttiä.",
+    "typeDescription": "Arvonmääritys ja DCF käyttävät näiden tyyppien kenttiä.",
     "calculatedActual": "Laskettu: tulokset",
     "calculatedEstimate": "Laskettu: ennusteet",
     "errors": {

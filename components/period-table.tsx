@@ -18,18 +18,21 @@ export type PeriodTableColumn = { key: string; label: string; unit: Unit };
 // shown in its own financial year's unit. The columns scroll beside the sticky field names,
 // starting from the first ones, or from the last ones with scrollFromEnd: a right-to-left
 // container starts scrolled fully right without effects, also in tabs that are hidden on load.
+// rowClassName styles a field's row, e.g. to bold totals.
 export function PeriodTable<Field extends { id: number; name: string | null }, Column extends PeriodTableColumn>({
   name,
   fields,
   columns,
   scrollFromEnd = false,
   cell,
+  rowClassName,
 }: {
   name: string | null;
   fields: Field[];
   columns: Column[];
   scrollFromEnd?: boolean;
   cell: (field: Field, column: Column) => React.ReactNode;
+  rowClassName?: (field: Field) => string | undefined;
 }) {
   const t = useTranslations("Results");
 
@@ -55,7 +58,7 @@ export function PeriodTable<Field extends { id: number; name: string | null }, C
         </TableHeader>
         <TableBody>
           {fields.map((field) => (
-            <TableRow key={field.id}>
+            <TableRow key={field.id} className={rowClassName?.(field)}>
               <TableCell className="sticky left-0 z-10 bg-background">{field.name}</TableCell>
               {columns.map((column) => (
                 <TableCell key={column.key} className="text-right align-top tabular-nums">
