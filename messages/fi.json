@@ -109,7 +109,6 @@
       "notRelease": "Osoitteesta ei löytynyt tiedotetta.",
       "noSubject": "Otsikkoa ei löytynyt.",
       "noCompany": "Tiedotteelle ei löytynyt yhtiötä.",
-      "noReleaseTime": "Julkaisuaikaa ei löytynyt.",
       "failed": "Käsittely epäonnistui."
     }
   },

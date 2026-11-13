@@ -72,7 +72,7 @@ export type NewsEmail = {
 
 export type SaveNewsResult =
   | { saved: true; newsId: number; companyId: number; companyCreated: boolean; category: string }
-  | { saved: false; reason: "noSubject" | "noCompany" | "noReleaseTime" };
+  | { saved: false; reason: "noSubject" | "noCompany" };
 
 // Saves a stock exchange release email as news for the company it mentions.
 export async function saveNewsFromEmail(email: NewsEmail): Promise<SaveNewsResult> {
@@ -87,8 +87,9 @@ export async function saveNewsFromEmail(email: NewsEmail): Promise<SaveNewsResul
 }
 
 // Saves a stock exchange release as news for the company it mentions. The release time is read
-// from the release line in the description, or failing that is `fallbackReleasedAt`. With
-// `autoCreateCompany`, a report of a company not in the database adds the company.
+// from the release line in the description, or failing that is `fallbackReleasedAt`, or the
+// current time so that a missing release time never stops saving. With `autoCreateCompany`, a
+// report of a company not in the database adds the company.
 export async function saveRelease({
   title: rawTitle,
   description,
@@ -105,8 +106,7 @@ export async function saveRelease({
   const title = rawTitle?.trim();
   if (!title) return { saved: false, reason: "noSubject" };
 
-  const releasedAt = parseReleaseTime(description) ?? fallbackReleasedAt;
-  if (!releasedAt) return { saved: false, reason: "noReleaseTime" };
+  const releasedAt = parseReleaseTime(description) ?? fallbackReleasedAt ?? new Date();
 
   const releaseLine = findReleaseLine(description);
   const category = await categorizeNews({ subject: title, releaseLine });

@@ -59,11 +59,15 @@ export async function saveNewsFromUrl(url: string): Promise<SaveNewsUrlResult> {
 const RELEASE_TIME_DESCRIPTION =
   'Release date and time in Finnish local time as "YYYY-MM-DDTHH:mm" (or "YYYY-MM-DD" when only the date is printed), or an empty string when not printed';
 
+const PERIOD_END_DESCRIPTION =
+  'End date of the reporting period the release covers as "YYYY-MM-DD", or an empty string when it covers no period';
+
 const pageSchema = z.object({
   isRelease: z.boolean().describe("Whether the page is a company release or news article"),
   title: z.string().describe("Title of the release"),
   text: z.string().describe("Full text of the release, verbatim"),
   releaseTime: z.string().describe(RELEASE_TIME_DESCRIPTION),
+  periodEnd: z.string().describe(PERIOD_END_DESCRIPTION),
   attachments: z.array(z.number().int()).describe("Numbers of the links that are attachments of the release"),
 });
 
@@ -72,6 +76,7 @@ const PAGE_INSTRUCTIONS = `You read a web page that should contain a stock excha
 - title: the release's own title (not the site name).
 - text: the full text of the release, verbatim, as plain text with paragraph breaks. Start with the release line (company name, release type, date and time, e.g. "Yhtiö Oyj, pörssitiedote 7.11.2026 klo 9.00") when the page has one. Leave out site navigation, menus, cookie notices, share buttons and lists of other news.
 - releaseTime: when the release was published, only if printed on the page.
+- periodEnd: the last day of the reporting period, when the release is a report covering one (e.g. "2026-09-30" for a report on 1.1.–30.9.2026).
 - attachments: the numbers of the links (from the numbered link list) to documents attached to this release, such as PDF reports or presentations. Leave out links to other releases and site pages.
 - isRelease: false if the page has no release or news article (for example an error page, a login page or a list of releases).`;
 
@@ -103,7 +108,7 @@ async function savePageRelease({ url, html }: { url: string; html: string }): Pr
   return saveRelease({
     title: page.title,
     description: page.text.trim(),
-    fallbackReleasedAt: parseLocalDateTime(page.releaseTime),
+    fallbackReleasedAt: fallbackReleaseTime(page),
     attachments,
     autoCreateCompany: autoCreateCompaniesFromUi(),
   });
@@ -114,6 +119,7 @@ const pdfSchema = z.object({
   title: z.string().describe("Title of the report"),
   text: z.string().describe("Opening section of the report, verbatim"),
   releaseTime: z.string().describe(RELEASE_TIME_DESCRIPTION),
+  periodEnd: z.string().describe(PERIOD_END_DESCRIPTION),
 });
 
 const PDF_INSTRUCTIONS = `You read a PDF that should be a report or stock exchange release of a listed company (for example an interim report or a financial statements release), and return its parts.
@@ -121,6 +127,7 @@ const PDF_INSTRUCTIONS = `You read a PDF that should be a report or stock exchan
 - title: the report's title as printed, including the company name and the period, e.g. "Yhtiö Oyj:n osavuosikatsaus 1.1.–30.9.2026".
 - text: the opening section of the report verbatim, as plain text with paragraph breaks: the release line (company name, release type, date and time, e.g. "Yhtiö Oyj, osavuosikatsaus 29.10.2026 klo 9.00") if printed, followed by the summary or highlights and the CEO's review if it follows them. At most about 1500 words; leave out tables.
 - releaseTime: when the report was published, only if printed in the report.
+- periodEnd: the last day of the reporting period the report covers (e.g. "2026-09-30" for 1.1.–30.9.2026).
 - isRelease: false if the document is not a company report or release.`;
 
 async function savePdfRelease({
@@ -157,7 +164,7 @@ async function savePdfRelease({
   return saveRelease({
     title: report.title,
     description: report.text.trim(),
-    fallbackReleasedAt: parseLocalDateTime(report.releaseTime),
+    fallbackReleasedAt: fallbackReleaseTime(report),
     // The ".pdf" name lets result extraction find the report.
     attachments: [{ url, name: fileName ?? `${report.title.trim() || "report"}.pdf` }],
     autoCreateCompany: autoCreateCompaniesFromUi(),
@@ -227,6 +234,12 @@ function pdfFileName(url: string, contentDisposition: string | null): string | u
 
 function urlFileName(url: string): string | undefined {
   return safeDecode(new URL(url).pathname.split("/").pop() ?? "") || undefined;
+}
+
+// The release time printed on the page or in the report, or failing that the end date of the
+// reporting period it covers.
+function fallbackReleaseTime({ releaseTime, periodEnd }: { releaseTime: string; periodEnd: string }) {
+  return parseLocalDateTime(releaseTime) ?? parseLocalDateTime(periodEnd);
 }
 
 // "YYYY-MM-DDTHH:mm" or "YYYY-MM-DD" in Finnish local time.

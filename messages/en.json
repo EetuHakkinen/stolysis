@@ -109,7 +109,6 @@
       "notRelease": "No release found at the address.",
       "noSubject": "No title found.",
       "noCompany": "No company could be matched to the release.",
-      "noReleaseTime": "No release time found.",
       "failed": "Processing failed."
     }
   },
