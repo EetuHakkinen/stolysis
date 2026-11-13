@@ -31,6 +31,8 @@ export type ResultGroup = {
     name: string | null;
     valueFormat: ValueFormat;
     starred: boolean;
+    // Calculated from other fields' actual values, so results can't be saved for it.
+    calculated: boolean;
     // Value in whole euros by reporting season id; seasons without a value are missing. Empty for
     // fields calculated from actual values: their values are calculated with the estimates.
     values: Record<number, bigint | null>;
@@ -73,6 +75,7 @@ export function resultGroupsAsOf(groups: LoadedResultGroups, asOf?: Date): Resul
     ...group,
     fields: resultFields.map(({ resultRows, fieldDefinitions, ...field }) => ({
       ...field,
+      calculated: fieldDefinitions.length > 0,
       values: fieldDefinitions.length > 0 ? {} : latestValues(rowsAsOf(resultRows, asOf)),
     })),
   }));

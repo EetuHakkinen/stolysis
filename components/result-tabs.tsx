@@ -24,6 +24,7 @@ import {
   type EstimateColumn,
   type EstimatePeriod,
 } from "@/components/estimate-table";
+import { ResultEditor } from "@/components/result-editor";
 import {
   quarterlyResultColumns,
   ResultTable,
@@ -170,6 +171,17 @@ export function ResultTabs({
         {groups.map((group) => (
           <ResultTable key={group.id} name={group.name} fields={group.fields} columns={columns} values={values} />
         ))}
+        {resultGraphs(columns)}
+      </>
+    );
+  }
+
+  // Quarterly results can be edited for seasons that have ended.
+  function quarterlyTab() {
+    const columns = quarterlyResultColumns(seasons, isEstimated);
+    return (
+      <>
+        <ResultEditor companyId={companyId} seasons={seasons} groups={groups} columns={columns} values={values} />
         {resultGraphs(columns)}
       </>
     );
@@ -355,7 +367,7 @@ export function ResultTabs({
   }[] = [
     { value: "summary", content: summaryTab() },
     { value: "stockPrice", content: <StockPriceChart prices={stockPrices} /> },
-    { value: "quarterly", content: resultTables(quarterlyResultColumns(seasons, isEstimated)) },
+    { value: "quarterly", content: quarterlyTab() },
     { value: "yearly", content: resultTables(yearlyResultColumns(seasons, isEstimated)) },
     {
       value: "quarterlyEstimates",

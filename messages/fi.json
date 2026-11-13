@@ -145,6 +145,17 @@
     "noYears": "Yrityksellä ei ole kuluvaa tilikautta.",
     "starredFields": "Keskeiset luvut"
   },
+  "ResultEditor": {
+    "edit": "Muokkaa tuloksia",
+    "description": "Päättyneiden raportointikausien tuloksia voi muokata. Tallennetut kaudet merkitään tarkistetuiksi, joten myöhemmät raportit eivät muuta niitä.",
+    "cancel": "Peruuta",
+    "save": "Tallenna",
+    "saving": "Tallennetaan…",
+    "errors": {
+      "invalid": "Osa arvoista ei ole lukuja.",
+      "saveFailed": "Tallennus epäonnistui."
+    }
+  },
   "Estimates": {
     "scenario": "Skenaario",
     "scenarios": "Ennusteskenaariot",

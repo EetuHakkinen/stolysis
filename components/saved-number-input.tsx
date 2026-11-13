@@ -3,16 +3,8 @@
 import { useState, useTransition } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
+import { parseNumber } from "@/lib/parse-number";
 import { cn } from "cn";
-
-// Parses a number typed in either locale ("1 234,5", "-1234.5"). Empty text is null; undefined
-// means the text isn't a number.
-function parseNumber(text: string): number | null | undefined {
-  const normalized = text.replace(/\s/g, "").replace(",", ".").replace("−", "-");
-  if (normalized === "") return null;
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : undefined;
-}
 
 // Number input that saves on blur when the text has changed. The typed number is converted to the
 // saved value with toValue (e.g. rounded to what can be stored), and the saved value is shown with

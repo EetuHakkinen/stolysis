@@ -145,6 +145,17 @@
     "noYears": "The company has no current financial year.",
     "starredFields": "Key figures"
   },
+  "ResultEditor": {
+    "edit": "Edit results",
+    "description": "Results of ended reporting seasons can be edited. Saved seasons are marked as checked, so later reports won't change them.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "errors": {
+      "invalid": "Some values aren't numbers.",
+      "saveFailed": "Saving failed."
+    }
+  },
   "Estimates": {
     "scenario": "Scenario",
     "scenarios": "Estimate scenarios",
