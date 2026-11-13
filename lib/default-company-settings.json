@@ -26,6 +26,28 @@
             { "field": "Poistot", "period": "current" }
           ]
         },
+        {
+          "name": "Liikevoitto-%",
+          "valueFormat": "percent",
+          "actualDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "/" },
+            { "field": "Liikevaihto", "period": "current" },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": 100 }
+          ],
+          "estimateDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "/" },
+            { "field": "Liikevaihto", "period": "current" },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": 100 }
+          ]
+        },
         { "name": "Rahoitustuotot" },
         { "name": "Rahoituskulut" },
         { "name": "Tuloverot" },
@@ -61,6 +83,15 @@
           "type": "share_count",
           "yearlyValue": "last_period"
         }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "name": "Liikevaihto ja liikevoitto-%",
+      "fields": [
+        { "field": "Liikevaihto", "type": "line", "axis": "left" },
+        { "field": "Liikevoitto-%", "type": "bar", "axis": "right" }
       ]
     }
   ]

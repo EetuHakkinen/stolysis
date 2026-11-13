@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { saveDiscountVariable } from "@/actions/discounting";
 import { saveEstimate, type CompanyEstimates } from "@/actions/estimates";
+import type { GraphData } from "@/actions/graphs";
 import type { ResultGroup, ResultSeason } from "@/actions/results";
 import {
   saveMultipleValue,
@@ -26,6 +27,7 @@ import {
   yearlyResultColumns,
   type ResultColumn,
 } from "@/components/result-table";
+import { quarterlyGraphColumns, ResultGraphs, yearlyGraphColumns } from "@/components/result-graphs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValuationTab } from "@/components/valuation-tab";
 import {
@@ -42,7 +44,8 @@ function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) 
 
 // Result tabs: quarterly and yearly results, the quarterly and yearly estimates of the scenario
 // selected above the tabs, the scenario's valuation and the company's discount variables. Every tab
-// shows the same predicted values: the results use them for periods without data. Estimates,
+// shows the same predicted values: the results use them for periods without data. The result and
+// estimate tabs show the company's graphs below the tables. Estimates,
 // multiple values, the valuation's target year and discount variables saved here are kept in state
 // on top of the loaded ones, so values update without reloading the page.
 export function ResultTabs({
@@ -50,6 +53,7 @@ export function ResultTabs({
   seasons,
   groups,
   estimates: { scenarios, years, currentYearId, fields, estimates },
+  graphs,
   valuation,
   discountVariables,
   initialScenarioId,
@@ -58,6 +62,7 @@ export function ResultTabs({
   seasons: ResultSeason[];
   groups: ResultGroup[];
   estimates: CompanyEstimates;
+  graphs: GraphData[];
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
   initialScenarioId: number | undefined;
@@ -119,6 +124,7 @@ export function ResultTabs({
     fields: group.fields.map((field) => ({
       id: field.id,
       name: field.name,
+      valueFormat: field.valueFormat,
       estimateType: fieldsById.get(field.id)?.estimateType ?? "relative",
       calculated: fieldsById.get(field.id)?.estimateDefinition != null,
     })),
@@ -141,17 +147,31 @@ export function ResultTabs({
     return saved;
   }
 
-  function resultTables(columns: ResultColumn[]) {
-    return groups.map((group) => (
-      <ResultTable key={group.id} name={group.name} fields={group.fields} columns={columns} values={values} />
-    ));
+  const graphFields = new Map(groups.flatMap((group) => group.fields.map((field) => [field.id, field])));
+
+  function resultGraphs(columns: ResultColumn[]) {
+    return <ResultGraphs graphs={graphs} fields={graphFields} columns={columns} values={values} />;
   }
 
-  function estimateTables(columns: (currentYearId: number) => EstimateColumn[]) {
+  function resultTables(columns: ResultColumn[]) {
+    return (
+      <>
+        {groups.map((group) => (
+          <ResultTable key={group.id} name={group.name} fields={group.fields} columns={columns} values={values} />
+        ))}
+        {resultGraphs(columns)}
+      </>
+    );
+  }
+
+  function estimateTables(
+    columns: (currentYearId: number) => EstimateColumn[],
+    graphColumns: (currentYearId: number) => ResultColumn[],
+  ) {
     if (!scenario) return <p className="text-muted-foreground">{t("noScenarios")}</p>;
     if (currentYearId == null) return <p className="text-muted-foreground">{t("noYears")}</p>;
     const shown = columns(currentYearId);
-    return tableGroups.map((group) => (
+    const tables = tableGroups.map((group) => (
       <EstimateTable
         // Inputs keep their own text, so start them over for another scenario.
         key={`${scenario.id}-${group.id}`}
@@ -163,6 +183,12 @@ export function ResultTabs({
         save={save}
       />
     ));
+    return (
+      <>
+        {tables}
+        {resultGraphs(graphColumns(currentYearId))}
+      </>
+    );
   }
 
   async function saveMultiple(scenarioId: number, multipleId: number, value: number | null) {
@@ -211,11 +237,17 @@ export function ResultTabs({
     { value: "yearly", content: resultTables(yearlyResultColumns(seasons, isEstimated)) },
     {
       value: "quarterlyEstimates",
-      content: estimateTables((current) => quarterlyEstimateColumns(years, current, withData)),
+      content: estimateTables(
+        (current) => quarterlyEstimateColumns(years, current, withData),
+        (current) => quarterlyGraphColumns(years, current, isEstimated),
+      ),
     },
     {
       value: "yearlyEstimates",
-      content: estimateTables((current) => yearlyEstimateColumns(years, current)),
+      content: estimateTables(
+        (current) => yearlyEstimateColumns(years, current),
+        (current) => yearlyGraphColumns(years, current, isEstimated),
+      ),
     },
     { value: "valuation", content: valuationTab() },
     { value: "discounting", content: <DiscountVariablesTable values={discountValues} save={saveDiscount} /> },

@@ -79,6 +79,7 @@ function GroupFields({
             groupId: group.id,
             name: "",
             yearlyValue: "sum",
+            valueFormat: "money",
             estimateType: "relative",
             type: null,
             actualDefinition: null,
@@ -108,6 +109,9 @@ function GroupFields({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{field.name}</span>
                     {field.type && <Badge variant="secondary">{t(`types.${field.type}`)}</Badge>}
+                    {field.valueFormat === "percent" && (
+                      <Badge variant="secondary">{t(`valueFormats.${field.valueFormat}`)}</Badge>
+                    )}
                     {field.actualDefinition && (
                       <Badge variant="outline" title={formatFormula(field.actualDefinition)}>
                         {t("calculatedActual")}
@@ -141,6 +145,7 @@ function GroupFields({
                         groupId: group.id,
                         name: field.name,
                         yearlyValue: field.yearlyValue,
+                        valueFormat: field.valueFormat,
                         estimateType: field.estimateType,
                         type: field.type,
                         actualDefinition: field.actualDefinition,

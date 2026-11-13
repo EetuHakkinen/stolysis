@@ -26,6 +26,7 @@ model Company {
   valuationMultiples ValuationMultiple[]
   valuation          CompanyValuation?
   discountVariables  CompanyDiscountVariable[]
+  graphs             Graph[]
 
   @@map("company")
 }
@@ -108,6 +109,16 @@ enum YearlyValue {
   @@map("yearly_value")
 }
 
+// How a result field's values are shown.
+enum ValueFormat {
+  // In the financial year's unit, e.g. liikevaihto in M€.
+  money
+  // As is, with a percent sign, e.g. liikevoitto-%.
+  percent
+
+  @@map("value_format")
+}
+
 // A single line in a group, e.g. liikevaihto in tuloslaskelma.
 model ResultField {
   id                 Int              @id @default(autoincrement())
@@ -119,6 +130,7 @@ model ResultField {
   // How the field is estimated, in every scenario and period.
   estimateType       EstimateType     @default(relative) @map("estimate_type")
   yearlyValue        YearlyValue      @default(sum) @map("yearly_value")
+  valueFormat        ValueFormat      @default(money) @map("value_format")
   // Marked by the user in the settings.
   starred            Boolean          @default(false)
   createdAt          DateTime         @default(now()) @map("created_at")
@@ -129,6 +141,7 @@ model ResultField {
   resultRows         ResultRow[]
   estimateRows       EstimateRow[]
   valuationMultiples ValuationMultiple[]
+  graphFields        GraphField[]
 
   @@map("result_field")
 }
@@ -374,4 +387,53 @@ model NewsAttachment {
   news News @relation(fields: [newsId], references: [id], onDelete: Cascade)
 
   @@map("news_attachment")
+}
+
+// A chart of a company's result fields, shown below the tables in the result and estimate tabs
+// with periods on the x-axis.
+model Graph {
+  id        Int      @id @default(autoincrement())
+  companyId Int      @map("company")
+  name      String
+  order     Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fields  GraphField[]
+
+  @@unique([companyId, name])
+  @@map("graph")
+}
+
+enum GraphFieldType {
+  line
+  bar
+
+  @@map("graph_field_type")
+}
+
+enum GraphAxis {
+  left
+  right
+
+  @@map("graph_axis")
+}
+
+// A result field shown in a graph as a line or bars, against the left or right y-axis.
+model GraphField {
+  id            Int            @id @default(autoincrement())
+  graphId       Int            @map("graph")
+  resultFieldId Int            @map("result_field")
+  type          GraphFieldType @default(line)
+  axis          GraphAxis      @default(left)
+  order         Int?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  graph       Graph       @relation(fields: [graphId], references: [id], onDelete: Cascade)
+  resultField ResultField @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
+
+  @@unique([graphId, resultFieldId])
+  @@map("graph_field")
 }

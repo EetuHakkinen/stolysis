@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
-import type { EstimateType, ResultFieldType, YearlyValue } from "@/app/generated/prisma/client";
+import type { EstimateType, ResultFieldType, ValueFormat, YearlyValue } from "@/app/generated/prisma/client";
 import { requireUserId } from "@/lib/auth";
 import { fieldFormulas, referencedFieldIds, type Formula } from "@/lib/formulas";
 import { isReordering } from "@/lib/ordering";
@@ -14,6 +14,7 @@ export type ResultFieldSettingsData = {
   type: ResultFieldType | null;
   estimateType: EstimateType;
   yearlyValue: YearlyValue;
+  valueFormat: ValueFormat;
   starred: boolean;
   // Formulas of a calculated field; null when the values are entered.
   actualDefinition: Formula | null;
@@ -43,6 +44,7 @@ export async function getResultFieldGroups(companyId: number): Promise<ResultFie
           type: true,
           estimateType: true,
           yearlyValue: true,
+          valueFormat: true,
           starred: true,
           fieldDefinitions: { select: { kind: true, definition: true } },
           _count: { select: { resultRows: true } },

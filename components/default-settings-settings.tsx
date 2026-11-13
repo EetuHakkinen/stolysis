@@ -14,7 +14,7 @@ export function DefaultSettingsSettings({ companyId }: { companyId: number }) {
   const t = useTranslations("DefaultSettings");
   const [applied, setApplied] = useState<AppliedSettings>();
 
-  const added = applied && applied.scenarios + applied.groups + applied.fields + applied.formulas > 0;
+  const added = applied && applied.scenarios + applied.groups + applied.fields + applied.formulas + applied.graphs > 0;
 
   return (
     <section className="flex flex-col gap-4">

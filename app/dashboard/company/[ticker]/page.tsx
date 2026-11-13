@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { getCompany } from "@/actions/companies";
 import { getDiscountVariables } from "@/actions/discounting";
 import { getEstimates } from "@/actions/estimates";
+import { getGraphs } from "@/actions/graphs";
 import { getNewsFeed } from "@/actions/news";
 import { getCompanyResults } from "@/actions/results";
 import { getValuation } from "@/actions/valuation";
@@ -26,9 +27,10 @@ export default async function CompanyPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [results, estimates, valuation, discountVariables, feed] = await Promise.all([
+  const [results, estimates, graphs, valuation, discountVariables, feed] = await Promise.all([
     getCompanyResults(company.id),
     getEstimates(company.id),
+    getGraphs(company.id),
     getValuation(company.id),
     getDiscountVariables(company.id),
     getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
@@ -49,6 +51,7 @@ export default async function CompanyPage({
         companyId={company.id}
         results={results}
         estimates={estimates}
+        graphs={graphs}
         valuation={valuation}
         discountVariables={discountVariables}
         scenarioId={parseScenarioId(scenario)}

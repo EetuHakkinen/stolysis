@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatter } from "next-intl";
-import type { EstimateType, Unit } from "@/app/generated/prisma/client";
+import type { EstimateType, Unit, ValueFormat } from "@/app/generated/prisma/client";
 import {
   comparisonSeason,
   roundEstimate,
@@ -72,7 +72,13 @@ export function yearlyEstimateColumns(years: EstimateYear[], currentYearId: numb
 }
 
 // Fields calculated from estimates have no estimates of their own, so their cells are read-only.
-export type EstimateTableField = { id: number; name: string | null; estimateType: EstimateType; calculated: boolean };
+export type EstimateTableField = {
+  id: number;
+  name: string | null;
+  estimateType: EstimateType;
+  valueFormat: ValueFormat;
+  calculated: boolean;
+};
 
 // One result field group's estimates, with result fields as rows and periods as columns. Editable
 // cells hold the estimate variable and save it when they lose focus; the predicted value is shown
@@ -105,12 +111,17 @@ export function EstimateTable({
           <EstimateCell
             type={field.estimateType}
             unit={column.unit}
+            valueFormat={field.valueFormat}
             value={values(field.id, column.period)}
             input={input(field.id, column.period) ?? null}
             save={(value) => save(field.id, column.period, value)}
           />
         ) : (
-          <FormattedValue value={values(field.id, column.period)?.value} unit={column.unit} />
+          <FormattedValue
+            value={values(field.id, column.period)?.value}
+            unit={column.unit}
+            valueFormat={field.valueFormat}
+          />
         )
       }
     />
@@ -118,23 +129,25 @@ export function EstimateTable({
 }
 
 // Input for an estimate variable: a percent change for relative estimates, a value in the column's
-// unit for absolute ones. Saves on blur when the text has changed, rounded to what can be stored.
+// unit (as is for percent fields) for absolute ones. Saves on blur when the text has changed, rounded to what can be stored.
 // Relative estimates show the predicted value beneath, absolute ones the change it makes.
 function EstimateCell({
   type,
   unit,
+  valueFormat,
   value,
   input,
   save,
 }: {
   type: EstimateType;
   unit: Unit;
+  valueFormat: ValueFormat;
   value: PeriodValue | undefined;
   input: number | null;
   save: (value: number | null) => Promise<boolean>;
 }) {
   const format = useFormatter();
-  const divisor = type === "absolute" ? UNIT_DIVISORS[unit] : 1;
+  const divisor = type === "absolute" && valueFormat === "money" ? UNIT_DIVISORS[unit] : 1;
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -146,11 +159,13 @@ function EstimateCell({
           toNumber={(value) => value / divisor}
           save={save}
         />
-        {type === "relative" && <span className="text-xs text-muted-foreground">%</span>}
+        {(type === "relative" || valueFormat === "percent") && (
+          <span className="text-xs text-muted-foreground">%</span>
+        )}
       </div>
       <div className="text-xs text-muted-foreground">
         {type === "relative" ? (
-          <FormattedValue value={value?.value} unit={unit} />
+          <FormattedValue value={value?.value} unit={unit} valueFormat={valueFormat} />
         ) : value?.change == null ? (
           "–"
         ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ResultSeason } from "@/actions/results";
-import type { Unit } from "@/app/generated/prisma/client";
+import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
 import type { EstimatePeriod } from "@/components/estimate-table";
 import { FormattedValue, PeriodTable, type PeriodTableColumn } from "@/components/period-table";
 import type { PeriodValue } from "@/lib/estimates";
@@ -60,7 +60,7 @@ export function ResultTable({
   values,
 }: {
   name: string | null;
-  fields: { id: number; name: string | null }[];
+  fields: { id: number; name: string | null; valueFormat: ValueFormat }[];
   columns: ResultColumn[];
   values: (fieldId: number, period: EstimatePeriod) => PeriodValue | undefined;
 }) {
@@ -71,7 +71,11 @@ export function ResultTable({
       columns={columns}
       scrollFromEnd
       cell={(field, column) => (
-        <FormattedValue value={values(field.id, column.period)?.value} unit={column.unit} />
+        <FormattedValue
+          value={values(field.id, column.period)?.value}
+          unit={column.unit}
+          valueFormat={field.valueFormat}
+        />
       )}
     />
   );

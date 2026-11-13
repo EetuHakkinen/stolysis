@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { z } from "zod";
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EstimateType, FieldDefinitionKind, ResultFieldType, YearlyValue } from "@/app/generated/prisma/enums";
+import { EstimateType, FieldDefinitionKind, ResultFieldType, ValueFormat, YearlyValue } from "@/app/generated/prisma/enums";
 import { requireUserId } from "@/lib/auth";
 import { checkFormula, formulaSchema, hasCycle, referencedFieldIds, type Formula, type FormulaError } from "@/lib/formulas";
 import { isReordering } from "@/lib/ordering";
@@ -13,6 +13,7 @@ export type ResultFieldInput = {
   groupId: number;
   name: string;
   yearlyValue: YearlyValue;
+  valueFormat: ValueFormat;
   estimateType: EstimateType;
   type: ResultFieldType | null;
   // Formulas of a calculated field by FieldDefinitionKind; null when the values are entered.
@@ -44,6 +45,7 @@ const fieldSchema = z.object({
   groupId: idSchema,
   name: z.string().trim().min(1, "required").max(100, "tooLong"),
   yearlyValue: z.enum(YearlyValue),
+  valueFormat: z.enum(ValueFormat),
   estimateType: z.enum(EstimateType),
   type: z.enum(ResultFieldType).nullable(),
   actualDefinition: formulaSchema.nullable(),
@@ -202,8 +204,9 @@ export async function updateResultField(
   return {};
 }
 
-// Deletes the field with its estimates, formulas and valuation multiples if it has no results and
-// no other field's formula uses it. Fields with results are kept, so result rows are never deleted.
+// Deletes the field with its estimates, formulas, valuation multiples and graph fields if it has no
+// results and no other field's formula uses it. Fields with results are kept, so result rows are
+// never deleted.
 export async function deleteResultField(input: { fieldId: number }): Promise<{ deleted: boolean }> {
   await requireUserId();
   const fieldId = idSchema.parse(input.fieldId);

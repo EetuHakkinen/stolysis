@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import type { Unit } from "@/app/generated/prisma/client";
+import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
 import {
   Table,
   TableBody,
@@ -70,12 +70,22 @@ export function PeriodTable<Field extends { id: number; name: string | null }, C
   );
 }
 
-// Value in whole euros shown in the given unit with one decimal, or a dash when missing.
-export function FormattedValue({ value, unit }: { value: number | null | undefined; unit: Unit }) {
+// Value in whole euros shown in the given unit with one decimal, or a dash when missing. Percent
+// values are shown as is, with a percent sign.
+export function FormattedValue({
+  value,
+  unit,
+  valueFormat = "money",
+}: {
+  value: number | null | undefined;
+  unit: Unit;
+  valueFormat?: ValueFormat;
+}) {
   const format = useFormatter();
   if (value == null) return "–";
-  return format.number(value / UNIT_DIVISORS[unit], {
+  const formatted = format.number(valueFormat === "percent" ? value : value / UNIT_DIVISORS[unit], {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+  return valueFormat === "percent" ? `${formatted} %` : formatted;
 }

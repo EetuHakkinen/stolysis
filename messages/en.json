@@ -146,12 +146,12 @@
   },
   "DefaultSettings": {
     "title": "Default settings",
-    "description": "Adds the estimate scenarios, result field groups, result fields and formulas of the default settings that the company doesn't have yet. Existing ones are matched by name and kept as they are.",
+    "description": "Adds the estimate scenarios, result field groups, result fields, formulas and graphs of the default settings that the company doesn't have yet. Existing ones are matched by name and kept as they are.",
     "apply": "Apply default settings",
     "applying": "Applying…",
     "confirmTitle": "Apply default settings?",
     "confirmDescription": "Missing scenarios, groups and fields are added in the default order. Fields that have no formula but have one in the default settings get it, so their values are calculated instead of entered values from then on.",
-    "added": "Added {scenarios, plural, one {# scenario} other {# scenarios}}, {groups, plural, one {# group} other {# groups}}, {fields, plural, one {# field} other {# fields}} and {formulas, plural, one {# formula} other {# formulas}}.",
+    "added": "Added {scenarios, plural, one {# scenario} other {# scenarios}}, {groups, plural, one {# group} other {# groups}}, {fields, plural, one {# field} other {# fields}}, {formulas, plural, one {# formula} other {# formulas}} and {graphs, plural, one {# graph} other {# graphs}}.",
     "nothingAdded": "The company already has all default settings.",
     "skippedFormulas": "{count, plural, one {# formula was} other {# formulas were}} skipped because it would have formed a loop with the company's other formulas."
   },
@@ -202,6 +202,12 @@
       "sum": "Sum of quarters",
       "last_period": "Last quarter"
     },
+    "valueFormat": "Value format",
+    "valueFormats": {
+      "money": "Euros",
+      "percent": "Percent"
+    },
+    "valueFormatDescription": "Euro values are shown in the financial year's unit, percentages as they are with a percent sign.",
     "actualValues": "Results",
     "actualModes": {
       "entered": "Entered",
@@ -240,6 +246,36 @@
       "unbalancedParentheses": "The parentheses don't match.",
       "unknownField": "The formula uses a field that doesn't belong to the company.",
       "cycle": "The formulas use each other in a loop."
+    }
+  },
+  "Graphs": {
+    "title": "Graphs",
+    "empty": "No graphs yet.",
+    "create": "New graph",
+    "createTitle": "New graph",
+    "rename": "Rename",
+    "renameTitle": "Rename graph",
+    "move": "Move graph {name}",
+    "fieldCount": "{count, plural, =0 {No fields} one {# field} other {# fields}}",
+    "delete": "Delete",
+    "deleteTitle": "Delete graph?",
+    "deleteDescription": "Graph {name} will be deleted permanently. Its result fields are kept.",
+    "addField": "Add field",
+    "noFields": "No fields in this graph yet.",
+    "moveField": "Move field {name}",
+    "removeField": "Remove field {name} from the graph",
+    "types": {
+      "line": "Line",
+      "bar": "Bar"
+    },
+    "axes": {
+      "left": "Left axis",
+      "right": "Right axis"
+    },
+    "errors": {
+      "required": "Name is required.",
+      "tooLong": "Name is too long.",
+      "nameTaken": "The company already has a graph with this name."
     }
   },
   "FormulaEditor": {

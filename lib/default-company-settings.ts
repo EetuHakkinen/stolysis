@@ -1,11 +1,19 @@
 // Settings every new company starts with, defined in default-company-settings.json: its estimate
-// scenarios, and its result field groups and fields in display order, with the formulas of
-// calculated fields. Formulas refer to
-// fields by name, since the ids only exist once the company is created.
+// scenarios, its result field groups and fields in display order, with the formulas of calculated
+// fields, and its graphs. Formulas and graphs refer to fields by name, since the ids only exist
+// once the company is created.
 
 import { z } from "zod";
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EstimateType, FieldDefinitionKind, ResultFieldType, YearlyValue } from "../app/generated/prisma/enums.ts";
+import {
+  EstimateType,
+  FieldDefinitionKind,
+  GraphAxis,
+  GraphFieldType,
+  ResultFieldType,
+  ValueFormat,
+  YearlyValue,
+} from "../app/generated/prisma/enums.ts";
 import settingsJson from "./default-company-settings.json" with { type: "json" };
 import { checkFormula, formulaSchema, formulaSchemaOf, hasCycle, type Formula } from "./formulas.ts";
 import { mergeDefaults } from "./ordering.ts";
@@ -22,9 +30,22 @@ const settingsSchema = z.strictObject({
           name: z.string().min(1),
           type: z.enum(ResultFieldType).optional(),
           yearlyValue: z.enum(YearlyValue).optional(),
+          valueFormat: z.enum(ValueFormat).optional(),
           estimateType: z.enum(EstimateType).optional(),
           actualDefinition: nameFormulaSchema.optional(),
           estimateDefinition: nameFormulaSchema.optional(),
+        }),
+      ),
+    }),
+  ),
+  graphs: z.array(
+    z.strictObject({
+      name: z.string().trim().min(1).max(100),
+      fields: z.array(
+        z.strictObject({
+          field: z.string().min(1),
+          type: z.enum(GraphFieldType).optional(),
+          axis: z.enum(GraphAxis).optional(),
         }),
       ),
     }),
@@ -40,8 +61,11 @@ const DEFINITION_KEYS = {
   estimate: "estimateDefinition",
 } as const satisfies Record<FieldDefinitionKind, string>;
 
+const nameKey = (name: string | null) => (name ?? "").trim().toLowerCase();
+
 // What's wrong with the settings, beyond their shape: field names must be unique within the company
-// as in the settings page, and formulas must be valid, refer to existing fields and not form loops.
+// as in the settings page, formulas must be valid, refer to existing fields and not form loops, and
+// graph names must be unique and their fields exist, each at most once per graph.
 export function settingsProblems(settings: CompanySettings): string[] {
   const fields = settings.resultFieldGroups.flatMap((group) => group.fields);
   const problems: string[] = [];
@@ -75,6 +99,19 @@ export function settingsProblems(settings: CompanySettings): string[] {
     }
     if (hasCycle(formulas)) problems.push(`The ${kind} formulas form a loop`);
   }
+
+  const graphNames = new Set<string>();
+  for (const graph of settings.graphs) {
+    const key = nameKey(graph.name);
+    if (graphNames.has(key)) problems.push(`Duplicate graph name: ${graph.name}`);
+    graphNames.add(key);
+    const graphFields = new Set<string>();
+    for (const { field } of graph.fields) {
+      if (!names.has(field)) problems.push(`Unknown field in graph ${graph.name}: ${field}`);
+      if (graphFields.has(field)) problems.push(`Duplicate field in graph ${graph.name}: ${field}`);
+      graphFields.add(field);
+    }
+  }
   return problems;
 }
 
@@ -97,14 +134,13 @@ export type AppliedSettings = {
   groups: number;
   fields: number;
   formulas: number;
+  graphs: number;
   skippedFormulas: number;
 };
 
-const nameKey = (name: string | null) => (name ?? "").trim().toLowerCase();
-
 // Adds the parts of the settings the company doesn't have yet, matched by name ignoring case:
-// estimate scenarios, result field groups, result fields, and formulas of fields that have no
-// formula of that kind. Existing ones are otherwise left as they are, also fields that are in
+// estimate scenarios, result field groups, result fields, formulas of fields that have no formula
+// of that kind, and graphs (with their fields, after the company's own graphs). Existing ones are otherwise left as they are, also fields that are in
 // another group than in the settings. Added groups and fields go right after the closest preceding
 // ones of the settings that the company has. An added field doesn't get a special type another
 // field already has. Call inside a transaction.
@@ -113,7 +149,7 @@ export async function applySettings(
   companyId: number,
   settings: CompanySettings = defaultCompanySettings,
 ): Promise<AppliedSettings> {
-  const applied: AppliedSettings = { scenarios: 0, groups: 0, fields: 0, formulas: 0, skippedFormulas: 0 };
+  const applied: AppliedSettings = { scenarios: 0, groups: 0, fields: 0, formulas: 0, graphs: 0, skippedFormulas: 0 };
 
   const scenarios = await tx.estimateScenario.findMany({ where: { companyId }, select: { name: true } });
   const scenarioNames = new Set(scenarios.map((scenario) => nameKey(scenario.name)));
@@ -177,11 +213,11 @@ export async function applySettings(
         if (entry.existing.order !== order) await tx.resultField.update({ where: { id: entry.existing.id }, data: { order } });
         continue;
       }
-      const { name, type, yearlyValue, estimateType } = entry.added;
+      const { name, type, yearlyValue, valueFormat, estimateType } = entry.added;
       const freeType = type && !takenTypes.has(type) ? type : undefined;
       if (freeType) takenTypes.add(freeType);
       const { id } = await tx.resultField.create({
-        data: { resultFieldGroupId: target.id, name, type: freeType, yearlyValue, estimateType, order },
+        data: { resultFieldGroupId: target.id, name, type: freeType, yearlyValue, valueFormat, estimateType, order },
         select: { id: true },
       });
       fieldIds.set(nameKey(name), id);
@@ -218,6 +254,29 @@ export async function applySettings(
       await tx.fieldDefinition.create({ data: { resultFieldId: id, kind, definition } });
       applied.formulas++;
     }
+  }
+
+  const graphs = await tx.graph.findMany({ where: { companyId }, select: { name: true, order: true } });
+  const graphNames = new Set(graphs.map((graph) => nameKey(graph.name)));
+  let graphOrder = Math.max(-1, ...graphs.map((graph) => graph.order ?? -1)) + 1;
+  for (const graph of settings.graphs) {
+    if (graphNames.has(nameKey(graph.name))) continue;
+    await tx.graph.create({
+      data: {
+        companyId,
+        name: graph.name,
+        order: graphOrder++,
+        fields: {
+          create: graph.fields.map(({ field, type, axis }, order) => ({
+            resultFieldId: fieldId(field),
+            type,
+            axis,
+            order,
+          })),
+        },
+      },
+    });
+    applied.graphs++;
   }
   return applied;
 }

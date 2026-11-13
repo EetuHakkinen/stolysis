@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import type { ResultFieldErrors, ResultFieldInput } from "@/actions/result-fields";
-import { EstimateType, ResultFieldType, YearlyValue } from "@/app/generated/prisma/enums";
+import { EstimateType, ResultFieldType, ValueFormat, YearlyValue } from "@/app/generated/prisma/enums";
 import { FormulaEditor, type FormulaFieldGroup } from "@/components/formula-editor";
 import { OptionSelect } from "@/components/option-select";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ const draftsOf = (values: ResultFieldInput): Record<DefinitionKey, Formula> => (
   estimateDefinition: values.estimateDefinition ?? [],
 });
 
-// Dialog for a result field's name, group, yearly value, formulas, estimate type and special type,
+// Dialog for a result field's name, group, yearly value, value format, formulas, estimate type and special type,
 // for both creating and editing a field. The dialog closes once save succeeds; otherwise its errors
 // are shown under the fields.
 export function ResultFieldDialog({
@@ -149,6 +149,20 @@ export function ResultFieldDialog({
                 onChange={(yearlyValue) => set("yearlyValue", yearlyValue)}
                 disabled={pending}
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="result-field-value-format">{t("valueFormat")}</FieldLabel>
+              <OptionSelect
+                id="result-field-value-format"
+                options={Object.values(ValueFormat).map((value) => ({
+                  value,
+                  label: t(`valueFormats.${value}`),
+                }))}
+                value={values.valueFormat}
+                onChange={(valueFormat) => set("valueFormat", valueFormat)}
+                disabled={pending}
+              />
+              <FieldDescription>{t("valueFormatDescription")}</FieldDescription>
             </Field>
             <DefinitionField
               id="result-field-actual"

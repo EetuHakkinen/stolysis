@@ -146,12 +146,12 @@
   },
   "DefaultSettings": {
     "title": "Oletusasetukset",
-    "description": "Lisää oletusasetusten ennusteskenaariot, tuloslaskelman osiot, tuloskentät ja kaavat, joita yhtiöllä ei vielä ole. Olemassa olevat tunnistetaan nimestä, eikä niitä muuteta.",
+    "description": "Lisää oletusasetusten ennusteskenaariot, tuloslaskelman osiot, tuloskentät, kaavat ja kaaviot, joita yhtiöllä ei vielä ole. Olemassa olevat tunnistetaan nimestä, eikä niitä muuteta.",
     "apply": "Päivitä oletusasetukset",
     "applying": "Päivitetään…",
     "confirmTitle": "Päivitetäänkö oletusasetukset?",
     "confirmDescription": "Puuttuvat skenaariot, osiot ja kentät lisätään oletusjärjestykseen. Kentät, joilla ei ole kaavaa mutta oletusasetuksissa on, saavat sen, jolloin niiden arvot lasketaan jatkossa syötettyjen arvojen sijaan.",
-    "added": "Lisättiin {scenarios, plural, one {# skenaario} other {# skenaariota}}, {groups, plural, one {# osio} other {# osiota}}, {fields, plural, one {# kenttä} other {# kenttää}} ja {formulas, plural, one {# kaava} other {# kaavaa}}.",
+    "added": "Lisättiin {scenarios, plural, one {# skenaario} other {# skenaariota}}, {groups, plural, one {# osio} other {# osiota}}, {fields, plural, one {# kenttä} other {# kenttää}}, {formulas, plural, one {# kaava} other {# kaavaa}} ja {graphs, plural, one {# kaavio} other {# kaaviota}}.",
     "nothingAdded": "Yhtiöllä on jo kaikki oletusasetukset.",
     "skippedFormulas": "{count, plural, one {# kaava ohitettiin, koska se olisi muodostanut} other {# kaavaa ohitettiin, koska ne olisivat muodostaneet}} silmukan yhtiön muiden kaavojen kanssa."
   },
@@ -202,6 +202,12 @@
       "sum": "Kvartaalien summa",
       "last_period": "Viimeinen kvartaali"
     },
+    "valueFormat": "Arvon muoto",
+    "valueFormats": {
+      "money": "Euroina",
+      "percent": "Prosentteina"
+    },
+    "valueFormatDescription": "Euromääräiset arvot näytetään tilikauden yksikössä, prosentit sellaisenaan %-merkin kanssa.",
     "actualValues": "Raportoidut luvut",
     "actualModes": {
       "entered": "Syötetty",
@@ -240,6 +246,36 @@
       "unbalancedParentheses": "Sulkeet eivät täsmää.",
       "unknownField": "Kaavassa on kenttä, joka ei kuulu yhtiölle.",
       "cycle": "Kaavat käyttävät toisiaan kehässä."
+    }
+  },
+  "Graphs": {
+    "title": "Kaaviot",
+    "empty": "Ei vielä kaavioita.",
+    "create": "Uusi kaavio",
+    "createTitle": "Uusi kaavio",
+    "rename": "Nimeä uudelleen",
+    "renameTitle": "Nimeä kaavio uudelleen",
+    "move": "Siirrä kaaviota {name}",
+    "fieldCount": "{count, plural, =0 {Ei kenttiä} one {# kenttä} other {# kenttää}}",
+    "delete": "Poista",
+    "deleteTitle": "Poistetaanko kaavio?",
+    "deleteDescription": "Kaavio {name} poistetaan pysyvästi. Sen tuloskentät säilyvät.",
+    "addField": "Lisää kenttä",
+    "noFields": "Kaaviossa ei ole vielä kenttiä.",
+    "moveField": "Siirrä kenttää {name}",
+    "removeField": "Poista kenttä {name} kaaviosta",
+    "types": {
+      "line": "Viiva",
+      "bar": "Pylväs"
+    },
+    "axes": {
+      "left": "Vasen akseli",
+      "right": "Oikea akseli"
+    },
+    "errors": {
+      "required": "Nimi on pakollinen.",
+      "tooLong": "Nimi on liian pitkä.",
+      "nameTaken": "Yhtiöllä on jo tämänniminen kaavio."
     }
   },
   "FormulaEditor": {

@@ -26,6 +26,10 @@ describe("settingsProblems", () => {
           ],
         },
       ],
+      graphs: [
+        { name: "Kaavio", fields: [{ field: "Liikevaihto" }, { field: "Liikevaihto" }] },
+        { name: "kaavio", fields: [{ field: "Puuttuva" }] },
+      ],
     });
     assert.deepEqual(problems, [
       "Duplicate scenario name: Perusskenaario",
@@ -33,6 +37,9 @@ describe("settingsProblems", () => {
       "Unknown field in actual formula of C: Puuttuva",
       "Invalid estimate formula of B: missingOperand at 2",
       "The estimate formulas form a loop",
+      "Duplicate field in graph Kaavio: Liikevaihto",
+      "Duplicate graph name: kaavio",
+      "Unknown field in graph kaavio: Puuttuva",
     ]);
   });
 });

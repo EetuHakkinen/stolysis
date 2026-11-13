@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getCompany } from "@/actions/companies";
 import { getEstimateScenarios } from "@/actions/estimates";
+import { getGraphs } from "@/actions/graphs";
 import { getResultFieldGroups } from "@/actions/result-field-groups";
 import { CompanyDetailsSettings } from "@/components/company-details-settings";
 import { DefaultSettingsSettings } from "@/components/default-settings-settings";
 import { EstimateScenarioSettings } from "@/components/estimate-scenario-settings";
+import { GraphSettings } from "@/components/graph-settings";
 import { ResultFieldGroupSettings } from "@/components/result-field-group-settings";
 import { ResultFieldSettings } from "@/components/result-field-settings";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
@@ -18,9 +20,10 @@ export default async function CompanySettingsPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [scenarios, groups] = await Promise.all([
+  const [scenarios, groups, graphs] = await Promise.all([
     getEstimateScenarios(company.id),
     getResultFieldGroups(company.id),
+    getGraphs(company.id),
   ]);
   const companyPath = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
 
@@ -34,6 +37,7 @@ export default async function CompanySettingsPage({
       <EstimateScenarioSettings companyId={company.id} scenarios={scenarios} />
       <ResultFieldGroupSettings companyId={company.id} groups={groups} />
       <ResultFieldSettings groups={groups} />
+      <GraphSettings companyId={company.id} graphs={graphs} groups={groups} />
       <DefaultSettingsSettings companyId={company.id} />
     </main>
   );
