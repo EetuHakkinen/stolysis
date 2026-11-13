@@ -2,12 +2,22 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 import { SectionTitle } from "@/components/section-title";
+import { SignedPercent } from "@/components/signed-percent";
 import { Table, TableBody, TableCell, TableFooter, TableRow } from "@/components/ui/table";
-import { averageValuePerShare } from "@/lib/valuation";
+import { averageValuePerShare, pricePotential } from "@/lib/valuation";
 
 // The company's value per share today by DCF and by the valuation multiples, and their average
-// highlighted in the footer.
-export function ValuePerShareTable({ dcf, multiples }: { dcf: number | null; multiples: number | null }) {
+// highlighted in the footer. With a stock price, also the average's potential: how much the price
+// would change to reach it.
+export function ValuePerShareTable({
+  dcf,
+  multiples,
+  price,
+}: {
+  dcf: number | null;
+  multiples: number | null;
+  price: number | null;
+}) {
   const t = useTranslations("ValuePerShare");
   const tValuation = useTranslations("Valuation");
   const format = useFormatter();
@@ -22,6 +32,8 @@ export function ValuePerShareTable({ dcf, multiples }: { dcf: number | null; mul
     { key: "dcf", value: dcf },
     { key: "multiples", value: multiples },
   ] as const;
+  const average = averageValuePerShare(dcf, multiples);
+  const potential = pricePotential(average, price);
 
   return (
     <div className="flex flex-col gap-2">
@@ -38,8 +50,16 @@ export function ValuePerShareTable({ dcf, multiples }: { dcf: number | null; mul
         <TableFooter>
           <TableRow className="text-base font-semibold">
             <TableCell>{t("average")}</TableCell>
-            <TableCell className="text-right tabular-nums">{perShare(averageValuePerShare(dcf, multiples))}</TableCell>
+            <TableCell className="text-right tabular-nums">{perShare(average)}</TableCell>
           </TableRow>
+          {price != null && (
+            <TableRow className="font-semibold">
+              <TableCell>{t("potential")}</TableCell>
+              <TableCell className="text-right">
+                <SignedPercent value={potential} />
+              </TableCell>
+            </TableRow>
+          )}
         </TableFooter>
       </Table>
     </div>

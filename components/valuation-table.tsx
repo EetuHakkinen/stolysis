@@ -5,6 +5,7 @@ import type { Unit } from "@/app/generated/prisma/client";
 import type { ValuationMultipleSummary } from "@/actions/valuation";
 import { FormattedValue } from "@/components/period-table";
 import { SavedNumberInput } from "@/components/saved-number-input";
+import { SignedPercent } from "@/components/signed-percent";
 import {
   Table,
   TableBody,
@@ -19,12 +20,13 @@ import { roundMultiple, type CompanyValuationResult } from "@/lib/valuation";
 // A scenario's valuation in the target year, with the multiples as rows: the multiple's value,
 // which saves when it loses focus, and the enterprise value and market value it gives. Followed
 // by the average market value and the value per share in the target year, and both discounted to
-// the present.
+// the present. With a stock price, also the present value's potential and the expected return.
 export function ValuationTable({
   multiples,
   values,
   valuation,
   present,
+  returns,
   unit,
   save,
 }: {
@@ -34,6 +36,9 @@ export function ValuationTable({
   valuation: CompanyValuationResult;
   // Average market value and value per share discounted to the present.
   present: { marketValue: number | null; valuePerShare: number | null };
+  // How much the stock price would change to reach the present value per share, and the yearly
+  // return that takes it to the target year's value per share; null without a price.
+  returns: { potential: number | null; expectedReturn: number | null } | null;
   // Unit of the target year.
   unit: Unit;
   save: (multipleId: number, value: number | null) => Promise<boolean>;
@@ -109,6 +114,18 @@ export function ValuationTable({
             </TableCell>
           </TableRow>
         ))}
+        {returns &&
+          [
+            { label: t("potential"), value: returns.potential },
+            { label: t("expectedReturn"), value: returns.expectedReturn },
+          ].map((row) => (
+            <TableRow key={row.label} className="font-semibold">
+              <TableCell colSpan={3}>{row.label}</TableCell>
+              <TableCell className="text-right">
+                <SignedPercent value={row.value} />
+              </TableCell>
+            </TableRow>
+          ))}
       </TableFooter>
     </Table>
   );

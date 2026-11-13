@@ -182,13 +182,16 @@
     "noTargetYear": "Choose the target year to value the company with its estimates.",
     "saveFailed": "Saving the target year failed.",
     "presentMarketValue": "Present market value",
-    "presentValuePerShare": "Present value per share"
+    "presentValuePerShare": "Present value per share",
+    "potential": "Potential",
+    "expectedReturn": "Expected return / year"
   },
   "ValuePerShare": {
     "title": "Value per share",
     "dcf": "DCF",
     "multiples": "Multiples",
-    "average": "Average"
+    "average": "Average",
+    "potential": "Potential"
   },
   "Dcf": {
     "valueDistribution": "Cash flow distribution by period",

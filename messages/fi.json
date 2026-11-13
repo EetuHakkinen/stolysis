@@ -182,13 +182,16 @@
     "noTargetYear": "Valitse tavoitevuosi, jonka ennusteilla yhtiö arvostetaan.",
     "saveFailed": "Tavoitevuoden tallennus epäonnistui.",
     "presentMarketValue": "Markkina-arvo nyt",
-    "presentValuePerShare": "Arvo per osake nyt"
+    "presentValuePerShare": "Arvo per osake nyt",
+    "potential": "Potentiaali",
+    "expectedReturn": "Tuotto-odotus / vuosi"
   },
   "ValuePerShare": {
     "title": "Arvo per osake",
     "dcf": "DCF",
     "multiples": "Kerroinanalyysi",
-    "average": "Keskiarvo"
+    "average": "Keskiarvo",
+    "potential": "Potentiaali"
   },
   "Dcf": {
     "valueDistribution": "Rahavirran jakauma jaksoittain",

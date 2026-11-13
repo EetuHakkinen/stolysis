@@ -7,11 +7,13 @@ import { ValuationTable } from "@/components/valuation-table";
 import { ValuationTargetPicker } from "@/components/valuation-target-picker";
 import type { CompanyPrediction, EstimateYear } from "@/lib/estimates";
 import { costOfEquity, type DiscountValues } from "@/lib/discounting";
-import { calculateValuation, presentValuation } from "@/lib/valuation";
+import { annualReturn, calculateValuation, pricePotential, presentValuation, yearsUntil } from "@/lib/valuation";
 
 // Valuation of the selected scenario: the target year, the same for every scenario, and the
 // valuation table for it. The target year's market value is discounted to the present with the
-// company's cost of equity, from now until the end of the target year. Values and the target year
+// company's cost of equity, from now until the end of the target year. With a stock price, the
+// potential compares it to the present value and the expected return to the target year's value
+// over the same time. Values and the target year
 // are kept by the caller, so they survive switching tabs and scenarios.
 export function ValuationTab({
   scenarioId,
@@ -20,6 +22,7 @@ export function ValuationTab({
   valuation: { multiples, fieldIds },
   values,
   discountValues,
+  price,
   targetYearId,
   selectTargetYear,
   save,
@@ -32,6 +35,8 @@ export function ValuationTab({
   // The scenario's multiple values by multiple id.
   values: Record<number, number | null | undefined>;
   discountValues: DiscountValues;
+  // Latest stock price, null without prices.
+  price: number | null;
   targetYearId: number | null;
   selectTargetYear: (yearId: number) => Promise<boolean>;
   save: (multipleId: number, value: number | null) => Promise<boolean>;
@@ -53,6 +58,15 @@ export function ValuationTab({
       netDebtFieldId: fieldIds.net_debt,
       shareCountFieldId: fieldIds.share_count,
     });
+    const now = new Date();
+    const present = presentValuation(result, costOfEquity(discountValues), targetYear.endTime, now);
+    const returns =
+      price == null
+        ? null
+        : {
+            potential: pricePotential(present.valuePerShare, price),
+            expectedReturn: annualReturn(result.valuePerShare, price, yearsUntil(targetYear.endTime, now)),
+          };
     return (
       <ValuationTable
         // Inputs keep their own text, so start them over for another scenario.
@@ -60,7 +74,8 @@ export function ValuationTab({
         multiples={multiples}
         values={values}
         valuation={result}
-        present={presentValuation(result, costOfEquity(discountValues), targetYear.endTime, new Date())}
+        present={present}
+        returns={returns}
         unit={targetYear.unit ?? "one"}
         save={save}
       />

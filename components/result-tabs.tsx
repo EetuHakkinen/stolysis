@@ -243,7 +243,11 @@ export function ResultTabs({
           <ResultTable name={t("starredFields")} fields={starred} columns={columns} values={values} />
         )}
         <div className="lg:w-1/2">
-          <ValuePerShareTable dcf={dcf(currentYearId).valuePerShare} multiples={multipleValuePerShare()} />
+          <ValuePerShareTable
+            dcf={dcf(currentYearId).valuePerShare}
+            multiples={multipleValuePerShare()}
+            price={stockPrices.at(-1)?.close ?? null}
+          />
         </div>
         {resultGraphs(columns, graphs.filter((graph) => graph.starred))}
       </>
@@ -309,6 +313,7 @@ export function ResultTabs({
         valuation={valuation}
         values={{ ...valuation.values[scenario.id], ...multipleEdits[scenario.id] }}
         discountValues={discountValues}
+        price={stockPrices.at(-1)?.close ?? null}
         targetYearId={targetYearId}
         selectTargetYear={selectTargetYear}
         save={(multipleId, value) => saveMultiple(scenario.id, multipleId, value)}

@@ -115,3 +115,16 @@ export function presentValuation(
 export function averageValuePerShare(dcf: number | null, multiples: number | null): number | null {
   return dcf == null || multiples == null ? null : (dcf + multiples) / 2;
 }
+
+// How much the stock price would change to reach the value per share, as a fraction of the price
+// (0.25 = +25 %); null unless both are known and the price is positive.
+export function pricePotential(valuePerShare: number | null, price: number | null): number | null {
+  return valuePerShare == null || price == null || price <= 0 ? null : valuePerShare / price - 1;
+}
+
+// The yearly return, compounded, that takes the stock price to the value per share in the given
+// years (0.1 = 10 % a year); null unless both are known, the price is positive and years remain.
+export function annualReturn(valuePerShare: number | null, price: number | null, years: number): number | null {
+  if (valuePerShare == null || price == null || price <= 0 || years <= 0) return null;
+  return (valuePerShare / price) ** (1 / years) - 1;
+}

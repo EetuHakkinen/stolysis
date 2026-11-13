@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CompanyPrediction } from "./estimates.ts";
 import {
+  annualReturn,
   averageValuePerShare,
   calculateValuation,
   fromStoredMultiple,
   presentValuation,
+  pricePotential,
   presentValue,
   roundMultiple,
   toStoredMultiple,
@@ -108,6 +110,27 @@ describe("averageValuePerShare", () => {
     assert.equal(averageValuePerShare(10, 14), 12);
     assert.equal(averageValuePerShare(10, null), null);
     assert.equal(averageValuePerShare(null, 14), null);
+  });
+});
+
+describe("pricePotential", () => {
+  it("is the value's change from the price, only when both are known", () => {
+    assert.equal(pricePotential(15, 12), 0.25);
+    assert.equal(pricePotential(9, 12), -0.25);
+    assert.equal(pricePotential(null, 12), null);
+    assert.equal(pricePotential(15, null), null);
+    assert.equal(pricePotential(15, 0), null);
+  });
+});
+
+describe("annualReturn", () => {
+  it("compounds the potential over the years, only when it can be calculated", () => {
+    assert.ok(Math.abs(annualReturn(14.4, 10, 2)! - 0.2) < 1e-12);
+    assert.equal(annualReturn(5, 10, 1), -0.5);
+    assert.equal(annualReturn(null, 10, 2), null);
+    assert.equal(annualReturn(14.4, null, 2), null);
+    assert.equal(annualReturn(14.4, 0, 2), null);
+    assert.equal(annualReturn(14.4, 10, 0), null);
   });
 });
 
