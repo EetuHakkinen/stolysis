@@ -9,3 +9,8 @@ export function latestRows<T>(rows: T[], key: (row: T) => string | number): T[] 
   }
   return [...latest.values()];
 }
+
+// Rows created at or before asOf, in the same order; all rows without asOf.
+export function rowsAsOf<T extends { createdAt: Date }>(rows: T[], asOf: Date | undefined): T[] {
+  return asOf ? rows.filter((row) => row.createdAt <= asOf) : rows;
+}

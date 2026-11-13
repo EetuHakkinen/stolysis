@@ -2,9 +2,9 @@
 
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
-import { latestRows } from "@/lib/latest-rows";
+import { loadMultiples, loadMultipleValueRows, multipleValuesAsOf } from "@/lib/company-data";
 import { prisma } from "@/lib/prisma";
-import { fromStoredMultiple, toStoredMultiple } from "@/lib/valuation";
+import { toStoredMultiple } from "@/lib/valuation";
 import type { ValuationBasis } from "@/app/generated/prisma/client";
 import { ResultFieldType } from "@/app/generated/prisma/enums";
 
@@ -30,17 +30,8 @@ export async function getValuation(companyId: number): Promise<CompanyValuationD
   await requireUserId();
 
   const [multiples, values, valuation, typedFields] = await Promise.all([
-    prisma.valuationMultiple.findMany({
-      where: { companyId },
-      orderBy: [{ order: "asc" }, { id: "asc" }],
-      select: { id: true, name: true, resultFieldId: true, basis: true },
-    }),
-    prisma.valuationMultipleValue.findMany({
-      where: { valuationMultiple: { companyId } },
-      // valuation_multiple_value is insert-only: newest first, so the first row per key is current.
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      select: { estimateScenarioId: true, valuationMultipleId: true, value: true },
-    }),
+    loadMultiples(companyId),
+    loadMultipleValueRows(companyId),
     prisma.companyValuation.findUnique({
       where: { companyId },
       select: { targetFinancialYearId: true },
@@ -52,17 +43,9 @@ export async function getValuation(companyId: number): Promise<CompanyValuationD
     }),
   ]);
 
-  const scenarioValues: Record<number, Record<number, number | null>> = {};
-  const currentValues = latestRows(values, (row) => `${row.estimateScenarioId}:${row.valuationMultipleId}`);
-  for (const row of currentValues) {
-    scenarioValues[row.estimateScenarioId] ??= {};
-    scenarioValues[row.estimateScenarioId][row.valuationMultipleId] =
-      row.value == null ? null : fromStoredMultiple(row.value);
-  }
-
   return {
     multiples,
-    values: scenarioValues,
+    values: multipleValuesAsOf(values),
     targetYearId: valuation?.targetFinancialYearId ?? null,
     fieldIds: Object.fromEntries(
       Object.values(ResultFieldType).map((type) => [type, typedFields.find((field) => field.type === type)?.id ?? null]),

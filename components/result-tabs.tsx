@@ -36,6 +36,7 @@ import {
   summaryColumns,
   yearlyGraphColumns,
 } from "@/components/result-graphs";
+import { useSelectedScenario } from "@/components/selected-scenario";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValuationTab } from "@/components/valuation-tab";
 import { ValuePerShareTable } from "@/components/value-per-share-table";
@@ -70,7 +71,6 @@ export function ResultTabs({
   graphs,
   valuation,
   discountVariables,
-  initialScenarioId,
 }: {
   companyId: number;
   seasons: ResultSeason[];
@@ -79,26 +79,15 @@ export function ResultTabs({
   graphs: GraphData[];
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
-  initialScenarioId: number | undefined;
 }) {
   const t = useTranslations("Results");
-  const [selectedId, setSelectedId] = useState(initialScenarioId);
+  const { selectedId, select } = useSelectedScenario();
   const [edits, setEdits] = useState<Record<string, number | null>>({});
   // Saved multiple values by scenario id, then by multiple id.
   const [multipleEdits, setMultipleEdits] = useState<Record<number, Record<number, number | null>>>({});
   const [targetYearId, setTargetYearId] = useState(valuation.targetYearId);
   const [discountValues, setDiscountValues] = useState(discountVariables);
   const scenario = scenarios.find((scenario) => scenario.id === selectedId) ?? scenarios[0];
-
-  // The selected scenario is kept in the URL, so it survives a reload. Changing it only replaces
-  // the history entry: every scenario's estimates are already loaded.
-  function select(scenarioId: number | undefined) {
-    setSelectedId(scenarioId);
-    const url = new URL(window.location.href);
-    if (scenarioId == null) url.searchParams.delete("scenario");
-    else url.searchParams.set("scenario", String(scenarioId));
-    window.history.replaceState(null, "", url);
-  }
 
   const actuals = useMemo<ActualValues>(
     () =>
@@ -357,7 +346,7 @@ export function ResultTabs({
       />
       <Tabs defaultValue="summary">
         {/* The tabs fill the width; on narrow screens they scroll sideways. */}
-        <TabsList className="w-full justify-start overflow-x-auto group-data-horizontal/tabs:h-10">
+        <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden group-data-horizontal/tabs:h-10">
           {tabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} className="px-3 text-base">
               {t(`tabs.${tab.value}`)}

@@ -1,8 +1,8 @@
 "use server";
 
-import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
+import type { Unit } from "@/app/generated/prisma/client";
 import { requireUserId } from "@/lib/auth";
-import { latestRows } from "@/lib/latest-rows";
+import { loadResultGroups, resultGroupsAsOf, type ResultGroup } from "@/lib/company-data";
 import { prisma } from "@/lib/prisma";
 
 export type ResultSeason = {
@@ -11,19 +11,7 @@ export type ResultSeason = {
   financialYear: { id: number; name: string | null; unit: Unit | null };
 };
 
-export type ResultGroup = {
-  id: number;
-  name: string | null;
-  fields: {
-    id: number;
-    name: string | null;
-    valueFormat: ValueFormat;
-    starred: boolean;
-    // Value in whole euros by reporting season id; seasons without a value are missing. Empty for
-    // fields calculated from actual values: their values are calculated with the estimates.
-    values: Record<number, bigint | null>;
-  }[];
-};
+export type { ResultGroup };
 
 export type CompanyResults = { seasons: ResultSeason[]; groups: ResultGroup[] };
 
@@ -42,47 +30,8 @@ export async function getCompanyResults(companyId: number): Promise<CompanyResul
         financialYear: { select: { id: true, name: true, unit: true } },
       },
     }),
-    prisma.resultFieldGroup.findMany({
-      where: { companyId },
-      orderBy: [{ order: "asc" }, { id: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        resultFields: {
-          orderBy: [{ order: "asc" }, { id: "asc" }],
-          select: {
-            id: true,
-            name: true,
-            valueFormat: true,
-            starred: true,
-            // Rows saved before the field became calculated are ignored.
-            fieldDefinitions: { where: { kind: "actual" }, select: { id: true } },
-            // result_row is insert-only: newest first, so the first row per season is current.
-            resultRows: {
-              orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-              select: { reportingSeasonId: true, value: true },
-            },
-          },
-        },
-      },
-    }),
+    loadResultGroups(companyId),
   ]);
 
-  return {
-    seasons,
-    groups: groups.map(({ resultFields, ...group }) => ({
-      ...group,
-      fields: resultFields.map(({ resultRows, fieldDefinitions, ...field }) => ({
-        ...field,
-        values: fieldDefinitions.length > 0 ? {} : latestValues(resultRows),
-      })),
-    })),
-  };
-}
-
-// Value of the first (latest) row per reporting season.
-function latestValues(rows: { reportingSeasonId: number; value: bigint | null }[]) {
-  return Object.fromEntries(
-    latestRows(rows, (row) => row.reportingSeasonId).map((row) => [row.reportingSeasonId, row.value]),
-  ) as Record<number, bigint | null>;
+  return { seasons, groups: resultGroupsAsOf(groups) };
 }

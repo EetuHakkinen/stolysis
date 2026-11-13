@@ -31,6 +31,44 @@
     "empty": "No news yet.",
     "attachments": "Attachments"
   },
+  "CompanyTabs": {
+    "news": "News",
+    "notes": "Notes"
+  },
+  "Notes": {
+    "title": "Notes",
+    "new": "New note",
+    "empty": "No notes yet.",
+    "date": "Date",
+    "news": "News",
+    "removeNews": "Remove link to news",
+    "selectNews": "Link to news",
+    "changeNews": "Change news",
+    "estimates": "Estimates",
+    "multiples": "Valuation multiples",
+    "noYear": "No financial year covers the note's date.",
+    "write": "Write",
+    "preview": "Preview",
+    "text": "Note",
+    "placeholder": "Write the note in markdown…",
+    "nothingToPreview": "Nothing to preview.",
+    "status": {
+      "empty": "Saved once you write something",
+      "saved": "Saved",
+      "unsaved": "Unsaved changes",
+      "saving": "Saving…",
+      "failed": "Saving failed"
+    },
+    "edit": "Edit note",
+    "done": "Done",
+    "emptyNote": "Empty note.",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "deleteTitle": "Delete note?",
+    "deleteDescription": "The note will be deleted permanently.",
+    "createFromNews": "Create note",
+    "noneForNews": "No notes about this news yet."
+  },
   "AddNews": {
     "open": "Add news",
     "title": "Add news",

@@ -19,7 +19,6 @@ export async function ResultTables({
   graphs,
   valuation,
   discountVariables,
-  scenarioId,
 }: {
   companyId: number;
   results: CompanyResults;
@@ -27,7 +26,6 @@ export async function ResultTables({
   graphs: GraphData[];
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
-  scenarioId: number | undefined;
 }) {
   const t = await getTranslations("Results");
 
@@ -45,7 +43,6 @@ export async function ResultTables({
           graphs={graphs}
           valuation={valuation}
           discountVariables={discountVariables}
-          initialScenarioId={scenarioId}
         />
       )}
     </section>

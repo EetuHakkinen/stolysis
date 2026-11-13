@@ -4,23 +4,18 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
 import {
-  fromStoredEstimate,
-  toStoredEstimate,
-  type EstimateField,
-  type EstimateInput,
-  type EstimateYear,
-} from "@/lib/estimates";
+  estimatesAsOf,
+  estimateYears,
+  loadEstimateFields,
+  loadEstimateRows,
+  loadFinancialYears,
+  loadScenarios,
+  YEARS_AHEAD,
+} from "@/lib/company-data";
+import { toStoredEstimate, type EstimateField, type EstimateInput, type EstimateYear } from "@/lib/estimates";
 import { ensureFinancialYears } from "@/lib/financial-year";
-import { fieldFormulas } from "@/lib/formulas";
-import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
-
-// Years estimated after the current financial year.
-const YEARS_AHEAD = 10;
-// Years after the current one whose totals are sums of their seasons; later ones are estimated
-// as a whole.
-const QUARTERLY_YEARS_AHEAD = 1;
 
 export type EstimateScenarioSummary = { id: number; name: string };
 
@@ -40,124 +35,32 @@ export type CompanyEstimates = {
 export async function getEstimates(companyId: number): Promise<CompanyEstimates> {
   await requireUserId();
 
-  const scenarios = await findScenarios(companyId);
+  const scenarios = await loadScenarios(companyId);
 
-  let years = await estimateYears(companyId);
+  let years = estimateYears(await loadFinancialYears(companyId), new Date());
   if (scenarios.length > 0 && (years.currentIndex < 0 || years.after < YEARS_AHEAD)) {
     await prisma.$transaction((tx) => ensureFinancialYears(tx, companyId, YEARS_AHEAD));
-    years = await estimateYears(companyId);
+    years = estimateYears(await loadFinancialYears(companyId), new Date());
   }
 
-  const [fieldRows, rows] = await Promise.all([
-    prisma.resultField.findMany({
-      where: { resultFieldGroup: { companyId } },
-      select: {
-        id: true,
-        estimateType: true,
-        yearlyValue: true,
-        valueFormat: true,
-        fieldDefinitions: { select: { kind: true, definition: true } },
-      },
-    }),
-    prisma.estimateRow.findMany({
-      where: { estimateScenario: { companyId } },
-      // estimate_row is insert-only: newest first, so the first row per period is current.
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      select: {
-        estimateScenarioId: true,
-        resultFieldId: true,
-        reportingSeasonId: true,
-        financialYearId: true,
-        type: true,
-        value: true,
-      },
-    }),
+  const [{ fields, valueFormats }, rows] = await Promise.all([
+    loadEstimateFields(companyId),
+    loadEstimateRows(companyId),
   ]);
-
-  const fields: EstimateField[] = fieldRows.map(({ id, estimateType, yearlyValue, fieldDefinitions }) => ({
-    id,
-    estimateType,
-    yearlyValue,
-    ...fieldFormulas(fieldDefinitions),
-  }));
-  const valueFormats = new Map(fieldRows.map((field) => [field.id, field.valueFormat]));
-
-  // Fields calculated from estimates have no estimates of their own; rows saved before the field
-  // became calculated are ignored.
-  const fieldTypes = new Map(
-    fields.filter((field) => !field.estimateDefinition).map((field) => [field.id, field.estimateType]),
-  );
-  const current = latestRows(
-    rows.filter((row) => row.type === fieldTypes.get(row.resultFieldId)),
-    (row) =>
-      `${row.estimateScenarioId}:${row.resultFieldId}:${row.reportingSeasonId ?? ""}:${row.financialYearId ?? ""}`,
-  );
-  const estimates: Record<number, EstimateInput[]> = Object.fromEntries(
-    scenarios.map((scenario) => [scenario.id, []]),
-  );
-  for (const row of current) {
-    estimates[row.estimateScenarioId].push({
-      resultFieldId: row.resultFieldId,
-      reportingSeasonId: row.reportingSeasonId,
-      financialYearId: row.financialYearId,
-      value: row.value == null ? null : fromStoredEstimate(row.type, valueFormats.get(row.resultFieldId)!, row.value),
-    });
-  }
 
   return {
     scenarios,
     years: years.years,
     currentYearId: years.years[years.currentIndex]?.id ?? null,
     fields,
-    estimates,
+    estimates: estimatesAsOf({ rows, fields, valueFormats, scenarioIds: scenarios.map((scenario) => scenario.id) }),
   };
 }
 
 // A company's estimate scenarios, oldest first.
 export async function getEstimateScenarios(companyId: number): Promise<EstimateScenarioSummary[]> {
   await requireUserId();
-  return findScenarios(companyId);
-}
-
-function findScenarios(companyId: number) {
-  return prisma.estimateScenario.findMany({
-    where: { companyId },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, name: true },
-  });
-}
-
-// The company's financial years up to YEARS_AHEAD after the current one, with the position of the
-// current one (-1 if no year covers the current day) and the number of years after it.
-async function estimateYears(companyId: number) {
-  const all = await prisma.financialYear.findMany({
-    where: { companyId, startTime: { not: null }, endTime: { not: null } },
-    orderBy: [{ startTime: "asc" }, { id: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      unit: true,
-      startTime: true,
-      endTime: true,
-      reportingSeasons: {
-        orderBy: [{ startTime: "asc" }, { id: "asc" }],
-        select: { id: true, name: true },
-      },
-    },
-  });
-
-  const now = new Date();
-  const currentIndex = all.findIndex((year) => year.startTime! <= now && now <= year.endTime!);
-  const last = currentIndex < 0 ? all.length : currentIndex + YEARS_AHEAD + 1;
-  const years = all.slice(0, last).map((year, index) => ({
-    id: year.id,
-    name: year.name,
-    unit: year.unit,
-    endTime: year.endTime!,
-    seasons: year.reportingSeasons,
-    fromSeasons: currentIndex < 0 || index <= currentIndex + QUARTERLY_YEARS_AHEAD,
-  }));
-  return { years, currentIndex, after: currentIndex < 0 ? 0 : all.length - currentIndex - 1 };
+  return loadScenarios(companyId);
 }
 
 // Error values are translation keys under Estimates.errors.

@@ -27,6 +27,7 @@ model Company {
   valuation          CompanyValuation?
   discountVariables  CompanyDiscountVariable[]
   graphs             Graph[]
+  notes              Note[]
 
   @@map("company")
 }
@@ -362,6 +363,7 @@ model News {
   category    NewsCategory     @relation(fields: [categoryId], references: [id])
   attachments NewsAttachment[]
   resultRows  ResultRow[]
+  notes       Note[]
 
   // Feeds list news newest first, either all of them or one company's.
   @@index([releasedAt(sort: Desc)])
@@ -445,4 +447,25 @@ model GraphField {
 
   @@unique([graphId, resultFieldId])
   @@map("graph_field")
+}
+
+// A user's note on a company, written in markdown. Its date is chosen by the user; the company's
+// estimates and multiples are shown as they were at the end of that day (in Finnish time).
+model Note {
+  id        Int      @id @default(autoincrement())
+  companyId Int      @map("company")
+  date      DateTime @db.Date
+  text      String
+  // News the note is about, if any.
+  newsId    Int?     @map("news")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  news    News?   @relation(fields: [newsId], references: [id], onDelete: SetNull)
+
+  // Notes are listed newest first, either one company's or one news item's.
+  @@index([companyId, date(sort: Desc)])
+  @@index([newsId])
+  @@map("note")
 }

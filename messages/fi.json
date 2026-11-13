@@ -31,6 +31,44 @@
     "empty": "Ei vielä uutisia.",
     "attachments": "Liitteet"
   },
+  "CompanyTabs": {
+    "news": "Uutiset",
+    "notes": "Muistiinpanot"
+  },
+  "Notes": {
+    "title": "Muistiinpanot",
+    "new": "Uusi muistiinpano",
+    "empty": "Ei vielä muistiinpanoja.",
+    "date": "Päivämäärä",
+    "news": "Uutinen",
+    "removeNews": "Poista linkki uutiseen",
+    "selectNews": "Linkitä uutiseen",
+    "changeNews": "Vaihda uutinen",
+    "estimates": "Ennusteet",
+    "multiples": "Arvostuskertoimet",
+    "noYear": "Muistiinpanon päivämäärälle ei ole tilikautta.",
+    "write": "Kirjoita",
+    "preview": "Esikatselu",
+    "text": "Muistiinpano",
+    "placeholder": "Kirjoita muistiinpano markdownina…",
+    "nothingToPreview": "Ei esikatseltavaa.",
+    "status": {
+      "empty": "Tallentuu, kun kirjoitat jotain",
+      "saved": "Tallennettu",
+      "unsaved": "Tallentamattomia muutoksia",
+      "saving": "Tallennetaan…",
+      "failed": "Tallennus epäonnistui"
+    },
+    "edit": "Muokkaa muistiinpanoa",
+    "done": "Valmis",
+    "emptyNote": "Tyhjä muistiinpano.",
+    "delete": "Poista",
+    "deleting": "Poistetaan…",
+    "deleteTitle": "Poistetaanko muistiinpano?",
+    "deleteDescription": "Muistiinpano poistetaan pysyvästi.",
+    "createFromNews": "Luo muistiinpano",
+    "noneForNews": "Tästä uutisesta ei ole vielä muistiinpanoja."
+  },
   "AddNews": {
     "open": "Lisää uutisia",
     "title": "Lisää uutisia",

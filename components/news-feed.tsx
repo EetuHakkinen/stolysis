@@ -8,14 +8,17 @@ import { Pagination } from "@/components/pagination";
 import { ReleaseTime } from "@/components/release-time";
 
 // Paginated list of news, each linking to the full article.
-// `showCompany` tags each item with its company, for feeds that mix companies.
+// `showCompany` tags each item with its company, for feeds that mix companies. Without `showTitle`,
+// e.g. in a tab named after the news, the title is left out.
 export async function NewsFeed({
   feed: { news, page, pageCount },
   showCompany = false,
+  showTitle = true,
   pageHref,
 }: {
   feed: NewsFeedPage;
   showCompany?: boolean;
+  showTitle?: boolean;
   pageHref: (page: number) => string;
 }) {
   const t = await getTranslations("News");
@@ -23,7 +26,7 @@ export async function NewsFeed({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold">{t("title")}</h2>
+        {showTitle ? <h2 className="text-xl font-semibold">{t("title")}</h2> : <span />}
         <AddNewsDialog />
       </div>
       {news.length === 0 ? (
