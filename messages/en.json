@@ -278,6 +278,10 @@
     "typesSet": "{count, plural, one {# existing field got its special type} other {# existing fields got their special types}}.",
     "skippedFormulas": "{count, plural, one {# formula was} other {# formulas were}} skipped because it would have formed a loop with the company's other formulas."
   },
+  "ShowMore": {
+    "more": "Show more",
+    "less": "Show less"
+  },
   "Dialogs": {
     "name": "Name",
     "cancel": "Cancel",

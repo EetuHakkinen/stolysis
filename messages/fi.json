@@ -278,6 +278,10 @@
     "typesSet": "{count, plural, one {# olemassa oleva kenttä sai erityistyyppinsä} other {# olemassa olevaa kenttää sai erityistyyppinsä}}.",
     "skippedFormulas": "{count, plural, one {# kaava ohitettiin, koska se olisi muodostanut} other {# kaavaa ohitettiin, koska ne olisivat muodostaneet}} silmukan yhtiön muiden kaavojen kanssa."
   },
+  "ShowMore": {
+    "more": "Näytä lisää",
+    "less": "Näytä vähemmän"
+  },
   "Dialogs": {
     "name": "Nimi",
     "cancel": "Peruuta",

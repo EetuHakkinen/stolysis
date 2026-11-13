@@ -15,16 +15,23 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { NoteMargin } from "@/components/note-margin";
+import { ShowMore } from "@/components/show-more";
 import { useSelectedScenario } from "@/components/selected-scenario";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutoSave } from "@/hooks/use-auto-save";
+import { useElementHeight } from "@/hooks/use-element-height";
+import { useMediaQuery } from "@/hooks/use-media-query";
+
+// The margin is cut to at least this height in pixels, so a short note still shows its beginning.
+const MIN_MARGIN_HEIGHT = 150;
 
 // A note rendered in full, with its margin taking a quarter of the width on large screens and
 // following it on small ones. In edit mode the text is written in markdown with a preview, and
 // saved a second after typing stops; date and news changes are saved right away. A new note
-// (without id) starts in edit mode and is created on its first save with text.
+// (without id) starts in edit mode and is created on its first save with text. Beside the note,
+// a margin much taller than the note is cut to the note's height, with a button to show the rest.
 export function NoteView({
   companyId,
   note,
@@ -52,6 +59,10 @@ export function NoteView({
   const [snapshot, setSnapshot] = useState(note.snapshot);
   const [scenarioId, setScenarioId] = useState<number>();
   const [loading, startLoading] = useTransition();
+  const [noteColumn, setNoteColumn] = useState<HTMLDivElement | null>(null);
+  const noteHeight = useElementHeight(noteColumn);
+  // The margin is beside the note on large screens (Tailwind's lg) and after it on small ones.
+  const besideNote = useMediaQuery("(min-width: 64rem)");
   // Values for saving. Handlers that save right away set them before the next render.
   const values = useRef({ text, date, news });
   useEffect(() => {
@@ -61,7 +72,8 @@ export function NoteView({
   const { status, change, saveNow, flush } = useAutoSave(async () => {
     const { text, date, news } = values.current;
     const fields = { date, text, newsId: news?.id ?? null };
-    if (idRef.current != null) return (await updateNote({ noteId: idRef.current, ...fields })).saved;
+    if (idRef.current != null)
+      return (await updateNote({ noteId: idRef.current, ...fields })).saved;
     // Empty notes aren't created.
     if (text.trim() === "") return true;
     const { id } = await createNote({ companyId, ...fields });
@@ -74,7 +86,8 @@ export function NoteView({
 
   // The scenario picked here, else the one selected on the page, else the first one with data.
   const scenario =
-    snapshot.scenarios.find((item) => item.id === (scenarioId ?? selectedId)) ?? snapshot.scenarios[0];
+    snapshot.scenarios.find((item) => item.id === (scenarioId ?? selectedId)) ??
+    snapshot.scenarios[0];
 
   function loadNewsOptions() {
     getNoteNewsOptions({ companyId }).then(setNewsOptions);
@@ -123,7 +136,11 @@ export function NoteView({
 
   return (
     <article className="grid grid-cols-1 gap-6 rounded-lg border p-4 lg:grid-cols-4">
-      <div className="flex min-w-0 flex-col gap-3 lg:col-span-3">
+      {/* Starts at the top instead of stretching to the margin's height, so its height is the note's. */}
+      <div
+        ref={setNoteColumn}
+        className="flex min-w-0 flex-col gap-3 self-start lg:col-span-3"
+      >
         {editing ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -137,8 +154,13 @@ export function NoteView({
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
-              <span className="text-xs text-muted-foreground" aria-live="polite">
-                {id == null && text.trim() === "" ? t("status.empty") : t(`status.${status}`)}
+              <span
+                className="text-xs text-muted-foreground"
+                aria-live="polite"
+              >
+                {id == null && text.trim() === ""
+                  ? t("status.empty")
+                  : t(`status.${status}`)}
               </span>
             </div>
             {mode === "write" ? (
@@ -151,7 +173,9 @@ export function NoteView({
                 className="min-h-64 font-mono"
               />
             ) : text.trim() === "" ? (
-              <p className="min-h-64 text-muted-foreground">{t("nothingToPreview")}</p>
+              <p className="min-h-64 text-muted-foreground">
+                {t("nothingToPreview")}
+              </p>
             ) : (
               <div className="min-h-64">
                 <Markdown>{text}</Markdown>
@@ -187,27 +211,45 @@ export function NoteView({
         ) : (
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              {text.trim() === "" ? <p className="text-muted-foreground">{t("emptyNote")}</p> : <Markdown>{text}</Markdown>}
+              {text.trim() === "" ? (
+                <p className="text-muted-foreground">{t("emptyNote")}</p>
+              ) : (
+                <Markdown>{text}</Markdown>
+              )}
             </div>
-            <Button variant="ghost" size="icon-sm" aria-label={t("edit")} title={t("edit")} onClick={startEditing}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("edit")}
+              title={t("edit")}
+              onClick={startEditing}
+            >
               <PencilIcon />
             </Button>
           </div>
         )}
       </div>
       <div className="lg:border-l lg:pl-4">
-        <NoteMargin
-          editing={editing}
-          date={date}
-          onDateChange={changeDate}
-          news={news}
-          newsOptions={newsOptions}
-          onNewsChange={changeNews}
-          snapshot={snapshot}
-          scenario={scenario}
-          onScenarioSelect={setScenarioId}
-          loading={loading}
-        />
+        <ShowMore
+          maxHeight={
+            besideNote && noteHeight > 0
+              ? Math.max(noteHeight, MIN_MARGIN_HEIGHT)
+              : null
+          }
+        >
+          <NoteMargin
+            editing={editing}
+            date={date}
+            onDateChange={changeDate}
+            news={news}
+            newsOptions={newsOptions}
+            onNewsChange={changeNews}
+            snapshot={snapshot}
+            scenario={scenario}
+            onScenarioSelect={setScenarioId}
+            loading={loading}
+          />
+        </ShowMore>
       </div>
     </article>
   );
