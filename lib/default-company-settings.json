@@ -6,7 +6,20 @@
       "fields": [
         { "name": "Liikevaihto" },
         { "name": "Liiketoiminnan muut tuotot" },
-        { "name": "Materiaalit ja palvelut" },
+        {
+          "name": "Materiaalit ja palvelut",
+          "estimateDefinition": [
+            { "field": "Liikevaihto", "period": "current" },
+            { "operator": "*" },
+            { "parenthesis": "(" },
+            { "field": "Bruttokate-%", "period": "current" },
+            { "operator": "/" },
+            { "number": 100 },
+            { "operator": "-" },
+            { "number": 1 },
+            { "parenthesis": ")" }
+          ]
+        },
         { "name": "Henkilöstökulut" },
         { "name": "Liiketoiminnan muut kulut" },
         { "name": "Poistot" },
@@ -28,7 +41,22 @@
         },
         { "name": "Rahoitustuotot" },
         { "name": "Rahoituskulut" },
-        { "name": "Tuloverot" },
+        {
+          "name": "Tuloverot",
+          "estimateDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "+" },
+            { "field": "Rahoitustuotot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Rahoituskulut", "period": "current" },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "field": "Tuloveroaste", "period": "current" },
+            { "operator": "/" },
+            { "number": -100 }
+          ]
+        },
         {
           "name": "Kauden voitto",
           "estimateDefinition": [
@@ -95,16 +123,225 @@
             { "operator": "*" },
             { "number": 100 }
           ]
+        },
+        {
+          "name": "Bruttokate-%",
+          "valueFormat": "percent",
+          "estimateType": "absolute",
+          "actualDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Liikevaihto", "period": "current" },
+            { "operator": "+" },
+            { "field": "Materiaalit ja palvelut", "period": "current" },
+            { "parenthesis": ")" },
+            { "operator": "/" },
+            { "field": "Liikevaihto", "period": "current" },
+            { "operator": "*" },
+            { "number": 100 }
+          ]
+        },
+        {
+          "name": "Henkilöstökulujen kasvu-%",
+          "valueFormat": "percent",
+          "actualDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Henkilöstökulut", "period": "current" },
+            { "operator": "/" },
+            { "field": "Henkilöstökulut", "period": "previous" },
+            { "operator": "-" },
+            { "number": 1 },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": 100 }
+          ],
+          "estimateDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Henkilöstökulut", "period": "current" },
+            { "operator": "/" },
+            { "field": "Henkilöstökulut", "period": "previous" },
+            { "operator": "-" },
+            { "number": 1 },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": 100 }
+          ]
+        },
+        {
+          "name": "Liiketoiminnan muiden kulujen kasvu-%",
+          "valueFormat": "percent",
+          "actualDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Liiketoiminnan muut kulut", "period": "current" },
+            { "operator": "/" },
+            { "field": "Liiketoiminnan muut kulut", "period": "previous" },
+            { "operator": "-" },
+            { "number": 1 },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": 100 }
+          ],
+          "estimateDefinition": [
+            { "parenthesis": "(" },
+            { "field": "Liiketoiminnan muut kulut", "period": "current" },
+            { "operator": "/" },
+            { "field": "Liiketoiminnan muut kulut", "period": "previous" },
+            { "operator": "-" },
+            { "number": 1 },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": 100 }
+          ]
+        },
+        {
+          "name": "Tuloveroaste",
+          "valueFormat": "percent",
+          "estimateType": "absolute",
+          "actualDefinition": [
+            { "field": "Tuloverot", "period": "current" },
+            { "operator": "/" },
+            { "parenthesis": "(" },
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "+" },
+            { "field": "Rahoitustuotot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Rahoituskulut", "period": "current" },
+            { "parenthesis": ")" },
+            { "operator": "*" },
+            { "number": -100 }
+          ]
         }
       ]
     },
     {
       "name": "Tase",
       "fields": [
+        { "name": "Vaihto-omaisuus", "yearlyValue": "last_period" },
+        { "name": "Myyntisaamiset", "yearlyValue": "last_period" },
+        { "name": "Muut lyhytaikaiset saamiset", "yearlyValue": "last_period" },
+        { "name": "Rahavarat", "yearlyValue": "last_period" },
+        {
+          "name": "Pitkäaikaiset korolliset velat",
+          "yearlyValue": "last_period"
+        },
+        {
+          "name": "Lyhytaikaiset korolliset velat",
+          "yearlyValue": "last_period"
+        },
+        { "name": "Ostovelat", "yearlyValue": "last_period" },
+        {
+          "name": "Muut lyhytaikaiset korottomat velat",
+          "yearlyValue": "last_period"
+        },
+        {
+          "name": "Käyttöpääoma",
+          "yearlyValue": "last_period",
+          "actualDefinition": [
+            { "field": "Vaihto-omaisuus", "period": "current" },
+            { "operator": "+" },
+            { "field": "Myyntisaamiset", "period": "current" },
+            { "operator": "+" },
+            { "field": "Muut lyhytaikaiset saamiset", "period": "current" },
+            { "operator": "-" },
+            { "field": "Ostovelat", "period": "current" },
+            { "operator": "-" },
+            {
+              "field": "Muut lyhytaikaiset korottomat velat",
+              "period": "current"
+            }
+          ]
+        },
         {
           "name": "Nettovelka",
           "type": "net_debt",
-          "yearlyValue": "last_period"
+          "yearlyValue": "last_period",
+          "actualDefinition": [
+            { "field": "Pitkäaikaiset korolliset velat", "period": "current" },
+            { "operator": "+" },
+            { "field": "Lyhytaikaiset korolliset velat", "period": "current" },
+            { "operator": "-" },
+            { "field": "Rahavarat", "period": "current" }
+          ],
+          "estimateDefinition": [
+            { "field": "Pitkäaikaiset korolliset velat", "period": "current" },
+            { "operator": "+" },
+            { "field": "Lyhytaikaiset korolliset velat", "period": "current" },
+            { "operator": "-" },
+            { "field": "Rahavarat", "period": "current" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rahavirtalaskelma",
+      "fields": [
+        {
+          "name": "Käyttöpääoman muutos",
+          "actualDefinition": [
+            { "field": "Käyttöpääoma", "period": "previous" },
+            { "operator": "-" },
+            { "field": "Käyttöpääoma", "period": "current" }
+          ],
+          "estimateDefinition": [
+            { "field": "Käyttöpääoma", "period": "previous" },
+            { "operator": "-" },
+            { "field": "Käyttöpääoma", "period": "current" }
+          ]
+        },
+        {
+          "name": "Maksetut verot",
+          "estimateDefinition": [{ "field": "Tuloverot", "period": "current" }]
+        },
+        {
+          "name": "Bruttoinvestoinnit",
+          "estimateDefinition": [
+            { "field": "Liikevaihto", "period": "current" },
+            { "operator": "*" },
+            { "field": "Investointiaste", "period": "current" },
+            { "operator": "/" },
+            { "number": -100 }
+          ]
+        },
+        {
+          "name": "Operatiivinen vapaa kassavirta",
+          "actualDefinition": [
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "-" },
+            { "field": "Poistot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Maksetut verot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Käyttöpääoman muutos", "period": "current" },
+            { "operator": "+" },
+            { "field": "Bruttoinvestoinnit", "period": "current" }
+          ],
+          "estimateDefinition": [
+            { "field": "Liikevoitto", "period": "current" },
+            { "operator": "-" },
+            { "field": "Poistot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Maksetut verot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Käyttöpääoman muutos", "period": "current" },
+            { "operator": "+" },
+            { "field": "Bruttoinvestoinnit", "period": "current" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rahavirtalaskelman tunnusluvut",
+      "fields": [
+        {
+          "name": "Investointiaste",
+          "valueFormat": "percent",
+          "estimateType": "absolute",
+          "actualDefinition": [
+            { "field": "Bruttoinvestoinnit", "period": "current" },
+            { "operator": "/" },
+            { "field": "Liikevaihto", "period": "current" },
+            { "operator": "*" },
+            { "number": -100 }
+          ]
         }
       ]
     },

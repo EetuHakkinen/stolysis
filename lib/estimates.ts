@@ -2,7 +2,7 @@
 // client as well as on the server: predicted values are never saved, only estimate variables are.
 // Values are in whole euros as numbers, since relative estimates produce fractions.
 
-import type { EstimateType, Unit, YearlyValue } from "@/app/generated/prisma/client";
+import type { EstimateType, Unit, ValueFormat, YearlyValue } from "@/app/generated/prisma/client";
 import { evaluateFormula, evaluationOrder, type Formula, type FormulaPeriod } from "./formulas.ts";
 
 export type EstimateSeason = { id: number; name: string | null };
@@ -58,21 +58,24 @@ export type CompanyPrediction = {
 
 const EMPTY: PeriodValue = { value: null, source: null, change: null };
 
-// Relative estimates are stored in hundredths of a percent (348 = +3.48 %), absolute ones in whole
-// euros like result values.
-const STORED_SCALE: Record<EstimateType, number> = { relative: 100, absolute: 1 };
+// Relative estimates and absolute ones of percent fields are stored in hundredths of a percent
+// (348 = 3.48 %), other absolute ones in whole euros like result values.
+function storedScale(type: EstimateType, valueFormat: ValueFormat): number {
+  return type === "relative" || valueFormat === "percent" ? 100 : 1;
+}
 
 // Estimate variable rounded to what can be stored: two decimals of a percent or whole euros.
-export function roundEstimate(type: EstimateType, value: number): number {
-  return Math.round(value * STORED_SCALE[type]) / STORED_SCALE[type];
+export function roundEstimate(type: EstimateType, valueFormat: ValueFormat, value: number): number {
+  const scale = storedScale(type, valueFormat);
+  return Math.round(value * scale) / scale;
 }
 
-export function toStoredEstimate(type: EstimateType, value: number): bigint {
-  return BigInt(Math.round(value * STORED_SCALE[type]));
+export function toStoredEstimate(type: EstimateType, valueFormat: ValueFormat, value: number): bigint {
+  return BigInt(Math.round(value * storedScale(type, valueFormat)));
 }
 
-export function fromStoredEstimate(type: EstimateType, value: bigint): number {
-  return Number(value) / STORED_SCALE[type];
+export function fromStoredEstimate(type: EstimateType, valueFormat: ValueFormat, value: bigint): number {
+  return Number(value) / storedScale(type, valueFormat);
 }
 
 // Reporting seasons with any data: at least one field's latest value isn't null. In those seasons
@@ -172,8 +175,10 @@ function periodKey(fieldId: number, periodId: number) {
 // last_period fields. The first year has nothing to compare with.
 //
 // Calculated fields use their formula instead: the actual one in seasons with data and in years
-// whose seasons all have data, the estimate one elsewhere. A year's formula is calculated from the
-// fields' yearly values, not summed from its seasons. Periods are calculated oldest first, and the
+// formed from their seasons, the estimate one elsewhere. A year's formula is calculated from the
+// fields' yearly values, not summed from its seasons, so e.g. a margin is the year's margin. In
+// years formed from their seasons, fields calculated only for estimates are summed like entered
+// ones. Periods are calculated oldest first, and the
 // fields of a period in an order where a formula's fields come before it.
 export function predictCompany({
   years,
@@ -245,7 +250,9 @@ export function predictCompany({
 
     const allData =
       year.fromSeasons && year.seasons.length > 0 && year.seasons.every((season) => withData.has(season.id));
-    const { formulas, order } = allData ? actualFormulas : estimateFormulas;
+    // A year formed from its seasons has a value for every field from them, so it's calculated as
+    // if it had data.
+    const { formulas, order } = year.fromSeasons ? actualFormulas : estimateFormulas;
     for (const fieldId of order) {
       const field = fieldsById.get(fieldId)!;
       const comparison = previousYear ? yearly[fieldId][previousYear.id].value : null;

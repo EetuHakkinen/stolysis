@@ -155,7 +155,7 @@ function EstimateCell({
         {/* Saved as hundredths of a percent or whole euros, so show what's saved. */}
         <SavedNumberInput
           value={input}
-          toValue={(typed) => roundEstimate(type, typed * divisor)}
+          toValue={(typed) => roundEstimate(type, valueFormat, typed * divisor)}
           toNumber={(value) => value / divisor}
           save={save}
         />

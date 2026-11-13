@@ -200,13 +200,86 @@ describe("predictCompany with calculated fields", () => {
   });
 });
 
+describe("predictCompany with an estimated percent field", () => {
+  const field = (id: number) => ({ field: id, period: "current" as const });
+  const op = (operator: "+" | "-" | "*" | "/") => ({ operator });
+  const open = { parenthesis: "(" as const };
+  const close = { parenthesis: ")" as const };
+  const quarters = (id: number, value: number) =>
+    Object.fromEntries([1, 2, 3, 4].map((quarter) => [id * 10 + quarter, BigInt(value)]));
+  const quarterly = (fieldId: number, values: number[]) =>
+    values.map((value, index) => ({
+      resultFieldId: fieldId,
+      reportingSeasonId: 20261 + index,
+      financialYearId: null,
+      value,
+    }));
+
+  // Gross margin is reported through its formula and estimated as is; materials are reported and
+  // calculated from the margin for estimates.
+  const prediction = predictCompany({
+    years: [year(2025, true), year(2026, true), year(2028, false)],
+    fields: [
+      { id: 1, estimateType: "relative", yearlyValue: "sum", ...entered },
+      {
+        id: 2,
+        estimateType: "relative",
+        yearlyValue: "sum",
+        actualDefinition: null,
+        estimateDefinition: [field(1), op("*"), open, field(3), op("/"), { number: 100 }, op("-"), { number: 1 }, close],
+      },
+      {
+        id: 3,
+        estimateType: "absolute",
+        yearlyValue: "sum",
+        actualDefinition: [open, field(1), op("+"), field(2), close, op("/"), field(1), op("*"), { number: 100 }],
+        estimateDefinition: null,
+      },
+    ],
+    actuals: { 1: quarters(2025, 100), 2: quarters(2025, -60) },
+    estimates: [
+      // Revenue 100, 100, 200, 200 with margins 30, 30, 60, 60 %.
+      ...quarterly(1, [0, 0, 100, 100]),
+      ...quarterly(3, [30, 30, 60, 60]),
+      { resultFieldId: 1, reportingSeasonId: null, financialYearId: 2028, value: 0 },
+      { resultFieldId: 3, reportingSeasonId: null, financialYearId: 2028, value: 40 },
+    ],
+  });
+  const near = (actual: number | null, expected: number) => assert.ok(Math.abs(actual! - expected) < 1e-9);
+
+  it("calculates the margin of reported periods", () => {
+    near(prediction.quarterly[3][20251].value, 40);
+    near(prediction.yearly[3][2025].value, 40);
+  });
+
+  it("calculates estimated materials from the margin", () => {
+    near(prediction.quarterly[2][20261].value, -70);
+    near(prediction.quarterly[2][20263].value, -80);
+  });
+
+  it("sums a year's materials from its seasons and calculates its margin from the year's totals", () => {
+    near(prediction.yearly[2][2026].value, -300);
+    // Weighted by revenue: 300 / 600, not the average or sum of the quarters' margins.
+    near(prediction.yearly[3][2026].value, 50);
+    assert.equal(prediction.yearly[3][2026].source, "estimate");
+  });
+
+  it("calculates materials of a year estimated as a whole from its margin", () => {
+    near(prediction.yearly[2][2028].value, -360);
+    near(prediction.yearly[3][2028].value, 40);
+  });
+});
+
 describe("stored estimates", () => {
-  it("stores relative estimates in hundredths of a percent and absolute ones in euros", async () => {
+  it("stores relative estimates and percents in hundredths of a percent and other absolute ones in euros", async () => {
     const { fromStoredEstimate, roundEstimate, toStoredEstimate } = await import("./estimates.ts");
-    assert.equal(toStoredEstimate("relative", 3.48), BigInt(348));
-    assert.equal(fromStoredEstimate("relative", BigInt(348)), 3.48);
-    assert.equal(roundEstimate("relative", 3.456), 3.46);
-    assert.equal(toStoredEstimate("absolute", 1_234_567.6), BigInt(1_234_568));
-    assert.equal(roundEstimate("absolute", 1_234_567.4), 1_234_567);
+    assert.equal(toStoredEstimate("relative", "money", 3.48), BigInt(348));
+    assert.equal(fromStoredEstimate("relative", "money", BigInt(348)), 3.48);
+    assert.equal(roundEstimate("relative", "money", 3.456), 3.46);
+    assert.equal(toStoredEstimate("absolute", "money", 1_234_567.6), BigInt(1_234_568));
+    assert.equal(roundEstimate("absolute", "money", 1_234_567.4), 1_234_567);
+    assert.equal(toStoredEstimate("absolute", "percent", 35.25), BigInt(3525));
+    assert.equal(fromStoredEstimate("absolute", "percent", BigInt(3525)), 35.25);
+    assert.equal(roundEstimate("absolute", "percent", 35.256), 35.26);
   });
 });

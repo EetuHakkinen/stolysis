@@ -55,6 +55,7 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
         id: true,
         estimateType: true,
         yearlyValue: true,
+        valueFormat: true,
         fieldDefinitions: { select: { kind: true, definition: true } },
       },
     }),
@@ -73,10 +74,13 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
     }),
   ]);
 
-  const fields: EstimateField[] = fieldRows.map(({ fieldDefinitions, ...field }) => ({
-    ...field,
+  const fields: EstimateField[] = fieldRows.map(({ id, estimateType, yearlyValue, fieldDefinitions }) => ({
+    id,
+    estimateType,
+    yearlyValue,
     ...fieldFormulas(fieldDefinitions),
   }));
+  const valueFormats = new Map(fieldRows.map((field) => [field.id, field.valueFormat]));
 
   // Fields calculated from estimates have no estimates of their own; rows saved before the field
   // became calculated are ignored.
@@ -96,7 +100,7 @@ export async function getEstimates(companyId: number): Promise<CompanyEstimates>
       resultFieldId: row.resultFieldId,
       reportingSeasonId: row.reportingSeasonId,
       financialYearId: row.financialYearId,
-      value: row.value == null ? null : fromStoredEstimate(row.type, row.value),
+      value: row.value == null ? null : fromStoredEstimate(row.type, valueFormats.get(row.resultFieldId)!, row.value),
     });
   }
 
@@ -237,7 +241,8 @@ const saveSchema = z
 
 // Saves a result field's estimate for a reporting season or a financial year as a new row, with
 // the field's current estimate type. Value is a percent for relative estimates and euros for
-// absolute ones, stored rounded to hundredths of a percent or whole euros; null clears the estimate.
+// absolute ones (a percent for percent fields), stored rounded to hundredths of a percent or whole
+// euros; null clears the estimate.
 export async function saveEstimate(input: {
   scenarioId: number;
   resultFieldId: number;
@@ -266,7 +271,7 @@ export async function saveEstimate(input: {
         resultFieldGroup: { companyId },
         fieldDefinitions: { none: { kind: "estimate" } },
       },
-      select: { estimateType: true },
+      select: { estimateType: true, valueFormat: true },
     }),
     reportingSeasonId != null
       ? prisma.reportingSeason.count({ where: { id: reportingSeasonId, financialYear: { companyId } } })
@@ -281,7 +286,7 @@ export async function saveEstimate(input: {
       reportingSeasonId: reportingSeasonId ?? null,
       financialYearId: financialYearId ?? null,
       type: field.estimateType,
-      value: value == null ? null : toStoredEstimate(field.estimateType, value),
+      value: value == null ? null : toStoredEstimate(field.estimateType, field.valueFormat, value),
     },
   });
   return { saved: true };
