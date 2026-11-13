@@ -95,3 +95,23 @@ export function calculateValuation({
 
   return { rows, averageMarketValue, valuePerShare };
 }
+
+// The target year's market value and value per share discounted to the present with the cost of
+// equity, from now until the end of the target year.
+export function presentValuation(
+  valuation: CompanyValuationResult,
+  costOfEquity: number | null,
+  targetYearEnd: Date,
+  now: Date,
+): { marketValue: number | null; valuePerShare: number | null } {
+  const years = yearsUntil(targetYearEnd, now);
+  return {
+    marketValue: presentValue(valuation.averageMarketValue, costOfEquity, years),
+    valuePerShare: presentValue(valuation.valuePerShare, costOfEquity, years),
+  };
+}
+
+// Average of the DCF value and the multiple based value per share; null unless both are known.
+export function averageValuePerShare(dcf: number | null, multiples: number | null): number | null {
+  return dcf == null || multiples == null ? null : (dcf + multiples) / 2;
+}

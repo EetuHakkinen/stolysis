@@ -7,7 +7,7 @@ import { ValuationTable } from "@/components/valuation-table";
 import { ValuationTargetPicker } from "@/components/valuation-target-picker";
 import type { CompanyPrediction, EstimateYear } from "@/lib/estimates";
 import { costOfEquity, type DiscountValues } from "@/lib/discounting";
-import { calculateValuation, presentValue, yearsUntil } from "@/lib/valuation";
+import { calculateValuation, presentValuation } from "@/lib/valuation";
 
 // Valuation of the selected scenario: the target year, the same for every scenario, and the
 // valuation table for it. The target year's market value is discounted to the present with the
@@ -53,8 +53,6 @@ export function ValuationTab({
       netDebtFieldId: fieldIds.net_debt,
       shareCountFieldId: fieldIds.share_count,
     });
-    const rate = costOfEquity(discountValues);
-    const years = yearsUntil(targetYear.endTime, new Date());
     return (
       <ValuationTable
         // Inputs keep their own text, so start them over for another scenario.
@@ -62,10 +60,7 @@ export function ValuationTab({
         multiples={multiples}
         values={values}
         valuation={result}
-        present={{
-          marketValue: presentValue(result.averageMarketValue, rate, years),
-          valuePerShare: presentValue(result.valuePerShare, rate, years),
-        }}
+        present={presentValuation(result, costOfEquity(discountValues), targetYear.endTime, new Date())}
         unit={targetYear.unit ?? "one"}
         save={save}
       />

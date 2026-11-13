@@ -38,6 +38,7 @@ import {
 } from "@/components/result-graphs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValuationTab } from "@/components/valuation-tab";
+import { ValuePerShareTable } from "@/components/value-per-share-table";
 import {
   predictCompany,
   seasonsWithData,
@@ -46,7 +47,8 @@ import {
   type EstimateYear,
 } from "@/lib/estimates";
 import { calculateDcf } from "@/lib/dcf";
-import { wacc, type DiscountValues } from "@/lib/discounting";
+import { costOfEquity, wacc, type DiscountValues } from "@/lib/discounting";
+import { calculateValuation, presentValuation } from "@/lib/valuation";
 
 function periodKey(scenarioId: number, fieldId: number, period: EstimatePeriod) {
   return `${scenarioId}:${fieldId}:${period.reportingSeasonId ?? ""}:${period.financialYearId ?? ""}`;
@@ -203,6 +205,41 @@ export function ResultTabs({
     );
   }
 
+  // Years that can be the valuation's target year: the current financial year or a later one.
+  function targetYears() {
+    const current = years.findIndex((year) => year.id === currentYearId);
+    return current < 0 ? [] : years.slice(current);
+  }
+
+  // The selected scenario's DCF with the company's discount variables.
+  function dcf(currentYearId: number) {
+    return calculateDcf({
+      years,
+      currentYearId,
+      prediction,
+      fieldIds: valuation.fieldIds,
+      wacc: wacc(discountValues),
+      terminalGrowth: discountValues.terminal_growth ?? null,
+      now: new Date(),
+    });
+  }
+
+  // The selected scenario's value per share by the valuation multiples, discounted to today as in
+  // the valuation tab; null without a scenario or a target year.
+  function multipleValuePerShare() {
+    const targetYear = targetYears().find((year) => year.id === targetYearId);
+    if (!scenario || !targetYear) return null;
+    const result = calculateValuation({
+      multiples: valuation.multiples,
+      values: { ...valuation.values[scenario.id], ...multipleEdits[scenario.id] },
+      prediction,
+      targetYearId: targetYear.id,
+      netDebtFieldId: valuation.fieldIds.net_debt,
+      shareCountFieldId: valuation.fieldIds.share_count,
+    });
+    return presentValuation(result, costOfEquity(discountValues), targetYear.endTime, new Date()).valuePerShare;
+  }
+
   function summaryTab() {
     if (currentYearId == null) return <p className="text-muted-foreground">{t("noYears")}</p>;
     const columns = summaryColumns(years, currentYearId, isEstimated);
@@ -212,6 +249,9 @@ export function ResultTabs({
         {starred.length > 0 && (
           <ResultTable name={t("starredFields")} fields={starred} columns={columns} values={values} />
         )}
+        <div className="lg:w-1/2">
+          <ValuePerShareTable dcf={dcf(currentYearId).valuePerShare} multiples={multipleValuePerShare()} />
+        </div>
         {resultGraphs(columns, graphs.filter((graph) => graph.starred))}
       </>
     );
@@ -226,27 +266,19 @@ export function ResultTabs({
       </div>
     );
     if (currentYearId == null) return variables;
-    const dcf = calculateDcf({
-      years,
-      currentYearId,
-      prediction,
-      fieldIds: valuation.fieldIds,
-      wacc: wacc(discountValues),
-      terminalGrowth: discountValues.terminal_growth ?? null,
-      now: new Date(),
-    });
+    const result = dcf(currentYearId);
     const unit = years.find((year) => year.id === currentYearId)?.unit ?? "one";
     const yearLabel = (year: EstimateYear) =>
       `${year.name ?? ""}${isEstimated({ reportingSeasonId: null, financialYearId: year.id }) ? "e" : ""}`;
     return (
       <>
-        <DcfCashFlowTable dcf={dcf} years={years} label={yearLabel} />
+        <DcfCashFlowTable dcf={result} years={years} label={yearLabel} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-8">
           <div className="lg:col-span-3">
-            <DcfTable dcf={dcf} unit={unit} />
+            <DcfTable dcf={result} unit={unit} />
           </div>
           <div className="lg:col-span-5">
-            <DcfValueChart dcf={dcf} years={years} unit={unit} label={yearLabel} />
+            <DcfValueChart dcf={result} years={years} unit={unit} label={yearLabel} />
           </div>
         </div>
         {variables}
@@ -279,8 +311,7 @@ export function ResultTabs({
     return (
       <ValuationTab
         scenarioId={scenario.id}
-        // The target year is the current financial year or a later one.
-        years={years.slice(years.findIndex((year) => year.id === currentYearId))}
+        years={targetYears()}
         prediction={prediction}
         valuation={valuation}
         values={{ ...valuation.values[scenario.id], ...multipleEdits[scenario.id] }}

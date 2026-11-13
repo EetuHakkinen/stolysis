@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CompanyPrediction } from "./estimates.ts";
 import {
+  averageValuePerShare,
   calculateValuation,
   fromStoredMultiple,
+  presentValuation,
   presentValue,
   roundMultiple,
   toStoredMultiple,
@@ -84,6 +86,28 @@ describe("presentValue", () => {
   it("is empty without a value or a rate", () => {
     assert.equal(presentValue(null, 10, 1), null);
     assert.equal(presentValue(100, null, 1), null);
+  });
+});
+
+describe("presentValuation", () => {
+  it("discounts the market value and the value per share from the end of the target year", () => {
+    const now = new Date("2026-01-01T00:00:00Z");
+    const end = new Date(now.getTime() + 365.25 * 24 * 3600 * 1000);
+    const present = presentValuation({ rows: [], averageMarketValue: 110, valuePerShare: 11 }, 10, end, now);
+    assert.equal(Math.round(present.marketValue! * 1000) / 1000, 100);
+    assert.equal(Math.round(present.valuePerShare! * 1000) / 1000, 10);
+    assert.deepEqual(presentValuation({ rows: [], averageMarketValue: 110, valuePerShare: 11 }, null, end, now), {
+      marketValue: null,
+      valuePerShare: null,
+    });
+  });
+});
+
+describe("averageValuePerShare", () => {
+  it("averages the DCF and multiple values only when both are known", () => {
+    assert.equal(averageValuePerShare(10, 14), 12);
+    assert.equal(averageValuePerShare(10, null), null);
+    assert.equal(averageValuePerShare(null, 14), null);
   });
 });
 

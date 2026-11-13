@@ -124,6 +124,12 @@
     "presentMarketValue": "Markkina-arvo nyt",
     "presentValuePerShare": "Arvo per osake nyt"
   },
+  "ValuePerShare": {
+    "title": "Arvo per osake",
+    "dcf": "DCF",
+    "multiples": "Kerroinanalyysi",
+    "average": "Keskiarvo"
+  },
   "Dcf": {
     "valueDistribution": "Rahavirran jakauma jaksoittain",
     "noValue": "DCF-arvoa ei voida vielä laskea.",

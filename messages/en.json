@@ -124,6 +124,12 @@
     "presentMarketValue": "Present market value",
     "presentValuePerShare": "Present value per share"
   },
+  "ValuePerShare": {
+    "title": "Value per share",
+    "dcf": "DCF",
+    "multiples": "Multiples",
+    "average": "Average"
+  },
   "Dcf": {
     "valueDistribution": "Cash flow distribution by period",
     "noValue": "The DCF value can't be calculated yet.",
