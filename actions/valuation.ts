@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
+import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 import { fromStoredMultiple, toStoredMultiple } from "@/lib/valuation";
 import type { ValuationBasis } from "@/app/generated/prisma/client";
@@ -36,6 +37,8 @@ export async function getValuation(companyId: number): Promise<CompanyValuationD
     }),
     prisma.valuationMultipleValue.findMany({
       where: { valuationMultiple: { companyId } },
+      // valuation_multiple_value is insert-only: newest first, so the first row per key is current.
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: { estimateScenarioId: true, valuationMultipleId: true, value: true },
     }),
     prisma.companyValuation.findUnique({
@@ -50,7 +53,8 @@ export async function getValuation(companyId: number): Promise<CompanyValuationD
   ]);
 
   const scenarioValues: Record<number, Record<number, number | null>> = {};
-  for (const row of values) {
+  const currentValues = latestRows(values, (row) => `${row.estimateScenarioId}:${row.valuationMultipleId}`);
+  for (const row of currentValues) {
     scenarioValues[row.estimateScenarioId] ??= {};
     scenarioValues[row.estimateScenarioId][row.valuationMultipleId] =
       row.value == null ? null : fromStoredMultiple(row.value);
@@ -98,12 +102,9 @@ export async function saveMultipleValue(input: {
   if (multiples === 0) return { saved: false };
 
   const stored = value == null ? null : toStoredMultiple(value);
-  await prisma.valuationMultipleValue.upsert({
-    where: {
-      estimateScenarioId_valuationMultipleId: { estimateScenarioId: scenarioId, valuationMultipleId: multipleId },
-    },
-    create: { estimateScenarioId: scenarioId, valuationMultipleId: multipleId, value: stored },
-    update: { value: stored },
+  // Insert-only: a new value is a new row.
+  await prisma.valuationMultipleValue.create({
+    data: { estimateScenarioId: scenarioId, valuationMultipleId: multipleId, value: stored },
   });
   return { saved: true };
 }

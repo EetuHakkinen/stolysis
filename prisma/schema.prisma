@@ -260,7 +260,8 @@ model ValuationMultiple {
   @@map("valuation_multiple")
 }
 
-// Value of a valuation multiple in an estimate scenario.
+// Value of a valuation multiple in an estimate scenario. Insert-only like result_row: the latest row
+// (by createdAt, id) per scenario and multiple is current.
 model ValuationMultipleValue {
   id                  Int      @id @default(autoincrement())
   estimateScenarioId  Int      @map("estimate_scenario")
@@ -273,7 +274,7 @@ model ValuationMultipleValue {
   estimateScenario  EstimateScenario  @relation(fields: [estimateScenarioId], references: [id], onDelete: Cascade)
   valuationMultiple ValuationMultiple @relation(fields: [valuationMultipleId], references: [id], onDelete: Cascade)
 
-  @@unique([estimateScenarioId, valuationMultipleId])
+  @@index([estimateScenarioId, valuationMultipleId, createdAt(sort: Desc)])
   @@map("valuation_multiple_value")
 }
 
