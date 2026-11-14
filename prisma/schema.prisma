@@ -121,6 +121,7 @@ enum ResultFieldType {
   dividend
   ebit
   depreciation
+  goodwill_amortization
   taxes_paid
   working_capital_change
   capital_expenditure
@@ -147,6 +148,8 @@ enum ValueFormat {
   money
   // As is, with a percent sign, e.g. liikevoitto-%.
   percent
+  // In euros per share as is, e.g. EPS.
+  per_share
 
   @@map("value_format")
 }

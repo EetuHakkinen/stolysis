@@ -247,6 +247,7 @@
     "rows": {
       "ebit": "EBIT",
       "depreciation": "+ Depreciation",
+      "goodwillAmortization": "+ Goodwill amortization",
       "taxesPaid": "− Taxes paid",
       "workingCapitalChange": "− Change in working capital",
       "operatingCashFlow": "Operating cash flow",
@@ -367,9 +368,10 @@
     "valueFormat": "Value format",
     "valueFormats": {
       "money": "Euros",
-      "percent": "Percent"
+      "percent": "Percent",
+      "per_share": "Euros per share"
     },
-    "valueFormatDescription": "Euro values are shown in the financial year's unit, percentages as they are with a percent sign.",
+    "valueFormatDescription": "Euro values are shown in the financial year's unit, percentages as they are with a percent sign and per-share values as they are in euros.",
     "actualValues": "Results",
     "actualModes": {
       "entered": "Entered",
@@ -397,6 +399,7 @@
       "dividend": "Dividend / capital return",
       "ebit": "EBIT",
       "depreciation": "Depreciation",
+      "goodwill_amortization": "Goodwill amortization",
       "taxes_paid": "Taxes paid",
       "working_capital_change": "Change in working capital",
       "capital_expenditure": "Capital expenditure"

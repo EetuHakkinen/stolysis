@@ -109,7 +109,7 @@ function GroupFields({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{field.name}</span>
                     {field.type && <Badge variant="secondary">{t(`types.${field.type}`)}</Badge>}
-                    {field.valueFormat === "percent" && (
+                    {field.valueFormat !== "money" && (
                       <Badge variant="secondary">{t(`valueFormats.${field.valueFormat}`)}</Badge>
                     )}
                     {field.actualDefinition && (

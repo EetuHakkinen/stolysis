@@ -17,6 +17,7 @@ type Row = {
 const ROWS = [
   { key: "ebit", year: (year: DcfYear) => year.ebit },
   { key: "depreciation", year: (year: DcfYear) => year.depreciation },
+  { key: "goodwillAmortization", year: (year: DcfYear) => year.goodwillAmortization },
   { key: "taxesPaid", year: (year: DcfYear) => year.taxesPaid },
   { key: "workingCapitalChange", year: (year: DcfYear) => year.workingCapitalChange },
   { key: "operatingCashFlow", year: (year: DcfYear) => year.operatingCashFlow, bold: true },

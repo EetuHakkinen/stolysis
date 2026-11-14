@@ -12,6 +12,7 @@ export type DcfFieldIds = Record<
     ResultFieldType,
     | "ebit"
     | "depreciation"
+    | "goodwill_amortization"
     | "taxes_paid"
     | "working_capital_change"
     | "capital_expenditure"
@@ -24,14 +25,17 @@ export type DcfFieldIds = Record<
 >;
 
 // One discounted year's cash flow, each part with the sign of its effect on the cash flow:
-// depreciation is added back, taxes, growth of working capital and investments are negative.
+// depreciation and goodwill amortization are added back, taxes, growth of working capital and
+// investments are negative.
 export type DcfYear = {
   yearId: number;
   ebit: number | null;
   depreciation: number | null;
+  // Zero when the company has no goodwill amortization field or no value for the year.
+  goodwillAmortization: number;
   taxesPaid: number | null;
   workingCapitalChange: number | null;
-  // EBIT + depreciation + taxes paid + change in working capital.
+  // EBIT + depreciation + goodwill amortization + taxes paid + change in working capital.
   operatingCashFlow: number | null;
   capitalExpenditure: number | null;
   // The operating free cash flow field's value, which is what's discounted.
@@ -104,15 +108,18 @@ export function calculateDcf({
     const ebit = value(fieldIds.ebit, year);
     // Depreciation is a negative cost in the income statement.
     const depreciation = negated(value(fieldIds.depreciation, year));
+    // Goodwill amortization is as well, and many companies don't have it.
+    const goodwillAmortization = 0 - (value(fieldIds.goodwill_amortization, year) ?? 0);
     const taxesPaid = value(fieldIds.taxes_paid, year);
     const workingCapitalChange = value(fieldIds.working_capital_change, year);
     return {
       yearId: year.id,
       ebit,
       depreciation,
+      goodwillAmortization,
       taxesPaid,
       workingCapitalChange,
-      operatingCashFlow: sum(ebit, depreciation, taxesPaid, workingCapitalChange),
+      operatingCashFlow: sum(ebit, depreciation, goodwillAmortization, taxesPaid, workingCapitalChange),
       capitalExpenditure: value(fieldIds.capital_expenditure, year),
       freeCashFlow: value(fieldIds.operating_free_cash_flow, year),
       discountedFreeCashFlow: null,

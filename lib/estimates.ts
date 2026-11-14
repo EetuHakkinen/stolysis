@@ -63,12 +63,13 @@ export type CompanyPrediction = {
 const EMPTY: PeriodValue = { value: null, source: null, change: null };
 
 // Relative estimates and absolute ones of percent fields are stored in hundredths of a percent
-// (348 = 3.48 %), other absolute ones in whole euros like result values.
+// (348 = 3.48 %), absolute ones of per-share fields in cents, other absolute ones in whole euros
+// like result values.
 function storedScale(type: EstimateType, valueFormat: ValueFormat): number {
-  return type === "relative" || valueFormat === "percent" ? 100 : 1;
+  return type === "relative" || valueFormat !== "money" ? 100 : 1;
 }
 
-// Estimate variable rounded to what can be stored: two decimals of a percent or whole euros.
+// Estimate variable rounded to what can be stored: two decimals of a percent, cents or whole euros.
 export function roundEstimate(type: EstimateType, valueFormat: ValueFormat, value: number): number {
   const scale = storedScale(type, valueFormat);
   return Math.round(value * scale) / scale;

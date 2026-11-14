@@ -23,6 +23,7 @@
         { "name": "Henkilöstökulut" },
         { "name": "Liiketoiminnan muut kulut" },
         { "name": "Poistot", "type": "depreciation" },
+        { "name": "Liikearvopoistot", "type": "goodwill_amortization" },
         {
           "name": "Liikevoitto",
           "type": "ebit",
@@ -37,7 +38,9 @@
             { "operator": "+" },
             { "field": "Liiketoiminnan muut kulut", "period": "current" },
             { "operator": "+" },
-            { "field": "Poistot", "period": "current" }
+            { "field": "Poistot", "period": "current" },
+            { "operator": "+" },
+            { "field": "Liikearvopoistot", "period": "current" }
           ]
         },
         { "name": "Rahoitustuotot" },
@@ -68,6 +71,15 @@
             { "field": "Rahoituskulut", "period": "current" },
             { "operator": "+" },
             { "field": "Tuloverot", "period": "current" }
+          ]
+        },
+        { "name": "Vähemmistöjen osuus" },
+        {
+          "name": "Emoyhtiön omistajien osuus",
+          "estimateDefinition": [
+            { "field": "Kauden voitto", "period": "current" },
+            { "operator": "-" },
+            { "field": "Vähemmistöjen osuus", "period": "current" }
           ]
         }
       ]
@@ -312,6 +324,8 @@
             { "field": "Liikevoitto", "period": "current" },
             { "operator": "-" },
             { "field": "Poistot", "period": "current" },
+            { "operator": "-" },
+            { "field": "Liikearvopoistot", "period": "current" },
             { "operator": "+" },
             { "field": "Maksetut verot", "period": "current" },
             { "operator": "+" },
@@ -323,6 +337,8 @@
             { "field": "Liikevoitto", "period": "current" },
             { "operator": "-" },
             { "field": "Poistot", "period": "current" },
+            { "operator": "-" },
+            { "field": "Liikearvopoistot", "period": "current" },
             { "operator": "+" },
             { "field": "Maksetut verot", "period": "current" },
             { "operator": "+" },
@@ -362,6 +378,20 @@
           "name": "Osakemäärä",
           "type": "share_count",
           "yearlyValue": "last_period"
+        },
+        {
+          "name": "EPS",
+          "valueFormat": "per_share",
+          "actualDefinition": [
+            { "field": "Emoyhtiön omistajien osuus", "period": "current" },
+            { "operator": "/" },
+            { "field": "Osakemäärä", "period": "current" }
+          ],
+          "estimateDefinition": [
+            { "field": "Emoyhtiön omistajien osuus", "period": "current" },
+            { "operator": "/" },
+            { "field": "Osakemäärä", "period": "current" }
+          ]
         }
       ]
     }

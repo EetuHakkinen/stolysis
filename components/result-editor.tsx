@@ -27,8 +27,8 @@ function savedValue(field: EditedField, { period }: ResultColumn) {
     : field.yearlyValues[period.financialYearId!];
 }
 
-// Money is typed in the column's unit and stored in whole euros; percents are stored as is. Both are
-// stored as whole numbers.
+// Money is typed in the column's unit and stored in whole euros; percents and per-share values are
+// stored as is. All are stored as whole numbers.
 function divisor(unit: Unit, valueFormat: ValueFormat) {
   return valueFormat === "money" ? UNIT_DIVISORS[unit] : 1;
 }

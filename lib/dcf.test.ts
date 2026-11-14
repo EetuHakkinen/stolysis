@@ -16,6 +16,7 @@ const fieldIds: DcfFieldIds = {
   share_count: 4,
   ebit: 5,
   depreciation: 6,
+  goodwill_amortization: 10,
   taxes_paid: 7,
   working_capital_change: 8,
   capital_expenditure: 9,
@@ -42,12 +43,13 @@ const values = {
   // Paid out of 2026's result in 2027, entered as cash out.
   3: { 2026: -999, 2027: -20 },
   4: { 2026: 10, 2027: 999 },
-  // 2027: 150 + 30 − 25 − 5 = 150 operating cash flow, less 50 investments = 100.
+  // 2027: 150 + 30 + 10 − 25 − 15 = 150 operating cash flow, less 50 investments = 100.
   5: { 2026: 140, 2027: 150 },
   6: { 2027: -30 },
   7: { 2027: -25 },
-  8: { 2027: -5 },
+  8: { 2027: -15 },
   9: { 2027: -50 },
+  10: { 2027: -10 },
 };
 const near = (actual: number | null, expected: number) =>
   assert.ok(Math.abs(actual! - expected) < Math.abs(expected) * 1e-3, `${actual} ≉ ${expected}`);
@@ -75,17 +77,30 @@ describe("calculateDcf", () => {
     const [first, second] = dcfYears;
     assert.equal(first.ebit, 150);
     assert.equal(first.depreciation, 30);
+    assert.equal(first.goodwillAmortization, 10);
     assert.equal(first.taxesPaid, -25);
-    assert.equal(first.workingCapitalChange, -5);
+    assert.equal(first.workingCapitalChange, -15);
     assert.equal(first.operatingCashFlow, 150);
     assert.equal(first.capitalExpenditure, -50);
     assert.equal(first.freeCashFlow, 100);
     near(first.discountedFreeCashFlow, 100 / 1.1 ** 0.5);
     near(second.cumulativeDiscountedFreeCashFlow, 100 / 1.1 ** 0.5 + 110 / 1.1 ** 1.5);
-    // Missing parts leave the operating cash flow empty.
+    // A missing goodwill amortization counts as zero, other missing parts leave the operating cash
+    // flow empty.
+    assert.equal(second.goodwillAmortization, 0);
     assert.equal(second.operatingCashFlow, null);
     near(terminal.freeCashFlow, 110 * 1.02);
     near(terminal.discountedValue, terminalValue / 1.1 ** 2);
+  });
+
+  it("counts goodwill amortization as zero when the company has no field for it", () => {
+    const { years: dcfYears } = calculateDcf({
+      ...input,
+      fieldIds: { ...fieldIds, goodwill_amortization: null },
+      prediction: prediction(values),
+    });
+    assert.equal(dcfYears[0].goodwillAmortization, 0);
+    assert.equal(dcfYears[0].operatingCashFlow, 140);
   });
 
   it("shows the current year's cash flow without discounting it", () => {

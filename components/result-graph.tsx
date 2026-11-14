@@ -58,18 +58,24 @@ export function ResultGraph({
     ...Object.fromEntries(
       fields.map((field) => {
         const value = values(field.resultFieldId, column.period)?.value;
-        const shown = value == null ? null : field.valueFormat === "percent" ? value : value / UNIT_DIVISORS[unit];
+        const shown = value == null ? null : field.valueFormat === "money" ? value / UNIT_DIVISORS[unit] : value;
         return [key(field), shown];
       }),
     ),
   }));
 
   const formatValue = (value: number) => format.number(value, { maximumFractionDigits: 1 });
-  // An axis is labeled with % when it shows only percent fields, otherwise with the unit.
-  const axisLabel = (axis: GraphAxis) => {
-    const onAxis = fields.filter((field) => field.axis === axis);
-    return onAxis.length > 0 && onAxis.every((field) => field.valueFormat === "percent") ? "%" : t(`units.${unit}`);
+  const formatPerShare = (value: number) => format.number(value, { maximumFractionDigits: 2 });
+  const suffix = (valueFormat: ValueFormat | undefined) =>
+    valueFormat === "percent" ? "%" : valueFormat === "per_share" ? "€" : t(`units.${unit}`);
+  // An axis is labeled with % or € when it shows only percent or only per-share fields, otherwise
+  // with the unit.
+  const axisFormat = (axis: GraphAxis) => {
+    const formats = new Set(fields.filter((field) => field.axis === axis).map((field) => field.valueFormat));
+    return formats.size === 1 ? [...formats][0] : "money";
   };
+  const axisLabel = (axis: GraphAxis) => suffix(axisFormat(axis));
+  const tickFormatter = (axis: GraphAxis) => (axisFormat(axis) === "per_share" ? formatPerShare : formatValue);
   const usesRight = fields.some((field) => field.axis === "right");
   const fieldsByKey = new Map(fields.map((field) => [key(field), field]));
 
@@ -85,7 +91,7 @@ export function ResultGraph({
             tickLine={false}
             axisLine={false}
             width="auto"
-            tickFormatter={formatValue}
+            tickFormatter={tickFormatter("left")}
             label={{ value: axisLabel("left"), angle: -90, position: "insideLeft", className: "fill-muted-foreground" }}
           />
           {usesRight && (
@@ -95,7 +101,7 @@ export function ResultGraph({
               tickLine={false}
               axisLine={false}
               width="auto"
-              tickFormatter={formatValue}
+              tickFormatter={tickFormatter("right")}
               label={{
                 value: axisLabel("right"),
                 angle: 90,
@@ -115,7 +121,7 @@ export function ResultGraph({
                       <span className="flex-1 text-muted-foreground">{field?.name}</span>
                       <span className="font-mono font-medium text-foreground tabular-nums">
                         {typeof value === "number"
-                          ? `${formatValue(value)} ${field?.valueFormat === "percent" ? "%" : t(`units.${unit}`)}`
+                          ? `${(field?.valueFormat === "per_share" ? formatPerShare : formatValue)(value)} ${suffix(field?.valueFormat)}`
                           : "–"}
                       </span>
                     </div>

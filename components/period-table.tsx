@@ -75,7 +75,8 @@ export function PeriodTable<Field extends { id: number; name: string | null }, C
 }
 
 // Value in whole euros shown in the given unit with one decimal, or a dash when missing. Percent
-// values are shown as is, with a percent sign.
+// values are shown as is, with a percent sign, and per-share values as is in euros with two
+// decimals.
 export function FormattedValue({
   value,
   unit,
@@ -87,6 +88,8 @@ export function FormattedValue({
 }) {
   const format = useFormatter();
   if (value == null) return "–";
+  if (valueFormat === "per_share")
+    return `${format.number(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
   const formatted = format.number(valueFormat === "percent" ? value : value / UNIT_DIVISORS[unit], {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,

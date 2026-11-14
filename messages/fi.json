@@ -247,6 +247,7 @@
     "rows": {
       "ebit": "EBIT",
       "depreciation": "+ Poistot",
+      "goodwillAmortization": "+ Liikearvopoistot",
       "taxesPaid": "− Maksetut verot",
       "workingCapitalChange": "− Käyttöpääoman muutos",
       "operatingCashFlow": "Operatiivinen kassavirta",
@@ -367,9 +368,10 @@
     "valueFormat": "Arvon muoto",
     "valueFormats": {
       "money": "Euroina",
-      "percent": "Prosentteina"
+      "percent": "Prosentteina",
+      "per_share": "Euroina per osake"
     },
-    "valueFormatDescription": "Euromääräiset arvot näytetään tilikauden yksikössä, prosentit sellaisenaan %-merkin kanssa.",
+    "valueFormatDescription": "Euromääräiset arvot näytetään tilikauden yksikössä, prosentit sellaisenaan %-merkin kanssa ja osakekohtaiset arvot sellaisenaan euroina.",
     "actualValues": "Raportoidut luvut",
     "actualModes": {
       "entered": "Syötetty",
@@ -397,6 +399,7 @@
       "dividend": "Osinko/pääomanpalautus",
       "ebit": "Liikevoitto",
       "depreciation": "Poistot",
+      "goodwill_amortization": "Liikearvopoistot",
       "taxes_paid": "Maksetut verot",
       "working_capital_change": "Käyttöpääoman muutos",
       "capital_expenditure": "Bruttoinvestoinnit"
