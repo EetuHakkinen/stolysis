@@ -19,9 +19,11 @@ export type ResultFieldSettingsData = {
   // Formulas of a calculated field; null when the values are entered.
   actualDefinition: Formula | null;
   estimateDefinition: Formula | null;
-  // Fields with results or used in another field's formula can't be deleted.
+  // Fields with results (also cleared values, as result rows are kept) or used in another field's
+  // formula can't be deleted.
   hasResults: boolean;
-  usedInFormulas: boolean;
+  // Ids of the other fields whose formulas use the field.
+  usedBy: number[];
 };
 
 export type ResultFieldGroupSettingsData = { id: number; name: string; fields: ResultFieldSettingsData[] };
@@ -64,18 +66,14 @@ export async function getResultFieldGroups(companyId: number): Promise<ResultFie
     })),
   }));
   // A field's own formula may use its previous value, and is deleted with the field.
-  const usedInFormulas = new Set(
-    withDefinitions.flatMap((group) =>
-      group.fields.flatMap((field) =>
-        [field.actualDefinition, field.estimateDefinition].flatMap((formula) =>
-          formula ? referencedFieldIds(formula).filter((id) => id !== field.id) : [],
-        ),
-      ),
-    ),
-  );
+  const usedBy = new Map<number, Set<number>>();
+  for (const field of withDefinitions.flatMap((group) => group.fields))
+    for (const formula of [field.actualDefinition, field.estimateDefinition])
+      for (const id of formula ? referencedFieldIds(formula) : [])
+        if (id !== field.id) usedBy.set(id, (usedBy.get(id) ?? new Set()).add(field.id));
   return withDefinitions.map((group) => ({
     ...group,
-    fields: group.fields.map((field) => ({ ...field, usedInFormulas: usedInFormulas.has(field.id) })),
+    fields: group.fields.map((field) => ({ ...field, usedBy: [...(usedBy.get(field.id) ?? [])] })),
   }));
 }
 

@@ -6,6 +6,7 @@ import type { ResultFieldErrors, ResultFieldInput } from "@/actions/result-field
 import { EstimateType, ResultFieldType, ValueFormat, YearlyValue } from "@/app/generated/prisma/enums";
 import { FormulaEditor, type FormulaFieldGroup } from "@/components/formula-editor";
 import { OptionSelect } from "@/components/option-select";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,14 +34,18 @@ const draftsOf = (values: ResultFieldInput): Record<DefinitionKey, Formula> => (
   estimateDefinition: values.estimateDefinition ?? [],
 });
 
+// What keeps an edited field from being deleted.
+export type ResultFieldUsage = { hasResults: boolean; usedBy: number[] };
+
 // Dialog for a result field's name, group, yearly value, value format, formulas, estimate type and special type,
 // for both creating and editing a field. The dialog closes once save succeeds; otherwise its errors
-// are shown under the fields.
+// are shown under the fields. When editing, it also tells why the field can't be deleted.
 export function ResultFieldDialog({
   trigger,
   title,
   groups,
   fieldId,
+  usage,
   initialValues,
   save,
 }: {
@@ -50,6 +55,7 @@ export function ResultFieldDialog({
   groups: FormulaFieldGroup[];
   // The edited field; undefined when creating one.
   fieldId?: number;
+  usage?: ResultFieldUsage;
   initialValues: ResultFieldInput;
   save: (values: ResultFieldInput) => Promise<ResultFieldErrors | undefined>;
 }) {
@@ -223,6 +229,7 @@ export function ResultFieldDialog({
               <FieldDescription>{t("typeDescription")}</FieldDescription>
               <FieldError errors={errorFor("type")} />
             </Field>
+            {usage && <DeleteBlockers usage={usage} groups={groups} />}
           </FieldGroup>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>{tDialogs("cancel")}</DialogClose>
@@ -295,6 +302,35 @@ function DefinitionField({
           <FieldError errors={error ? [{ message: t(`errors.${error}`) }] : undefined} />
         </>
       )}
+    </Field>
+  );
+}
+
+// Why the field can't be deleted: the fields whose formulas use it and whether it has saved results.
+// Nothing is shown for a field that can be deleted.
+function DeleteBlockers({ usage, groups }: { usage: ResultFieldUsage; groups: FormulaFieldGroup[] }) {
+  const t = useTranslations("ResultFields");
+  if (!usage.hasResults && usage.usedBy.length === 0) return null;
+
+  const usedBy = new Set(usage.usedBy);
+  const names = groups.flatMap((group) => group.fields.filter((field) => usedBy.has(field.id)).map((field) => field.name));
+
+  return (
+    <Field>
+      <FieldLabel>{t("deleteBlocked")}</FieldLabel>
+      {names.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <FieldDescription>{t("usedBy")}</FieldDescription>
+          <div className="flex flex-wrap gap-2">
+            {names.map((name) => (
+              <Badge key={name} variant="secondary">
+                {name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+      {usage.hasResults && <FieldDescription>{t("hasResults")}</FieldDescription>}
     </Field>
   );
 }

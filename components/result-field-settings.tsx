@@ -23,7 +23,7 @@ import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 // Company settings section with a table of result fields for each result field group, in display
 // order. Fields are created, edited (also moved to another group) and deleted with the buttons, and
 // reordered within their group by dragging, and starred with the star button. Only fields without results that no other field's
-// formula uses have a delete button. Calculated fields have badges with their formulas as tooltips.
+// formula uses have a delete button; the edit dialog tells why a field can't be deleted. Calculated fields have badges with their formulas as tooltips.
 export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettingsData[] }) {
   const t = useTranslations("ResultFields");
 
@@ -141,6 +141,7 @@ function GroupFields({
                       title={t("editTitle")}
                       groups={groups}
                       fieldId={field.id}
+                      usage={{ hasResults: field.hasResults, usedBy: field.usedBy }}
                       initialValues={{
                         groupId: group.id,
                         name: field.name,
@@ -158,7 +159,7 @@ function GroupFields({
                         </Button>
                       }
                     />
-                    {!field.hasResults && !field.usedInFormulas && (
+                    {!field.hasResults && field.usedBy.length === 0 && (
                       <DeleteDialog
                         title={t("deleteTitle")}
                         description={t("deleteDescription", { name: field.name })}
