@@ -176,13 +176,19 @@ export function ResultTabs({
   }
 
   const graphFields = new Map(groups.flatMap((group) => group.fields.map((field) => [field.id, field])));
+  // The quarterly tabs leave out fields reported only yearly, and groups left without fields.
+  const quarterlyFields = <G extends { fields: { yearlyOnly: boolean }[] }>(groups: G[]) =>
+    groups
+      .map((group) => ({ ...group, fields: group.fields.filter((field) => !field.yearlyOnly) }))
+      .filter((group) => group.fields.length > 0);
+  const quarterlyGraphFields = new Map([...graphFields].filter(([, field]) => !field.yearlyOnly));
 
-  function resultGraphs(columns: ResultColumn[], shown = graphs) {
-    return <ResultGraphs graphs={shown} fields={graphFields} columns={columns} values={values} />;
+  function resultGraphs(columns: ResultColumn[], shown = graphs, fields = graphFields) {
+    return <ResultGraphs graphs={shown} fields={fields} columns={columns} values={values} />;
   }
 
   // Quarterly results can be edited for seasons that have ended, except for fields calculated from
-  // other fields and fields reported only yearly.
+  // other fields. Fields reported only yearly aren't shown.
   function quarterlyTab() {
     const columns = quarterlyResultColumns(seasons, isEstimated);
     const ended = new Set(seasons.filter((season) => season.ended).map((season) => season.id));
@@ -190,15 +196,13 @@ export function ResultTabs({
       <>
         <ResultEditor
           companyId={companyId}
-          groups={groups}
+          groups={quarterlyFields(groups)}
           columns={columns}
           values={values}
-          editable={(field, column) =>
-            !field.calculated && !field.yearlyOnly && ended.has(column.period.reportingSeasonId!)
-          }
+          editable={(field, column) => !field.calculated && ended.has(column.period.reportingSeasonId!)}
           description={tEditor("description")}
         />
-        {resultGraphs(columns)}
+        {resultGraphs(columns, graphs, quarterlyGraphFields)}
       </>
     );
   }
@@ -227,14 +231,16 @@ export function ResultTabs({
     );
   }
 
+  // The quarterly estimates leave out fields reported only yearly.
   function estimateTables(
     columns: (currentYearId: number) => EstimateColumn[],
     graphColumns: (currentYearId: number) => ResultColumn[],
+    quarterly: boolean,
   ) {
     if (!scenario) return <p className="text-muted-foreground">{t("noScenarios")}</p>;
     if (currentYearId == null) return <p className="text-muted-foreground">{t("noYears")}</p>;
     const shown = columns(currentYearId);
-    const tables = tableGroups.map((group) => (
+    const tables = (quarterly ? quarterlyFields(tableGroups) : tableGroups).map((group) => (
       <EstimateTable
         // Inputs keep their own text, so start them over for another scenario.
         key={`${scenario.id}-${group.id}`}
@@ -249,7 +255,7 @@ export function ResultTabs({
     return (
       <>
         {tables}
-        {resultGraphs(graphColumns(currentYearId))}
+        {resultGraphs(graphColumns(currentYearId), graphs, quarterly ? quarterlyGraphFields : graphFields)}
       </>
     );
   }
@@ -414,6 +420,7 @@ export function ResultTabs({
       content: estimateTables(
         (current) => quarterlyEstimateColumns(years, current, withData),
         (current) => quarterlyGraphColumns(years, current, isEstimated),
+        true,
       ),
     },
     {
@@ -421,6 +428,7 @@ export function ResultTabs({
       content: estimateTables(
         (current) => yearlyEstimateColumns(years, current, yearlyWithData),
         (current) => yearlyGraphColumns(years, current, isEstimated),
+        false,
       ),
     },
     { value: "valuation", content: valuationTab() },
