@@ -92,3 +92,19 @@ export function pricesInRange(prices: StockPricePoint[], range: PriceRange): Sto
   const start = new Date(Date.UTC(year, month - 1 - RANGE_MONTHS[range], day)).toISOString().slice(0, 10);
   return prices.filter((price) => price.date >= start);
 }
+
+// A news item on the price chart, released on `date` ("YYYY-MM-DD" in Finnish time).
+export type PriceChartNews = { id: number; title: string; date: string };
+
+export type PriceChartPoint = StockPricePoint & { news: PriceChartNews[] };
+
+// Prices (oldest first) with the news released on each day. News of a day without a price, like a
+// weekend, go to the next day with one, when the market first reacts to them. News after the
+// latest price aren't shown.
+export function withNews(prices: StockPricePoint[], news: PriceChartNews[]): PriceChartPoint[] {
+  const points = prices.map((price) => ({ ...price, news: [] as PriceChartNews[] }));
+  for (const item of news) {
+    points.find((point) => point.date >= item.date)?.news.push(item);
+  }
+  return points;
+}

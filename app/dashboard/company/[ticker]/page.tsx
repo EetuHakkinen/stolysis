@@ -5,7 +5,7 @@ import { getCompany } from "@/actions/companies";
 import { getDiscountVariables } from "@/actions/discounting";
 import { getEstimates } from "@/actions/estimates";
 import { getGraphs } from "@/actions/graphs";
-import { getNewsFeed } from "@/actions/news";
+import { getNewsFeed, getPriceChartNews } from "@/actions/news";
 import { getNewsForNote, getNoteSnapshot, getNotes } from "@/actions/notes";
 import { getCompanyResults } from "@/actions/results";
 import { getStockPrices } from "@/actions/stock-prices";
@@ -36,17 +36,19 @@ export default async function CompanyPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [results, estimates, graphs, valuation, discountVariables, feed, notes, draft, stockPrices] = await Promise.all([
-    getCompanyResults(company.id),
-    getEstimates(company.id),
-    getGraphs(company.id),
-    getValuation(company.id),
-    getDiscountVariables(company.id),
-    getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
-    getNotes({ companyId: company.id, page: parsePage(notesPage) }),
-    noteDraft(company.id, newsId),
-    getStockPrices({ companyId: company.id }),
-  ]);
+  const [results, estimates, graphs, valuation, discountVariables, feed, notes, draft, stockPrices, priceNews] =
+    await Promise.all([
+      getCompanyResults(company.id),
+      getEstimates(company.id),
+      getGraphs(company.id),
+      getValuation(company.id),
+      getDiscountVariables(company.id),
+      getNewsFeed({ page: parsePage(page), ticker: company.ticker }),
+      getNotes({ companyId: company.id, page: parsePage(notesPage) }),
+      noteDraft(company.id, newsId),
+      getStockPrices({ companyId: company.id }),
+      getPriceChartNews({ companyId: company.id }),
+    ]);
   const path = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
   const fetchPrices = needsPriceFetch({
     latest: stockPrices.at(-1)?.date ?? null,
@@ -82,6 +84,7 @@ export default async function CompanyPage({
           valuation={valuation}
           discountVariables={discountVariables}
           stockPrices={stockPrices}
+          priceNews={priceNews}
         />
         <CompanyTabs
           // A note from a news item opens in the notes.

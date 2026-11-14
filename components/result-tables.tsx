@@ -5,7 +5,7 @@ import type { DiscountValues } from "@/lib/discounting";
 import type { CompanyResults } from "@/actions/results";
 import type { CompanyValuationData } from "@/actions/valuation";
 import { ResultTabs } from "@/components/result-tabs";
-import type { StockPricePoint } from "@/lib/stock-price";
+import type { PriceChartNews, StockPricePoint } from "@/lib/stock-price";
 
 // A valuation summary tab of the starred fields and the graphs, a stock price tab, then result field groups in
 // quarterly and yearly tabs: one table per group, with result fields as
@@ -21,6 +21,7 @@ export async function ResultTables({
   valuation,
   discountVariables,
   stockPrices,
+  priceNews,
 }: {
   companyId: number;
   results: CompanyResults;
@@ -29,6 +30,7 @@ export async function ResultTables({
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
   stockPrices: StockPricePoint[];
+  priceNews: PriceChartNews[];
 }) {
   const t = await getTranslations("Results");
 
@@ -47,6 +49,7 @@ export async function ResultTables({
           valuation={valuation}
           discountVariables={discountVariables}
           stockPrices={stockPrices}
+          priceNews={priceNews}
         />
       )}
     </section>

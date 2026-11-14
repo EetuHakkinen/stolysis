@@ -1,23 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { useFormatter, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { toLocalDate } from "@/lib/note-date";
-import { PRICE_FORMAT, PRICE_RANGES, pricesInRange, type PriceRange, type StockPricePoint } from "@/lib/stock-price";
+import {
+  PRICE_FORMAT,
+  PRICE_RANGES,
+  pricesInRange,
+  withNews,
+  type PriceChartNews,
+  type PriceChartPoint,
+  type PriceRange,
+  type StockPricePoint,
+} from "@/lib/stock-price";
 
 // Line graph of the closing prices in the range picked with the buttons above it, all by default.
-export function StockPriceChart({ prices }: { prices: StockPricePoint[] }) {
+// Days with company news have a dot, and the tooltip lists their titles.
+export function StockPriceChart({ prices, news }: { prices: StockPricePoint[]; news: PriceChartNews[] }) {
   const t = useTranslations("StockPrices");
   const format = useFormatter();
   const [range, setRange] = useState<PriceRange>("all");
+  const points = useMemo(() => withNews(prices, news), [prices, news]);
 
   if (prices.length === 0) return <p className="text-muted-foreground">{t("empty")}</p>;
 
-  const config: ChartConfig = { close: { label: t("close"), color: "var(--chart-1)" } };
-  const data = pricesInRange(prices, range);
+  const config: ChartConfig = {
+    close: { label: t("close"), color: "var(--chart-1)" },
+    news: { label: t("news"), color: "var(--chart-1)" },
+  };
+  const data = pricesInRange(points, range);
   // Short ranges are labeled by day, longer ones by month.
   const tickFormat =
     range === "1M" || range === "3M"
@@ -64,14 +78,29 @@ export function StockPriceChart({ prices }: { prices: StockPricePoint[] }) {
                   const date = payload[0]?.payload?.date;
                   return date ? format.dateTime(toLocalDate(date), { dateStyle: "medium" }) : null;
                 }}
-                formatter={(value) => (
-                  <div className="flex w-full items-center justify-between gap-4">
-                    <span className="text-muted-foreground">{t("close")}</span>
-                    <span className="font-mono font-medium text-foreground tabular-nums">
-                      {typeof value === "number" ? format.number(value, PRICE_FORMAT) : "–"}
-                    </span>
-                  </div>
-                )}
+                formatter={(value, _, item) => {
+                  const { news } = item.payload as PriceChartPoint;
+                  return (
+                    <div className="flex w-full flex-col gap-1.5">
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <span className="text-muted-foreground">{t("close")}</span>
+                        <span className="font-mono font-medium text-foreground tabular-nums">
+                          {typeof value === "number" ? format.number(value, PRICE_FORMAT) : "–"}
+                        </span>
+                      </div>
+                      {news.length > 0 && (
+                        <ul className="flex max-w-64 flex-col gap-1 border-t pt-1.5">
+                          {news.map((item) => (
+                            <li key={item.id} className="flex items-start gap-1.5">
+                              <span className="mt-1 size-3 shrink-0 rounded-full border-3 border-(--color-news) bg-white" />
+                              <span className="text-foreground">{item.title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                }}
               />
             }
           />
@@ -80,11 +109,27 @@ export function StockPriceChart({ prices }: { prices: StockPricePoint[] }) {
             type="linear"
             stroke="var(--color-close)"
             strokeWidth={2}
-            dot={false}
+            dot={NewsDot}
             activeDot={{ r: 4 }}
           />
         </LineChart>
       </ChartContainer>
     </figure>
+  );
+}
+
+// A dot on the line for a day with news, nothing for other days.
+function NewsDot({ cx, cy, payload }: { cx?: number; cy?: number; payload?: PriceChartPoint }) {
+  if (cx == null || cy == null || !payload?.news.length) return null;
+  return (
+    <circle
+      key={payload.date}
+      cx={cx}
+      cy={cy}
+      r={5}
+      fill="white"
+      stroke="var(--color-news)"
+      strokeWidth={3}
+    />
   );
 }

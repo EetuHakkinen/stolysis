@@ -10,6 +10,7 @@ import {
   pricesInRange,
   priceSymbol,
   toPriceInt,
+  withNews,
 } from "./stock-price.ts";
 
 describe("priceSymbol", () => {
@@ -101,5 +102,22 @@ describe("needsPriceFetch", () => {
     // 00:30 on the 13th in Finland.
     const fetchedAt = new Date("2026-11-12T22:30:00Z");
     assert.equal(needsPriceFetch({ latest: "2026-11-11", fetchedAt, now }), false);
+  });
+});
+
+describe("withNews", () => {
+  const prices = [
+    { date: "2026-01-02", close: 10 },
+    { date: "2026-01-05", close: 11 },
+  ];
+
+  it("puts news on their release day, or the next day with a price", () => {
+    const friday = { id: 1, title: "Friday", date: "2026-01-02" };
+    const saturday = { id: 2, title: "Saturday", date: "2026-01-03" };
+    const later = { id: 3, title: "Later", date: "2026-01-06" };
+    assert.deepEqual(
+      withNews(prices, [friday, saturday, later]).map((point) => point.news),
+      [[friday], [saturday]],
+    );
   });
 });

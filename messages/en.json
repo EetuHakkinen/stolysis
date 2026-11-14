@@ -31,6 +31,7 @@
   "StockPrices": {
     "empty": "No stock prices yet. They are fetched automatically when the page is opened, at most once a day.",
     "close": "Close",
+    "news": "News",
     "range": "Time range",
     "ranges": {
       "1M": "1M",

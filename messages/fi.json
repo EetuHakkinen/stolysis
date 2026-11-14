@@ -31,6 +31,7 @@
   "StockPrices": {
     "empty": "Osakekursseja ei ole vielä. Ne haetaan automaattisesti sivun avautuessa, enintään kerran päivässä.",
     "close": "Päätöskurssi",
+    "news": "Uutiset",
     "range": "Aikaväli",
     "ranges": {
       "1M": "1 kk",

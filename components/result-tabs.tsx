@@ -54,7 +54,7 @@ import {
 } from "@/lib/estimates";
 import { calculateDcf } from "@/lib/dcf";
 import { costOfEquity, wacc, type DiscountValues } from "@/lib/discounting";
-import type { StockPricePoint } from "@/lib/stock-price";
+import type { PriceChartNews, StockPricePoint } from "@/lib/stock-price";
 import { calculateValuation, presentValuation, priceMultiples } from "@/lib/valuation";
 
 // The summary's multiples at the stock price: the current financial year and two after it.
@@ -81,6 +81,7 @@ export function ResultTabs({
   valuation,
   discountVariables,
   stockPrices,
+  priceNews,
 }: {
   companyId: number;
   seasons: ResultSeason[];
@@ -90,6 +91,7 @@ export function ResultTabs({
   valuation: CompanyValuationData;
   discountVariables: DiscountValues;
   stockPrices: StockPricePoint[];
+  priceNews: PriceChartNews[];
 }) {
   const t = useTranslations("Results");
   const tEditor = useTranslations("ResultEditor");
@@ -404,7 +406,7 @@ export function ResultTabs({
     content: React.ReactNode;
   }[] = [
     { value: "summary", content: summaryTab() },
-    { value: "stockPrice", content: <StockPriceChart prices={stockPrices} /> },
+    { value: "stockPrice", content: <StockPriceChart prices={stockPrices} news={priceNews} /> },
     { value: "quarterly", content: quarterlyTab() },
     { value: "yearly", content: yearlyTab() },
     {

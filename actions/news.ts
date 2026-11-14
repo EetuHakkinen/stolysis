@@ -6,7 +6,9 @@ import { requireUserId } from "@/lib/auth";
 import { extractResultsAfterResponse } from "@/lib/news";
 import { saveNewsFromUrl, type SaveNewsUrlResult } from "@/lib/news-url";
 import { MAX_NEWS_URLS } from "@/lib/news-urls";
+import { helsinkiNoteDate } from "@/lib/note-date";
 import { prisma } from "@/lib/prisma";
+import type { PriceChartNews } from "@/lib/stock-price";
 
 const NEWS_PAGE_SIZE = 100;
 
@@ -68,6 +70,19 @@ export async function getNewsFeed({
     page: current,
     pageCount,
   };
+}
+
+// All of the company's news for the stock price chart, oldest first.
+export async function getPriceChartNews(input: { companyId: number }): Promise<PriceChartNews[]> {
+  await requireUserId();
+  const companyId = z.number().int().positive().parse(input.companyId);
+
+  const rows = await prisma.news.findMany({
+    where: { companyId },
+    orderBy: [{ releasedAt: "asc" }, { id: "asc" }],
+    select: { id: true, title: true, releasedAt: true },
+  });
+  return rows.map(({ releasedAt, ...news }) => ({ ...news, date: helsinkiNoteDate(releasedAt) }));
 }
 
 export async function getNews(id: number) {
