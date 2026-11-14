@@ -42,6 +42,7 @@ describe("predictCompany", () => {
       { id: 3, estimateType: "absolute", yearlyValue: "last_period", ...entered },
     ],
     actuals,
+    yearlyActuals: {},
     estimates: [
       ...[20262, 20263, 20264, 20271, 20272, 20273, 20274].map((id) => ({
         resultFieldId: 1,
@@ -145,6 +146,7 @@ describe("predictCompany with calculated fields", () => {
       2: { ...quarters(2025, -60), 20261: BigInt(-66) },
       3: { ...quarters(2025, 40), 20261: BigInt(44) },
     },
+    yearlyActuals: {},
     estimates: [1, 2].flatMap((resultFieldId) =>
       [20262, 20263, 20264, 20271, 20272, 20273, 20274].map((reportingSeasonId) => ({
         resultFieldId,
@@ -237,6 +239,7 @@ describe("predictCompany with an estimated percent field", () => {
       },
     ],
     actuals: { 1: quarters(2025, 100), 2: quarters(2025, -60) },
+    yearlyActuals: {},
     estimates: [
       // Revenue 100, 100, 200, 200 with margins 30, 30, 60, 60 %.
       ...quarterly(1, [0, 0, 100, 100]),
@@ -267,6 +270,91 @@ describe("predictCompany with an estimated percent field", () => {
   it("calculates materials of a year estimated as a whole from its margin", () => {
     near(prediction.yearly[2][2028].value, -360);
     near(prediction.yearly[3][2028].value, 40);
+  });
+});
+
+describe("predictCompany with a field reported only yearly", () => {
+  const field = (id: number, period: "current" | "previous" = "current") => ({ field: id, period });
+  const op = (operator: "+" | "-" | "*" | "/") => ({ operator });
+  const quarters = (id: number, value: number) =>
+    Object.fromEntries([1, 2, 3, 4].map((quarter) => [id * 10 + quarter, BigInt(value)]));
+  // Net margin uses the yearly profit, so it has only yearly values.
+  const netMargin = [field(2), op("/"), field(1), op("*"), { number: 100 }];
+
+  // Revenue is reported quarterly; profit only for 2025 in the financial statements release. 2026
+  // has a reported quarter, but its profit is estimated for the whole year.
+  const prediction = predictCompany({
+    years,
+    fields: [
+      { id: 1, estimateType: "relative", yearlyValue: "sum", ...entered },
+      { id: 2, estimateType: "relative", yearlyValue: "yearly_only", ...entered },
+      { id: 3, estimateType: "relative", yearlyValue: "sum", actualDefinition: netMargin, estimateDefinition: netMargin },
+      // Dividend is calculated from the profit for estimates.
+      {
+        id: 4,
+        estimateType: "relative",
+        yearlyValue: "yearly_only",
+        actualDefinition: null,
+        estimateDefinition: [field(2), op("/"), { number: 2 }],
+      },
+    ],
+    actuals: {
+      1: { ...quarters(2025, 100 * M), 20261: BigInt(110 * M) },
+      // Seasonal rows saved before the field became reported only yearly are ignored when loaded,
+      // and a seasonal value is never used.
+      2: {},
+    },
+    yearlyActuals: { 2: { 2025: BigInt(40 * M) }, 4: { 2025: BigInt(15 * M) } },
+    estimates: [
+      ...[20262, 20263, 20264, 20271, 20272, 20273, 20274].map((id) => ({
+        resultFieldId: 1,
+        reportingSeasonId: id,
+        financialYearId: null,
+        value: 10,
+      })),
+      { resultFieldId: 1, reportingSeasonId: null, financialYearId: 2028, value: 0 },
+      // A seasonal estimate of the profit is ignored.
+      { resultFieldId: 2, reportingSeasonId: 20262, financialYearId: null, value: 50 },
+      ...[2026, 2027, 2028].map((id) => ({ resultFieldId: 2, reportingSeasonId: null, financialYearId: id, value: 10 })),
+    ],
+  });
+
+  it("has no seasonal values", () => {
+    for (const id of [20251, 20261, 20262, 20271]) {
+      assert.equal(prediction.quarterly[2][id].value, null);
+      assert.equal(prediction.quarterly[3][id].value, null);
+      assert.equal(prediction.quarterly[4][id].value, null);
+    }
+  });
+
+  it("uses the actual yearly value of a year with data", () => {
+    assert.deepEqual(prediction.yearly[2][2025], { value: 40 * M, source: "actual", change: null });
+    assert.equal(prediction.yearly[3][2025].value, 10);
+    assert.equal(prediction.yearly[3][2025].source, "actual");
+    assert.equal(prediction.yearly[4][2025].value, 15 * M);
+    assert.equal(prediction.yearly[4][2025].source, "actual");
+  });
+
+  it("estimates years formed from their seasons as a whole", () => {
+    assert.equal(Math.round(prediction.yearly[2][2026].value!), 44 * M);
+    assert.equal(prediction.yearly[2][2026].source, "estimate");
+    assert.equal(Math.round(prediction.yearly[2][2026].change!), 10);
+    assert.equal(Math.round(prediction.yearly[2][2027].value!), 48.4 * M);
+    assert.equal(Math.round(prediction.yearly[2][2028].value!), 53.24 * M);
+  });
+
+  it("calculates fields from the yearly values", () => {
+    // 44 / 440 of revenue.
+    assert.ok(Math.abs(prediction.yearly[3][2026].value! - 10) < 1e-9);
+    assert.equal(prediction.yearly[3][2026].source, "estimate");
+    assert.equal(Math.round(prediction.yearly[4][2026].value!), 22 * M);
+    assert.equal(prediction.yearly[4][2026].source, "estimate");
+    assert.equal(Math.round(prediction.yearly[4][2028].value!), 26.62 * M);
+  });
+
+  it("finds years with data", async () => {
+    const { yearsWithData } = await import("./estimates.ts");
+    assert.deepEqual([...yearsWithData({ 2: { 2025: BigInt(1), 2026: null } })], [2025]);
   });
 });
 

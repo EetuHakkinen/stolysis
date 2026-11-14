@@ -64,11 +64,14 @@ model FinancialYear {
   unit      Unit?
   startTime DateTime? @map("start_time")
   endTime   DateTime? @map("end_time")
+  // A person has checked the year's values of fields reported only yearly.
+  confirmed Boolean   @default(false)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
 
   company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   reportingSeasons ReportingSeason[]
+  resultRows       ResultRow[]
   estimateRows     EstimateRow[]
   valuations       CompanyValuation[]
 
@@ -130,6 +133,9 @@ enum YearlyValue {
   sum
   // Value of the last season, e.g. nettovelka.
   last_period
+  // The field is reported only for whole financial years, e.g. kauden voitto in a financial
+  // statements release. Its years have values of their own, and its seasons have none.
+  yearly_only
 
   @@map("yearly_value")
 }
@@ -197,11 +203,14 @@ model FieldDefinition {
   @@map("field_definition")
 }
 
-// The value of a result field for one reporting season, in whole euros. Insert-only: a new
-// value is a new row, and the latest row (by createdAt, id) per season and field is current.
+// The value of a result field for one reporting season, or for a financial year when the field is
+// reported only yearly, in whole euros. Exactly one of the period ids is set (enforced by a check
+// constraint in the migration). Insert-only: a new value is a new row, and the latest row (by
+// createdAt, id) per period and field is current.
 model ResultRow {
   id                Int      @id @default(autoincrement())
-  reportingSeasonId Int      @map("reporting_season")
+  reportingSeasonId Int?     @map("reporting_season")
+  financialYearId   Int?     @map("financial_year")
   resultFieldId     Int      @map("result_field")
   value             BigInt?
   // News whose report the value was extracted from; null for values entered by hand.
@@ -209,11 +218,13 @@ model ResultRow {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
-  reportingSeason ReportingSeason @relation(fields: [reportingSeasonId], references: [id], onDelete: Cascade)
-  resultField     ResultField     @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
-  news            News?           @relation(fields: [newsId], references: [id], onDelete: SetNull)
+  reportingSeason ReportingSeason? @relation(fields: [reportingSeasonId], references: [id], onDelete: Cascade)
+  financialYear   FinancialYear?   @relation(fields: [financialYearId], references: [id], onDelete: Cascade)
+  resultField     ResultField      @relation(fields: [resultFieldId], references: [id], onDelete: Cascade)
+  news            News?            @relation(fields: [newsId], references: [id], onDelete: SetNull)
 
   @@index([reportingSeasonId, resultFieldId, createdAt(sort: Desc)])
+  @@index([financialYearId, resultFieldId, createdAt(sort: Desc)])
   @@map("result_row")
 }
 

@@ -143,7 +143,7 @@ const saveSchema = z
   .refine((input) => (input.reportingSeasonId == null) !== (input.financialYearId == null));
 
 // Saves a result field's estimate for a reporting season or a financial year as a new row, with
-// the field's current estimate type. Value is a percent for relative estimates and euros for
+// the field's current estimate type. Fields reported only yearly are estimated only for years. Value is a percent for relative estimates and euros for
 // absolute ones (a percent for percent fields), stored rounded to hundredths of a percent or whole
 // euros; null clears the estimate.
 export async function saveEstimate(input: {
@@ -173,6 +173,7 @@ export async function saveEstimate(input: {
         id: resultFieldId,
         resultFieldGroup: { companyId },
         fieldDefinitions: { none: { kind: "estimate" } },
+        ...(reportingSeasonId != null && { yearlyValue: { not: "yearly_only" } }),
       },
       select: { estimateType: true, valueFormat: true },
     }),

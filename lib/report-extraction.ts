@@ -4,10 +4,13 @@ import type { Unit } from "@/app/generated/prisma/client";
 import { seasonMonths } from "@/lib/financial-year";
 import { structuredCompletion } from "@/lib/openrouter";
 import { prisma } from "@/lib/prisma";
-import { findOrCreateReportingSeason, parseLocalDate } from "@/lib/reporting-season";
+import { findFinancialYear, findOrCreateReportingSeason, parseLocalDate } from "@/lib/reporting-season";
+
+// Category of news whose report also has the figures of the whole financial year.
+const STATEMENTS_CATEGORY = "Tilinpäätöstiedote";
 
 // Categories of news whose PDF attachment is a report with an income statement.
-const REPORT_CATEGORIES = ["Osavuosikatsaus", "Tilinpäätöstiedote"];
+const REPORT_CATEGORIES = ["Osavuosikatsaus", STATEMENTS_CATEGORY];
 
 // Only news in these categories are worth extracting results from.
 export function isReportCategory(categoryName: string): boolean {
@@ -25,10 +28,27 @@ const PERIODS: Record<number, string> = {
   12: "the report's financial year (for example 1–12/2026 in a financial statements release)",
 };
 
-function instructions(months: number) {
-  return `You extract financial figures from the attached PDF report of a Finnish listed company: an interim report, a half-year report or a financial statements release.
+// Fields reported only yearly are read from financial statements releases, for the whole year.
+function yearlyInstructions(readYearly: boolean) {
+  return readYearly
+    ? "Also return figures for the report's whole financial year (for example 1–12/2026) and for the previous financial year, only for the fields listed for `yearly`."
+    : "Return `yearly` and `referenceYearly` as empty lists, with the report's financial year and the previous one as their periods.";
+}
+
+function fieldList(fields: { id: number; name: string }[]) {
+  return fields.length > 0 ? fields.map((field) => `- ${fieldKey(field.id)}: ${field.name}`) : ["(none)"];
+}
+
+function instructions(
+  months: number,
+  periodFields: { id: number; name: string }[],
+  yearlyFields: { id: number; name: string }[] | undefined,
+) {
+  const lines = [
+    `You extract financial figures from the attached PDF report of a Finnish listed company: an interim report, a half-year report or a financial statements release.
 
 Return figures for ${PERIODS[months]} and for the same period one year earlier. Prefer the consolidated income statement.
+${yearlyInstructions(yearlyFields != null)}
 
 Rules:
 - Use only figures printed in the report. Never calculate, estimate or infer a figure, for example from cumulative or full-year figures. If a field's figure isn't printed for a period, leave the field out of that period's list.
@@ -36,7 +56,13 @@ Rules:
 - Signs by effect on profit: income and profits positive; costs, expenses, depreciation, taxes and losses negative, regardless of how the report prints them.
 - Return all figures in the unit you report in \`unit\`, as plain numbers (the report may use decimal commas and spaces as thousand separators).
 
-Fields (names in Finnish):`;
+Fields for \`current\` and \`reference\` (names in Finnish):`,
+    ...fieldList(periodFields),
+  ];
+  if (yearlyFields) {
+    lines.push("", "Fields for `yearly` and `referenceYearly` (names in Finnish):", ...fieldList(yearlyFields));
+  }
+  return lines.join("\n");
 }
 
 const periodSchema = z.object({
@@ -61,6 +87,10 @@ function reportSchema(fields: { id: number }[]) {
     referencePeriod: periodSchema.describe("The same period one year earlier"),
     current: figures.describe("Figures for `period`"),
     reference: figures.describe("Figures for `referencePeriod`"),
+    yearPeriod: periodSchema.describe("The report's financial year"),
+    referenceYearPeriod: periodSchema.describe("The previous financial year"),
+    yearly: figures.describe("Figures for `yearPeriod`"),
+    referenceYearly: figures.describe("Figures for `referenceYearPeriod`"),
   });
 }
 
@@ -127,7 +157,15 @@ async function downloadPdf(url: string): Promise<string | undefined> {
 }
 
 export type ExtractResultsResult =
-  | { saved: true; seasonId: number; referenceSeasonId: number; rowCount: number }
+  | {
+      saved: true;
+      seasonId: number;
+      referenceSeasonId: number;
+      // Financial years of the yearly figures; null when none were read or the year wasn't found.
+      yearId: number | null;
+      referenceYearId: number | null;
+      rowCount: number;
+    }
   | {
       saved: false;
       reason: "notFound" | "notReport" | "noPdf" | "noFields" | "invalidPeriod" | "noSeason";
@@ -136,9 +174,10 @@ export type ExtractResultsResult =
 // Extracts the income statement figures of the report attached to a news item with AI and saves
 // them for the report's latest reporting season (a quarter, half-year or financial year, as long as
 // the company's seasons) and the same season a year earlier, creating the earlier financial year
-// when missing. Report season values are added unless the season is confirmed; reference season
-// values only where the season has no value yet (also unless confirmed). Fields calculated from
-// actual values are skipped.
+// when missing. Fields reported only yearly are read from financial statements releases instead,
+// for the report's financial year and the previous one. Report period values are added unless the
+// season or year is confirmed; reference period values only where the period has no value yet
+// (also unless confirmed). Fields calculated from actual values are skipped.
 export async function extractResultsFromNews(newsId: number): Promise<ExtractResultsResult> {
   const news = await prisma.news.findUnique({
     where: { id: newsId },
@@ -156,13 +195,18 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
     await prisma.resultField.findMany({
       where: { resultFieldGroup: { companyId: news.companyId }, fieldDefinitions: { none: { kind: "actual" } } },
       orderBy: [{ resultFieldGroup: { order: "asc" } }, { order: "asc" }, { id: "asc" }],
-      select: { id: true, name: true, resultFieldGroup: { select: { name: true } } },
+      select: { id: true, name: true, yearlyValue: true, resultFieldGroup: { select: { name: true } } },
     })
   ).map((field) => ({
     id: field.id,
     name: [field.resultFieldGroup.name, field.name].filter(Boolean).join(": "),
+    yearlyOnly: field.yearlyValue === "yearly_only",
   }));
-  if (fields.length === 0) return { saved: false, reason: "noFields" };
+  const periodFields = fields.filter((field) => !field.yearlyOnly);
+  const yearlyFields =
+    news.category.name === STATEMENTS_CATEGORY ? fields.filter((field) => field.yearlyOnly) : [];
+  const readYearly = yearlyFields.length > 0;
+  if (periodFields.length === 0 && !readYearly) return { saved: false, reason: "noFields" };
 
   // Reporting seasons are as long as in the company's latest financial year.
   const latestYear = await prisma.financialYear.findFirst({
@@ -179,12 +223,9 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
 
   const report = await structuredCompletion({
     schemaName: "report_figures",
-    schema: reportSchema(fields),
+    schema: reportSchema([...periodFields, ...yearlyFields]),
     messages: [
-      {
-        role: "system",
-        content: [instructions(months), ...fields.map((field) => `- ${fieldKey(field.id)}: ${field.name}`)].join("\n"),
-      },
+      { role: "system", content: instructions(months, periodFields, readYearly ? yearlyFields : undefined) },
       {
         role: "user",
         content: [
@@ -202,10 +243,18 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
   const period = parsePeriod(report.period);
   const referencePeriod = parsePeriod(report.referencePeriod);
   if (!period || !referencePeriod) return { saved: false, reason: "invalidPeriod" };
+  // Yearly figures are skipped when their periods are invalid; the seasons' figures are still saved.
+  const yearPeriod = readYearly ? parsePeriod(report.yearPeriod) : undefined;
+  const referenceYearPeriod = readYearly ? parsePeriod(report.referenceYearPeriod) : undefined;
 
   const multiplier = UNIT_MULTIPLIERS[report.unit];
-  const values = { current: figureValues(report.current), reference: figureValues(report.reference) };
-  const valueOf = (fieldId: number, key: "current" | "reference") => {
+  const values = {
+    current: figureValues(report.current),
+    reference: figureValues(report.reference),
+    yearly: figureValues(report.yearly),
+    referenceYearly: figureValues(report.referenceYearly),
+  };
+  const valueOf = (fieldId: number, key: keyof typeof values) => {
     const value = values[key].get(fieldKey(fieldId));
     return value === undefined ? undefined : BigInt(Math.round(value * multiplier));
   };
@@ -215,41 +264,66 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
       const season = await findOrCreateReportingSeason(tx, news.companyId, period);
       const referenceSeason = await findOrCreateReportingSeason(tx, news.companyId, referencePeriod);
       if (!season || !referenceSeason) return { saved: false, reason: "noSeason" } as const;
+      // The seasons' financial years were created above when missing.
+      const year = yearPeriod && (await findFinancialYear(tx, news.companyId, yearPeriod));
+      const referenceYear =
+        referenceYearPeriod && (await findFinancialYear(tx, news.companyId, referenceYearPeriod));
 
-      // A field may have become calculated while the report was being read.
-      const calculated = new Set(
-        (
-          await tx.fieldDefinition.findMany({
-            where: { kind: "actual", resultFieldId: { in: fields.map((field) => field.id) } },
-            select: { resultFieldId: true },
-          })
-        ).map((definition) => definition.resultFieldId),
-      );
-      const savedFields = fields.filter((field) => !calculated.has(field.id));
+      // A field may have become calculated, or reported only yearly or not, while the report was
+      // being read.
+      const current = await tx.resultField.findMany({
+        where: { id: { in: fields.map((field) => field.id) }, fieldDefinitions: { none: { kind: "actual" } } },
+        select: { id: true, yearlyValue: true },
+      });
+      const yearlyOnly = new Map(current.map((field) => [field.id, field.yearlyValue === "yearly_only"]));
+      const savedPeriodFields = periodFields.filter((field) => yearlyOnly.get(field.id) === false);
+      const savedYearlyFields = yearlyFields.filter((field) => yearlyOnly.get(field.id) === true);
 
       // result_row is insert-only, so new values are new rows.
-      const rows: { reportingSeasonId: number; resultFieldId: number; value: bigint }[] = [];
-      if (!season.confirmed) {
-        for (const field of savedFields) {
-          const value = valueOf(field.id, "current");
-          if (value !== undefined) rows.push({ reportingSeasonId: season.id, resultFieldId: field.id, value });
-        }
-      }
-      if (!referenceSeason.confirmed) {
+      type Period = { reportingSeasonId: number } | { financialYearId: number };
+      const rows: (Period & { resultFieldId: number; value: bigint })[] = [];
+      // Values of the fields for the period unless it's confirmed; with onlyEmpty, only for fields
+      // that have no value for it yet.
+      const addRows = async (
+        period: Period,
+        confirmed: boolean,
+        savedFields: { id: number }[],
+        key: keyof typeof values,
+        onlyEmpty: boolean,
+      ) => {
+        if (confirmed) return;
         const filled = new Set(
-          (
-            await tx.resultRow.findMany({
-              where: { reportingSeasonId: referenceSeason.id, value: { not: null } },
-              select: { resultFieldId: true },
-            })
-          ).map((row) => row.resultFieldId),
+          onlyEmpty
+            ? (
+                await tx.resultRow.findMany({
+                  where: { ...period, value: { not: null } },
+                  select: { resultFieldId: true },
+                })
+              ).map((row) => row.resultFieldId)
+            : [],
         );
         for (const field of savedFields) {
-          const value = valueOf(field.id, "reference");
-          if (value !== undefined && !filled.has(field.id)) {
-            rows.push({ reportingSeasonId: referenceSeason.id, resultFieldId: field.id, value });
-          }
+          const value = valueOf(field.id, key);
+          if (value !== undefined && !filled.has(field.id)) rows.push({ ...period, resultFieldId: field.id, value });
         }
+      };
+      await addRows({ reportingSeasonId: season.id }, season.confirmed, savedPeriodFields, "current", false);
+      await addRows(
+        { reportingSeasonId: referenceSeason.id },
+        referenceSeason.confirmed,
+        savedPeriodFields,
+        "reference",
+        true,
+      );
+      if (year) await addRows({ financialYearId: year.id }, year.confirmed, savedYearlyFields, "yearly", false);
+      if (referenceYear) {
+        await addRows(
+          { financialYearId: referenceYear.id },
+          referenceYear.confirmed,
+          savedYearlyFields,
+          "referenceYearly",
+          true,
+        );
       }
 
       await tx.resultRow.createMany({ data: rows.map((row) => ({ ...row, newsId })) });
@@ -257,6 +331,8 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
         saved: true,
         seasonId: season.id,
         referenceSeasonId: referenceSeason.id,
+        yearId: year?.id ?? null,
+        referenceYearId: referenceYear?.id ?? null,
         rowCount: rows.length,
       } as const;
     },

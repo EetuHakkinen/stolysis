@@ -12,6 +12,7 @@ import {
   loadScenarios,
   loadTypedFieldIds,
   resultGroupsAsOf,
+  yearlyActualValues,
 } from "@/lib/company-data";
 import { predictCompany, type PeriodValue } from "@/lib/estimates";
 import { endOfNoteDay } from "@/lib/note-date";
@@ -72,6 +73,7 @@ export function noteSnapshot(data: SnapshotData, date: string): NoteSnapshot {
   const asOf = endOfNoteDay(date);
   const groups = resultGroupsAsOf(data.groups, asOf);
   const actuals = actualValues(groups);
+  const yearlyActuals = yearlyActualValues(groups);
   const starred = groups.flatMap((group) =>
     group.fields
       .filter((field) => field.starred)
@@ -95,6 +97,7 @@ export function noteSnapshot(data: SnapshotData, date: string): NoteSnapshot {
       years,
       fields: data.fields,
       actuals,
+      yearlyActuals,
       estimates: id == null ? [] : estimates[id],
     });
     const values = Object.fromEntries(

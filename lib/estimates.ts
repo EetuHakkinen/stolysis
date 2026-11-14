@@ -39,8 +39,12 @@ export type EstimateInput = {
 };
 
 // Actual values in whole euros by result field id and reporting season id. Fields calculated from
-// actual values have none.
+// actual values and fields reported only yearly have none.
 export type ActualValues = Record<number, Record<number, bigint | null>>;
+
+// Actual values of fields reported only yearly, in whole euros by result field id and financial
+// year id. Fields calculated from actual values have none.
+export type YearlyActualValues = Record<number, Record<number, bigint | null>>;
 
 export type PeriodValue = {
   // Actual or predicted value in whole euros.
@@ -78,16 +82,27 @@ export function fromStoredEstimate(type: EstimateType, valueFormat: ValueFormat,
   return Number(value) / storedScale(type, valueFormat);
 }
 
-// Reporting seasons with any data: at least one field's latest value isn't null. In those seasons
-// every field uses its actual value, and no estimates are needed.
-export function seasonsWithData(actuals: ActualValues): Set<number> {
-  const seasons = new Set<number>();
-  for (const values of Object.values(actuals)) {
-    for (const [seasonId, value] of Object.entries(values)) {
-      if (value != null) seasons.add(Number(seasonId));
+// Periods with any data: at least one field's latest value isn't null.
+function periodsWithData(values: Record<number, Record<number, bigint | null>>): Set<number> {
+  const periods = new Set<number>();
+  for (const fieldValues of Object.values(values)) {
+    for (const [periodId, value] of Object.entries(fieldValues)) {
+      if (value != null) periods.add(Number(periodId));
     }
   }
-  return seasons;
+  return periods;
+}
+
+// Reporting seasons with any data. In those seasons every field uses its actual value, and no
+// estimates are needed.
+export function seasonsWithData(actuals: ActualValues): Set<number> {
+  return periodsWithData(actuals);
+}
+
+// Financial years with any data from fields reported only yearly. In those years every such field
+// uses its actual value, and no estimates are needed.
+export function yearsWithData(yearlyActuals: YearlyActualValues): Set<number> {
+  return periodsWithData(yearlyActuals);
 }
 
 // The season a year earlier in the same position, when the previous year is divided the same way.
@@ -114,6 +129,10 @@ function periodValue(
 ): PeriodValue {
   if (value == null) return EMPTY;
   return { value, source, change: percentChange(value, comparison) };
+}
+
+function actualValue(actual: bigint | null | undefined, comparison: number | null): PeriodValue {
+  return periodValue(actual == null ? null : Number(actual), "actual", comparison);
 }
 
 function estimatedValue(
@@ -174,24 +193,31 @@ function periodKey(fieldId: number, periodId: number) {
 // period is empty. A year formed from its seasons is their sum, or the last season's value for
 // last_period fields. The first year has nothing to compare with.
 //
+// Fields reported only yearly have no seasonal values. Every year of theirs is like a season: a
+// year with data from such fields uses their actual values, other years their yearly estimates.
+//
 // Calculated fields use their formula instead: the actual one in seasons with data and in years
 // formed from their seasons, the estimate one elsewhere. A year's formula is calculated from the
 // fields' yearly values, not summed from its seasons, so e.g. a margin is the year's margin. In
 // years formed from their seasons, fields calculated only for estimates are summed like entered
-// ones. Periods are calculated oldest first, and the
-// fields of a period in an order where a formula's fields come before it.
+// ones, or calculated with the estimate formula when reported only yearly and the year has no data.
+// Periods are calculated oldest first, and the fields of a period in an order where a formula's
+// fields come before it.
 export function predictCompany({
   years,
   fields,
   actuals,
+  yearlyActuals,
   estimates,
 }: {
   years: EstimateYear[];
   fields: EstimateField[];
   actuals: ActualValues;
+  yearlyActuals: YearlyActualValues;
   estimates: EstimateInput[];
 }): CompanyPrediction {
   const withData = seasonsWithData(actuals);
+  const yearsWithYearlyData = yearsWithData(yearlyActuals);
   const quarterlyInputs = new Map<string, number | null>();
   const yearlyInputs = new Map<string, number | null>();
   for (const estimate of estimates) {
@@ -210,6 +236,18 @@ export function predictCompany({
   const actualFormulas = formulasOf("actualDefinition");
   const estimateFormulas = formulasOf("estimateDefinition");
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
+  const yearlyOnly = fields.filter((field) => field.yearlyValue === "yearly_only");
+
+  // Formulas of a year formed from its seasons: the actual ones, and the estimate ones of fields
+  // reported only yearly when the year has no data for them.
+  const seasonYearFormulas = (hasYearlyData: boolean) => {
+    if (hasYearlyData || !yearlyOnly.some((field) => !field.actualDefinition && field.estimateDefinition))
+      return actualFormulas;
+    const formulas = new Map(actualFormulas.formulas);
+    for (const field of yearlyOnly)
+      if (!field.actualDefinition && field.estimateDefinition) formulas.set(field.id, field.estimateDefinition);
+    return { formulas, order: evaluationOrder(fieldIds, formulas) };
+  };
 
   const prediction: CompanyPrediction = { quarterly: {}, yearly: {} };
   for (const field of fields) {
@@ -230,7 +268,9 @@ export function predictCompany({
         const field = fieldsById.get(fieldId)!;
         const comparison = comparisonId == null ? null : quarterly[fieldId][comparisonId].value;
         const formula = formulas.get(fieldId);
-        if (formula) {
+        if (field.yearlyValue === "yearly_only") {
+          quarterly[fieldId][season.id] = EMPTY;
+        } else if (formula) {
           const periodId = (period: FormulaPeriod) => (period === "current" ? season.id : comparisonId);
           quarterly[fieldId][season.id] = calculatedValue(
             formula,
@@ -239,8 +279,7 @@ export function predictCompany({
             comparison,
           );
         } else if (hasData) {
-          const actual = actuals[fieldId]?.[season.id];
-          quarterly[fieldId][season.id] = periodValue(actual == null ? null : Number(actual), "actual", comparison);
+          quarterly[fieldId][season.id] = actualValue(actuals[fieldId]?.[season.id], comparison);
         } else {
           const input = quarterlyInputs.get(periodKey(fieldId, season.id));
           quarterly[fieldId][season.id] = estimatedValue(field.estimateType, input, comparison);
@@ -248,11 +287,15 @@ export function predictCompany({
       }
     });
 
+    const hasYearlyData = yearsWithYearlyData.has(year.id);
     const allData =
-      year.fromSeasons && year.seasons.length > 0 && year.seasons.every((season) => withData.has(season.id));
+      year.fromSeasons &&
+      year.seasons.length > 0 &&
+      year.seasons.every((season) => withData.has(season.id)) &&
+      (yearlyOnly.length === 0 || hasYearlyData);
     // A year formed from its seasons has a value for every field from them, so it's calculated as
     // if it had data.
-    const { formulas, order } = year.fromSeasons ? actualFormulas : estimateFormulas;
+    const { formulas, order } = year.fromSeasons ? seasonYearFormulas(hasYearlyData) : estimateFormulas;
     for (const fieldId of order) {
       const field = fieldsById.get(fieldId)!;
       const comparison = previousYear ? yearly[fieldId][previousYear.id].value : null;
@@ -266,11 +309,15 @@ export function predictCompany({
             allData ? "actual" : "estimate",
             comparison,
           )
-        : year.fromSeasons
-          ? field.yearlyValue === "last_period"
-            ? lastValue(seasons, comparison)
-            : summedValue(seasons, comparison)
-          : estimatedValue(field.estimateType, yearlyInputs.get(periodKey(fieldId, year.id)), comparison);
+        : field.yearlyValue === "yearly_only"
+          ? hasYearlyData
+            ? actualValue(yearlyActuals[fieldId]?.[year.id], comparison)
+            : estimatedValue(field.estimateType, yearlyInputs.get(periodKey(fieldId, year.id)), comparison)
+          : year.fromSeasons
+            ? field.yearlyValue === "last_period"
+              ? lastValue(seasons, comparison)
+              : summedValue(seasons, comparison)
+            : estimatedValue(field.estimateType, yearlyInputs.get(periodKey(fieldId, year.id)), comparison);
     }
   });
 

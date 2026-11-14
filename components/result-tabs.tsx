@@ -46,9 +46,11 @@ import { ValuePerShareTable } from "@/components/value-per-share-table";
 import {
   predictCompany,
   seasonsWithData,
+  yearsWithData,
   type ActualValues,
   type EstimateInput,
   type EstimateYear,
+  type YearlyActualValues,
 } from "@/lib/estimates";
 import { calculateDcf } from "@/lib/dcf";
 import { costOfEquity, wacc, type DiscountValues } from "@/lib/discounting";
@@ -90,6 +92,7 @@ export function ResultTabs({
   stockPrices: StockPricePoint[];
 }) {
   const t = useTranslations("Results");
+  const tEditor = useTranslations("ResultEditor");
   const { selectedId, select } = useSelectedScenario();
   const [edits, setEdits] = useState<Record<string, number | null>>({});
   // Saved multiple values by scenario id, then by multiple id.
@@ -103,7 +106,17 @@ export function ResultTabs({
       Object.fromEntries(groups.flatMap((group) => group.fields.map((field) => [field.id, field.values]))),
     [groups],
   );
+  const yearlyActuals = useMemo<YearlyActualValues>(
+    () =>
+      Object.fromEntries(
+        groups.flatMap((group) =>
+          group.fields.filter((field) => field.yearlyOnly).map((field) => [field.id, field.yearlyValues]),
+        ),
+      ),
+    [groups],
+  );
   const withData = useMemo(() => seasonsWithData(actuals), [actuals]);
+  const yearlyWithData = useMemo(() => yearsWithData(yearlyActuals), [yearlyActuals]);
 
   // The scenario's current estimates with the edits made here.
   const inputs = useMemo(() => {
@@ -127,8 +140,8 @@ export function ResultTabs({
         value,
       };
     });
-    return predictCompany({ years, fields, actuals, estimates: scenarioEstimates });
-  }, [inputs, years, fields, actuals]);
+    return predictCompany({ years, fields, actuals, yearlyActuals, estimates: scenarioEstimates });
+  }, [inputs, years, fields, actuals, yearlyActuals]);
 
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const tableGroups = groups.map((group) => ({
@@ -139,6 +152,7 @@ export function ResultTabs({
       valueFormat: field.valueFormat,
       estimateType: fieldsById.get(field.id)?.estimateType ?? "relative",
       calculated: fieldsById.get(field.id)?.estimateDefinition != null,
+      yearlyOnly: field.yearlyOnly,
     })),
   }));
 
@@ -165,23 +179,47 @@ export function ResultTabs({
     return <ResultGraphs graphs={shown} fields={graphFields} columns={columns} values={values} />;
   }
 
-  function resultTables(columns: ResultColumn[]) {
+  // Quarterly results can be edited for seasons that have ended, except for fields calculated from
+  // other fields and fields reported only yearly.
+  function quarterlyTab() {
+    const columns = quarterlyResultColumns(seasons, isEstimated);
+    const ended = new Set(seasons.filter((season) => season.ended).map((season) => season.id));
     return (
       <>
-        {groups.map((group) => (
-          <ResultTable key={group.id} name={group.name} fields={group.fields} columns={columns} values={values} />
-        ))}
+        <ResultEditor
+          companyId={companyId}
+          groups={groups}
+          columns={columns}
+          values={values}
+          editable={(field, column) =>
+            !field.calculated && !field.yearlyOnly && ended.has(column.period.reportingSeasonId!)
+          }
+          description={tEditor("description")}
+        />
         {resultGraphs(columns)}
       </>
     );
   }
 
-  // Quarterly results can be edited for seasons that have ended.
-  function quarterlyTab() {
-    const columns = quarterlyResultColumns(seasons, isEstimated);
+  // Yearly results of fields reported only yearly can be edited for years that have ended; the
+  // other fields' years are formed from their seasons.
+  function yearlyTab() {
+    const columns = yearlyResultColumns(seasons, isEstimated);
+    const ended = new Set(
+      seasons.filter((season) => season.financialYear.ended).map((season) => season.financialYear.id),
+    );
     return (
       <>
-        <ResultEditor companyId={companyId} seasons={seasons} groups={groups} columns={columns} values={values} />
+        <ResultEditor
+          companyId={companyId}
+          groups={groups}
+          columns={columns}
+          values={values}
+          editable={(field, column) =>
+            !field.calculated && field.yearlyOnly && ended.has(column.period.financialYearId!)
+          }
+          description={tEditor("yearlyDescription")}
+        />
         {resultGraphs(columns)}
       </>
     );
@@ -368,7 +406,7 @@ export function ResultTabs({
     { value: "summary", content: summaryTab() },
     { value: "stockPrice", content: <StockPriceChart prices={stockPrices} /> },
     { value: "quarterly", content: quarterlyTab() },
-    { value: "yearly", content: resultTables(yearlyResultColumns(seasons, isEstimated)) },
+    { value: "yearly", content: yearlyTab() },
     {
       value: "quarterlyEstimates",
       content: estimateTables(
@@ -379,7 +417,7 @@ export function ResultTabs({
     {
       value: "yearlyEstimates",
       content: estimateTables(
-        (current) => yearlyEstimateColumns(years, current),
+        (current) => yearlyEstimateColumns(years, current, yearlyWithData),
         (current) => yearlyGraphColumns(years, current, isEstimated),
       ),
     },

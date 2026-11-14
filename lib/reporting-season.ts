@@ -77,3 +77,16 @@ export async function findOrCreateReportingSeason(
   });
   return (await findSeason()) ?? undefined;
 }
+
+// The company's financial year covering exactly the given days, if any.
+export async function findFinancialYear(
+  tx: Prisma.TransactionClient,
+  companyId: number,
+  period: { start: LocalDate; end: LocalDate },
+): Promise<{ id: number; confirmed: boolean } | undefined> {
+  const year = await tx.financialYear.findFirst({
+    where: { companyId, startTime: startOfDay(period.start), endTime: endOfDay(period.end) },
+    select: { id: true, confirmed: true },
+  });
+  return year ?? undefined;
+}

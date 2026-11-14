@@ -147,6 +147,7 @@
   "ResultEditor": {
     "edit": "Edit results",
     "description": "Results of ended reporting seasons can be edited. Saved seasons are marked as checked, so later reports won't change them.",
+    "yearlyDescription": "Results of fields reported only yearly can be edited for ended financial years. Saved years are marked as checked, so later reports won't change them.",
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving…",
@@ -334,10 +335,12 @@
     "deleteDescription": "Result field {name} and its estimates will be deleted permanently.",
     "name": "Name",
     "group": "Group",
+    "yearlyValueDescription": "A field reported only yearly has results and estimates for whole financial years instead of quarters. Its figure is read from the financial statements release.",
     "yearlyValue": "Yearly value",
     "yearlyValues": {
       "sum": "Sum of quarters",
-      "last_period": "Last quarter"
+      "last_period": "Last quarter",
+      "yearly_only": "Yearly only"
     },
     "valueFormat": "Value format",
     "valueFormats": {

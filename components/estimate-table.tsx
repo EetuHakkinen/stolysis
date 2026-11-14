@@ -19,6 +19,9 @@ export type EstimateColumn = PeriodTableColumn & {
   period: EstimatePeriod;
   // Comparison periods and years summed from seasons are shown read-only.
   editable: boolean;
+  // Fields reported only yearly are estimated for years without data from such fields, and never
+  // for seasons.
+  yearlyOnlyEditable: boolean;
 };
 
 function yearUnit(year: EstimateYear): Unit {
@@ -54,13 +57,19 @@ export function quarterlyEstimateColumns(
         unit: yearUnit(year),
         period: { reportingSeasonId: season.id, financialYearId: null },
         editable: shown.get(season.id)!,
+        yearlyOnlyEditable: false,
       })),
   );
 }
 
 // The previous financial year as the comparison period, the current one and the years after it.
-// Years summed from their seasons are read-only.
-export function yearlyEstimateColumns(years: EstimateYear[], currentYearId: number): EstimateColumn[] {
+// Years summed from their seasons are read-only, except for fields reported only yearly in years
+// without data from such fields.
+export function yearlyEstimateColumns(
+  years: EstimateYear[],
+  currentYearId: number,
+  yearsWithData: Set<number>,
+): EstimateColumn[] {
   const current = years.findIndex((year) => year.id === currentYearId);
   return years.slice(Math.max(0, current - 1)).map((year) => ({
     key: `year-${year.id}`,
@@ -68,6 +77,7 @@ export function yearlyEstimateColumns(years: EstimateYear[], currentYearId: numb
     unit: yearUnit(year),
     period: { reportingSeasonId: null, financialYearId: year.id },
     editable: !year.fromSeasons,
+    yearlyOnlyEditable: !yearsWithData.has(year.id),
   }));
 }
 
@@ -78,6 +88,8 @@ export type EstimateTableField = {
   estimateType: EstimateType;
   valueFormat: ValueFormat;
   calculated: boolean;
+  // Reported only yearly (see EstimateColumn.yearlyOnlyEditable).
+  yearlyOnly: boolean;
 };
 
 // One result field group's estimates, with result fields as rows and periods as columns. Editable
@@ -107,7 +119,7 @@ export function EstimateTable({
       fields={fields}
       columns={columns}
       cell={(field, column) =>
-        column.editable && !field.calculated ? (
+        (field.yearlyOnly ? column.yearlyOnlyEditable : column.editable) && !field.calculated ? (
           <EstimateCell
             type={field.estimateType}
             unit={column.unit}

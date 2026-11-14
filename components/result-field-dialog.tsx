@@ -149,6 +149,7 @@ export function ResultFieldDialog({
                 onChange={(yearlyValue) => set("yearlyValue", yearlyValue)}
                 disabled={pending}
               />
+              <FieldDescription>{t("yearlyValueDescription")}</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="result-field-value-format">{t("valueFormat")}</FieldLabel>

@@ -7,6 +7,7 @@ import {
   type EstimateField,
   type EstimateInput,
   type EstimateYear,
+  type YearlyActualValues,
 } from "@/lib/estimates";
 import { fieldFormulas } from "@/lib/formulas";
 import { latestRows, rowsAsOf } from "@/lib/latest-rows";
@@ -33,9 +34,15 @@ export type ResultGroup = {
     starred: boolean;
     // Calculated from other fields' actual values, so results can't be saved for it.
     calculated: boolean;
+    // Reported only for whole financial years: results are saved for years instead of seasons.
+    yearlyOnly: boolean;
     // Value in whole euros by reporting season id; seasons without a value are missing. Empty for
-    // fields calculated from actual values: their values are calculated with the estimates.
+    // fields reported only yearly, and for fields calculated from actual values: their values are
+    // calculated with the estimates.
     values: Record<number, bigint | null>;
+    // Value in whole euros by financial year id, like values. Only fields reported only yearly
+    // have them.
+    yearlyValues: Record<number, bigint | null>;
   }[];
 };
 
@@ -53,13 +60,14 @@ export function loadResultGroups(companyId: number) {
           id: true,
           name: true,
           valueFormat: true,
+          yearlyValue: true,
           starred: true,
           // Rows saved before the field became calculated are ignored.
           fieldDefinitions: { where: { kind: "actual" }, select: { id: true } },
-          // result_row is insert-only: newest first, so the first row per season is current.
+          // result_row is insert-only: newest first, so the first row per period is current.
           resultRows: {
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            select: { reportingSeasonId: true, value: true, createdAt: true },
+            select: { reportingSeasonId: true, financialYearId: true, value: true, createdAt: true },
           },
         },
       },
@@ -69,15 +77,24 @@ export function loadResultGroups(companyId: number) {
 
 export type LoadedResultGroups = Awaited<ReturnType<typeof loadResultGroups>>;
 
-// The groups with each field's latest value per season at asOf.
+// The groups with each field's latest value per period at asOf. Rows of the other kind of period
+// than the field's are ignored, e.g. seasonal rows saved before the field became reported only
+// yearly.
 export function resultGroupsAsOf(groups: LoadedResultGroups, asOf?: Date): ResultGroup[] {
   return groups.map(({ resultFields, ...group }) => ({
     ...group,
-    fields: resultFields.map(({ resultRows, fieldDefinitions, ...field }) => ({
-      ...field,
-      calculated: fieldDefinitions.length > 0,
-      values: fieldDefinitions.length > 0 ? {} : latestValues(rowsAsOf(resultRows, asOf)),
-    })),
+    fields: resultFields.map(({ resultRows, fieldDefinitions, yearlyValue, ...field }) => {
+      const calculated = fieldDefinitions.length > 0;
+      const yearlyOnly = yearlyValue === "yearly_only";
+      const rows = calculated ? [] : rowsAsOf(resultRows, asOf);
+      return {
+        ...field,
+        calculated,
+        yearlyOnly,
+        values: yearlyOnly ? {} : latestValues(rows, (row) => row.reportingSeasonId),
+        yearlyValues: yearlyOnly ? latestValues(rows, (row) => row.financialYearId) : {},
+      };
+    }),
   }));
 }
 
@@ -86,10 +103,20 @@ export function actualValues(groups: ResultGroup[]): ActualValues {
   return Object.fromEntries(groups.flatMap((group) => group.fields.map((field) => [field.id, field.values])));
 }
 
-// Value of the first (latest) row per reporting season.
-function latestValues(rows: { reportingSeasonId: number; value: bigint | null }[]) {
+// Actual values of the groups' fields reported only yearly by field id.
+export function yearlyActualValues(groups: ResultGroup[]): YearlyActualValues {
   return Object.fromEntries(
-    latestRows(rows, (row) => row.reportingSeasonId).map((row) => [row.reportingSeasonId, row.value]),
+    groups.flatMap((group) =>
+      group.fields.filter((field) => field.yearlyOnly).map((field) => [field.id, field.yearlyValues]),
+    ),
+  );
+}
+
+// Value of the first (latest) row per period, of rows that have the period.
+function latestValues<Row extends { value: bigint | null }>(rows: Row[], periodId: (row: Row) => number | null) {
+  const withPeriod = rows.filter((row) => periodId(row) != null);
+  return Object.fromEntries(
+    latestRows(withPeriod, (row) => periodId(row)!).map((row) => [periodId(row)!, row.value]),
   ) as Record<number, bigint | null>;
 }
 

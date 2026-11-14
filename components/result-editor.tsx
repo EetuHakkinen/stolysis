@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { PencilIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { saveResults, type ResultGroup, type ResultSeason } from "@/actions/results";
+import { saveResults, type ResultGroup } from "@/actions/results";
 import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
 import type { EstimatePeriod } from "@/components/estimate-table";
 import { FormattedValue, PeriodTable } from "@/components/period-table";
@@ -16,8 +16,15 @@ import { UNIT_DIVISORS } from "@/lib/units";
 
 type EditedField = ResultGroup["fields"][number];
 
-function cellKey(fieldId: number, seasonId: number) {
-  return `${fieldId}:${seasonId}`;
+function cellKey(fieldId: number, column: ResultColumn) {
+  return `${fieldId}:${column.key}`;
+}
+
+// Saved value of the field for the column's period.
+function savedValue(field: EditedField, { period }: ResultColumn) {
+  return period.reportingSeasonId != null
+    ? field.values[period.reportingSeasonId]
+    : field.yearlyValues[period.financialYearId!];
 }
 
 // Money is typed in the column's unit and stored in whole euros; percents are stored as is. Both are
@@ -26,23 +33,27 @@ function divisor(unit: Unit, valueFormat: ValueFormat) {
   return valueFormat === "money" ? UNIT_DIVISORS[unit] : 1;
 }
 
-// The quarterly result tables, with an edit mode for the actual values of ended reporting seasons.
-// While editing, the values are typed into inputs and kept in state; saving stores the changed ones
-// as new result rows and marks their seasons confirmed. Fields calculated from other fields and
-// seasons that haven't ended stay read-only. Leaving the page with unsaved changes asks first.
+// The result tables of reporting seasons or financial years, with an edit mode for the actual values
+// of the cells that are editable, e.g. ended seasons. While editing, the values are typed into
+// inputs and kept in state; saving stores the changed ones as new result rows and marks their
+// periods confirmed. Leaving the page with unsaved changes asks first.
 export function ResultEditor({
   companyId,
-  seasons,
   groups,
   columns,
   values,
+  editable,
+  description,
 }: {
   companyId: number;
-  seasons: ResultSeason[];
   groups: ResultGroup[];
-  // Quarterly columns: one per reporting season.
+  // One column per reporting season or per financial year.
   columns: ResultColumn[];
   values: (fieldId: number, period: EstimatePeriod) => PeriodValue | undefined;
+  // Whether the field's result for the column's period can be edited.
+  editable: (field: EditedField, column: ResultColumn) => boolean;
+  // Which values can be edited, shown while editing.
+  description: string;
 }) {
   const t = useTranslations("ResultEditor");
   const format = useFormatter();
@@ -52,14 +63,13 @@ export function ResultEditor({
   const [error, setError] = useState<"invalid" | "saveFailed">();
   const [pending, startTransition] = useTransition();
 
-  const ended = new Set(seasons.filter((season) => season.ended).map((season) => season.id));
-  const units = new Map(columns.map((column) => [column.period.reportingSeasonId!, column.unit]));
-  const fields = new Map(groups.flatMap((group) => group.fields.map((field) => [field.id, field])));
+  const fields = groups.flatMap((group) => group.fields);
+  const canEdit = fields.some((field) => columns.some((column) => editable(field, column)));
 
-  function savedText(field: EditedField, seasonId: number) {
-    const value = field.values[seasonId];
+  function savedText(field: EditedField, column: ResultColumn) {
+    const value = savedValue(field, column);
     if (value == null) return "";
-    return format.number(Number(value) / divisor(units.get(seasonId)!, field.valueFormat), {
+    return format.number(Number(value) / divisor(column.unit, field.valueFormat), {
       maximumFractionDigits: 6,
       useGrouping: false,
     });
@@ -68,20 +78,23 @@ export function ResultEditor({
   // Cells whose typed value differs from the saved one, in whole euros, or "invalid" for text that
   // isn't a number.
   function changes() {
-    const changed: { reportingSeasonId: number; resultFieldId: number; value: number | null }[] = [];
+    const changed: (EstimatePeriod & { resultFieldId: number; value: number | null })[] = [];
     const invalid = new Set<string>();
-    for (const [key, text] of Object.entries(drafts)) {
-      const [fieldId, seasonId] = key.split(":").map(Number);
-      const field = fields.get(fieldId)!;
-      const parsed = parseNumber(text);
-      if (parsed === undefined) {
-        invalid.add(key);
-        continue;
+    for (const field of fields) {
+      for (const column of columns) {
+        const key = cellKey(field.id, column);
+        const text = drafts[key];
+        if (text === undefined) continue;
+        const parsed = parseNumber(text);
+        if (parsed === undefined) {
+          invalid.add(key);
+          continue;
+        }
+        const value = parsed == null ? null : Math.round(parsed * divisor(column.unit, field.valueFormat));
+        const saved = savedValue(field, column);
+        const same = saved == null ? value == null : value != null && BigInt(value) === saved;
+        if (!same) changed.push({ ...column.period, resultFieldId: field.id, value });
       }
-      const value = parsed == null ? null : Math.round(parsed * divisor(units.get(seasonId)!, field.valueFormat));
-      const saved = field.values[seasonId];
-      const same = saved == null ? value == null : value != null && BigInt(value) === saved;
-      if (!same) changed.push({ reportingSeasonId: seasonId, resultFieldId: fieldId, value });
     }
     return { changed, invalid };
   }
@@ -115,7 +128,7 @@ export function ResultEditor({
   if (!editing) {
     return (
       <>
-        {ended.size > 0 && (
+        {canEdit && (
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
               <PencilIcon data-icon="inline-start" />
@@ -133,7 +146,7 @@ export function ResultEditor({
   return (
     <>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <p className="mr-auto text-sm text-muted-foreground">{t("description")}</p>
+        <p className="mr-auto text-sm text-muted-foreground">{description}</p>
         {error && <p className="text-sm text-destructive">{t(`errors.${error}`)}</p>}
         <Button variant="outline" size="sm" onClick={stopEditing} disabled={pending}>
           {t("cancel")}
@@ -150,8 +163,7 @@ export function ResultEditor({
           columns={columns}
           scrollFromEnd
           cell={(field, column) => {
-            const seasonId = column.period.reportingSeasonId!;
-            if (field.calculated || !ended.has(seasonId)) {
+            if (!editable(field, column)) {
               return (
                 <FormattedValue
                   value={values(field.id, column.period)?.value}
@@ -160,11 +172,11 @@ export function ResultEditor({
                 />
               );
             }
-            const key = cellKey(field.id, seasonId);
+            const key = cellKey(field.id, column);
             return (
               <div className="flex items-center justify-end gap-1">
                 <Input
-                  value={drafts[key] ?? savedText(field, seasonId)}
+                  value={drafts[key] ?? savedText(field, column)}
                   onChange={(e) => setDrafts((drafts) => ({ ...drafts, [key]: e.target.value }))}
                   inputMode="decimal"
                   aria-label={`${field.name ?? ""} ${column.label}`}

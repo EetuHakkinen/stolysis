@@ -147,6 +147,7 @@
   "ResultEditor": {
     "edit": "Muokkaa tuloksia",
     "description": "Päättyneiden raportointikausien tuloksia voi muokata. Tallennetut kaudet merkitään tarkistetuiksi, joten myöhemmät raportit eivät muuta niitä.",
+    "yearlyDescription": "Vain vuositasolla raportoitujen kenttien tuloksia voi muokata päättyneille tilikausille. Tallennetut tilikaudet merkitään tarkistetuiksi, joten myöhemmät raportit eivät muuta niitä.",
     "cancel": "Peruuta",
     "save": "Tallenna",
     "saving": "Tallennetaan…",
@@ -334,10 +335,12 @@
     "deleteDescription": "Tuloskenttä {name} ja sen ennusteet poistetaan pysyvästi.",
     "name": "Nimi",
     "group": "Osio",
+    "yearlyValueDescription": "Vain vuositasolla raportoidun kentän tulokset ja ennusteet ovat koko tilikaudelle, ei kvartaaleille. Sen luku luetaan tilinpäätöstiedotteesta.",
     "yearlyValue": "Vuoden arvo",
     "yearlyValues": {
       "sum": "Kvartaalien summa",
-      "last_period": "Viimeinen kvartaali"
+      "last_period": "Viimeinen kvartaali",
+      "yearly_only": "Vain vuositasolla"
     },
     "valueFormat": "Arvon muoto",
     "valueFormats": {
