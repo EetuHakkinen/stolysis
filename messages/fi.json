@@ -290,6 +290,27 @@
     "typesSet": "{count, plural, one {# olemassa oleva kenttä sai erityistyyppinsä} other {# olemassa olevaa kenttää sai erityistyyppinsä}}.",
     "skippedFormulas": "{count, plural, one {# kaava ohitettiin, koska se olisi muodostanut} other {# kaavaa ohitettiin, koska ne olisivat muodostaneet}} silmukan yhtiön muiden kaavojen kanssa."
   },
+  "ResultRefetch": {
+    "title": "Hae tulokset uudelleen tiedotteista",
+    "description": "Lukee valittujen kenttien arvot uudelleen yhtiön kaikista osavuosikatsauksista ja tilinpäätöstiedotteista, esimerkiksi kentille, jotka on lisätty tiedotteiden saapumisen jälkeen. Laskettuja kenttiä ei näytetä.",
+    "noFields": "Yhtiöllä ei ole tuloskenttiä, joiden arvot luetaan raporteista.",
+    "start": "Hae uudelleen",
+    "starting": "Aloitetaan…",
+    "confirmTitle": "Haetaanko tulokset uudelleen?",
+    "confirmDescription": "{count} kentän arvot luetaan uudelleen jokaisesta raportista vanhimmasta alkaen, mikä voi kestää useita minuutteja. Tiedotteista luetut arvot korvataan, mutta käsin syötetyt arvot säilyvät. Vahvistetuille kausille ja edellisen vuoden vertailukausille lisätään arvot vain kenttiin, joilla ei vielä ole arvoa.",
+    "errors": {
+      "running": "Uudelleenhaku on jo käynnissä.",
+      "noFields": "Valitse kenttiä, joiden arvot luetaan raporteista.",
+      "noNews": "Yhtiöllä ei ole osavuosikatsauksia eikä tilinpäätöstiedotteita."
+    },
+    "status": {
+      "running": "Haetaan uudelleen: {processed}/{total} raporttia luettu, {rows, plural, one {# arvo} other {# arvoa}} tallennettu.",
+      "done": "{startedAt} aloitettu uudelleenhaku luki {total, plural, one {# raportin} other {# raporttia}} ja tallensi {rows, plural, one {# arvon} other {# arvoa}}.",
+      "failed": "{startedAt} aloitettu uudelleenhaku epäonnistui {processed}/{total} raportin jälkeen. {rows, plural, one {# arvo} other {# arvoa}} tallennettiin.",
+      "interrupted": "{startedAt} aloitettu uudelleenhaku keskeytyi {processed}/{total} raportin jälkeen. {rows, plural, one {# arvo} other {# arvoa}} tallennettiin."
+    },
+    "failedNews": "{count} raportin lukeminen epäonnistui."
+  },
   "ShowMore": {
     "more": "Näytä lisää",
     "less": "Näytä vähemmän"

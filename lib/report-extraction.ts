@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Unit } from "@/app/generated/prisma/client";
 import { seasonMonths } from "@/lib/financial-year";
 import { structuredCompletion } from "@/lib/openrouter";
+import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 import { findFinancialYear, findOrCreateReportingSeason, parseLocalDate } from "@/lib/reporting-season";
 
@@ -10,7 +11,7 @@ import { findFinancialYear, findOrCreateReportingSeason, parseLocalDate } from "
 const STATEMENTS_CATEGORY = "Tilinpäätöstiedote";
 
 // Categories of news whose PDF attachment is a report with an income statement.
-const REPORT_CATEGORIES = ["Osavuosikatsaus", STATEMENTS_CATEGORY];
+export const REPORT_CATEGORIES = ["Osavuosikatsaus", STATEMENTS_CATEGORY];
 
 // Only news in these categories are worth extracting results from.
 export function isReportCategory(categoryName: string): boolean {
@@ -171,6 +172,11 @@ export type ExtractResultsResult =
       reason: "notFound" | "notReport" | "noPdf" | "noFields" | "invalidPeriod" | "noSeason";
     };
 
+// Which values a period's new values may replace: "all" replaces every value, "extracted" only
+// values extracted from news (not those entered by hand), and "empty" none, filling only fields
+// with no value yet.
+type Overwrite = "all" | "extracted" | "empty";
+
 // Extracts the income statement figures of the report attached to a news item with AI and saves
 // them for the report's latest reporting season (a quarter, half-year or financial year, as long as
 // the company's seasons) and the same season a year earlier, creating the earlier financial year
@@ -178,7 +184,14 @@ export type ExtractResultsResult =
 // for the report's financial year and the previous one. Report period values are added unless the
 // season or year is confirmed; reference period values only where the period has no value yet
 // (also unless confirmed). Fields calculated from actual values are skipped.
-export async function extractResultsFromNews(newsId: number): Promise<ExtractResultsResult> {
+//
+// With `refetchFieldIds`, only those fields are extracted, for fields added after the news was
+// received: report period values replace values extracted from news but not those entered by hand,
+// and confirmed periods and reference periods get values only for fields with no value yet.
+export async function extractResultsFromNews(
+  newsId: number,
+  refetchFieldIds?: number[],
+): Promise<ExtractResultsResult> {
   const news = await prisma.news.findUnique({
     where: { id: newsId },
     select: {
@@ -193,7 +206,11 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
   // Fields calculated from actual values can't have results.
   const fields = (
     await prisma.resultField.findMany({
-      where: { resultFieldGroup: { companyId: news.companyId }, fieldDefinitions: { none: { kind: "actual" } } },
+      where: {
+        resultFieldGroup: { companyId: news.companyId },
+        fieldDefinitions: { none: { kind: "actual" } },
+        ...(refetchFieldIds && { id: { in: refetchFieldIds } }),
+      },
       orderBy: [{ resultFieldGroup: { order: "asc" } }, { order: "asc" }, { id: "asc" }],
       select: { id: true, name: true, yearlyValue: true, resultFieldGroup: { select: { name: true } } },
     })
@@ -282,47 +299,55 @@ export async function extractResultsFromNews(newsId: number): Promise<ExtractRes
       // result_row is insert-only, so new values are new rows.
       type Period = { reportingSeasonId: number } | { financialYearId: number };
       const rows: (Period & { resultFieldId: number; value: bigint })[] = [];
-      // Values of the fields for the period unless it's confirmed; with onlyEmpty, only for fields
-      // that have no value for it yet.
+      // Values of the fields for the period that the period's current values allow; none with
+      // overwrite undefined.
       const addRows = async (
         period: Period,
-        confirmed: boolean,
         savedFields: { id: number }[],
         key: keyof typeof values,
-        onlyEmpty: boolean,
+        overwrite: Overwrite | undefined,
       ) => {
-        if (confirmed) return;
-        const filled = new Set(
-          onlyEmpty
-            ? (
-                await tx.resultRow.findMany({
-                  where: { ...period, value: { not: null } },
-                  select: { resultFieldId: true },
-                })
-              ).map((row) => row.resultFieldId)
-            : [],
+        if (!overwrite) return;
+        const latest = new Map(
+          latestRows(
+            overwrite === "all"
+              ? []
+              : await tx.resultRow.findMany({
+                  where: { ...period, resultFieldId: { in: savedFields.map((field) => field.id) } },
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  select: { resultFieldId: true, value: true, newsId: true },
+                }),
+            (row) => row.resultFieldId,
+          ).map((row) => [row.resultFieldId, row]),
         );
         for (const field of savedFields) {
           const value = valueOf(field.id, key);
-          if (value !== undefined && !filled.has(field.id)) rows.push({ ...period, resultFieldId: field.id, value });
+          if (value === undefined) continue;
+          const current = latest.get(field.id);
+          const replaceable =
+            current?.value == null || (overwrite === "extracted" && current.newsId != null && current.value !== value);
+          if (replaceable) rows.push({ ...period, resultFieldId: field.id, value });
         }
       };
-      await addRows({ reportingSeasonId: season.id }, season.confirmed, savedPeriodFields, "current", false);
+      // Overwrites of the report's own period and the reference period, by whether it's confirmed.
+      const reportOverwrite = (confirmed: boolean): Overwrite | undefined =>
+        refetchFieldIds ? (confirmed ? "empty" : "extracted") : confirmed ? undefined : "all";
+      const referenceOverwrite = (confirmed: boolean): Overwrite | undefined =>
+        refetchFieldIds || !confirmed ? "empty" : undefined;
+      await addRows({ reportingSeasonId: season.id }, savedPeriodFields, "current", reportOverwrite(season.confirmed));
       await addRows(
         { reportingSeasonId: referenceSeason.id },
-        referenceSeason.confirmed,
         savedPeriodFields,
         "reference",
-        true,
+        referenceOverwrite(referenceSeason.confirmed),
       );
-      if (year) await addRows({ financialYearId: year.id }, year.confirmed, savedYearlyFields, "yearly", false);
+      if (year) await addRows({ financialYearId: year.id }, savedYearlyFields, "yearly", reportOverwrite(year.confirmed));
       if (referenceYear) {
         await addRows(
           { financialYearId: referenceYear.id },
-          referenceYear.confirmed,
           savedYearlyFields,
           "referenceYearly",
-          true,
+          referenceOverwrite(referenceYear.confirmed),
         );
       }
 

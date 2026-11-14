@@ -290,6 +290,27 @@
     "typesSet": "{count, plural, one {# existing field got its special type} other {# existing fields got their special types}}.",
     "skippedFormulas": "{count, plural, one {# formula was} other {# formulas were}} skipped because it would have formed a loop with the company's other formulas."
   },
+  "ResultRefetch": {
+    "title": "Re-fetch results from news",
+    "description": "Reads the values of the selected fields again from all of the company's interim reports and financial statements releases, e.g. for fields added after the news were received. Calculated fields aren't listed.",
+    "noFields": "The company has no result fields whose values are read from reports.",
+    "start": "Re-fetch",
+    "starting": "Starting…",
+    "confirmTitle": "Re-fetch results?",
+    "confirmDescription": "The values of {count, plural, one {# field} other {# fields}} are read again from every report, oldest first, which can take several minutes. Values read from news are replaced, but values entered by hand are kept. Confirmed periods and the previous year's comparison periods only get values for fields that have none yet.",
+    "errors": {
+      "running": "A re-fetch is already running.",
+      "noFields": "Select fields whose values are read from reports.",
+      "noNews": "The company has no interim reports or financial statements releases."
+    },
+    "status": {
+      "running": "Re-fetching: {processed}/{total} reports read, {rows, plural, one {# value} other {# values}} saved.",
+      "done": "Re-fetch started {startedAt} read {total, plural, one {# report} other {# reports}} and saved {rows, plural, one {# value} other {# values}}.",
+      "failed": "Re-fetch started {startedAt} failed after {processed}/{total} reports. {rows, plural, one {# value was} other {# values were}} saved.",
+      "interrupted": "Re-fetch started {startedAt} was interrupted after {processed}/{total} reports. {rows, plural, one {# value was} other {# values were}} saved."
+    },
+    "failedNews": "Reading {count, plural, one {# report} other {# reports}} failed."
+  },
   "ShowMore": {
     "more": "Show more",
     "less": "Show less"

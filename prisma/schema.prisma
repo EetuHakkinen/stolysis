@@ -35,6 +35,7 @@ model Company {
   graphs             Graph[]
   notes              Note[]
   stockPrices        StockPrice[]
+  resultRefetches    ResultRefetch[]
 
   @@map("company")
 }
@@ -520,4 +521,38 @@ model StockPrice {
 
   @@unique([companyId, date])
   @@map("stock_price")
+}
+
+// State of a result refetch: still going through the news, gone through all of them, or stopped by
+// an error.
+enum ResultRefetchStatus {
+  running
+  done
+  failed
+
+  @@map("result_refetch_status")
+}
+
+// A run that extracts the values of chosen result fields again from all of a company's report
+// news, e.g. for fields added after the news were received. A running refetch that hasn't been
+// updated for a while was interrupted, e.g. by a server restart.
+model ResultRefetch {
+  id             Int                 @id @default(autoincrement())
+  companyId      Int                 @map("company")
+  // The result fields to extract. Not foreign keys: a field may be deleted during the refetch.
+  fieldIds       Int[]               @map("field_ids")
+  status         ResultRefetchStatus @default(running)
+  newsCount      Int                 @map("news_count")
+  // News gone through so far, including those whose extraction failed.
+  processedCount Int                 @default(0) @map("processed_count")
+  failedCount    Int                 @default(0) @map("failed_count")
+  rowCount       Int                 @default(0) @map("row_count")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // The settings show a company's latest refetch.
+  @@index([companyId, createdAt(sort: Desc)])
+  @@map("result_refetch")
 }
