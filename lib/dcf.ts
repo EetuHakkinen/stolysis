@@ -19,6 +19,7 @@ export type DcfFieldIds = Record<
     | "operating_free_cash_flow"
     | "net_debt"
     | "dividend"
+    | "minority_interest_percent"
     | "share_count"
   >,
   number | null
@@ -65,7 +66,10 @@ export type DcfResult = {
   // Dividend or capital return paid in the next financial year, as a positive amount; zero without
   // one.
   dividend: number;
-  // Enterprise value less net debt and the dividend.
+  // The current financial year's minority interest percentage of the enterprise value, as a
+  // positive amount; zero without one.
+  minorityInterest: number;
+  // Enterprise value less net debt, the dividend and the minority interests.
   equityValue: number | null;
   // Equity value divided by the share count at the end of the current financial year.
   valuePerShare: number | null;
@@ -151,8 +155,11 @@ export function calculateDcf({
 
   const netDebt = value(fieldIds.net_debt, currentYear);
   const dividend = Math.abs(value(fieldIds.dividend, years[current + 1]) ?? 0);
+  const minorityInterestPercent = value(fieldIds.minority_interest_percent, currentYear) ?? 0;
+  const minorityInterest = enterpriseValue == null ? 0 : (minorityInterestPercent / 100) * enterpriseValue;
   const shareCount = value(fieldIds.share_count, currentYear);
-  const equityValue = enterpriseValue == null || netDebt == null ? null : enterpriseValue - netDebt - dividend;
+  const equityValue =
+    enterpriseValue == null || netDebt == null ? null : enterpriseValue - netDebt - dividend - minorityInterest;
   const valuePerShare = equityValue == null || !shareCount ? null : equityValue / shareCount;
 
   return {
@@ -162,6 +169,7 @@ export function calculateDcf({
     enterpriseValue,
     netDebt,
     dividend,
+    minorityInterest,
     equityValue,
     valuePerShare,
   };

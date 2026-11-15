@@ -73,7 +73,16 @@
             { "field": "Tuloverot", "period": "current" }
           ]
         },
-        { "name": "Vähemmistöjen osuus" },
+        {
+          "name": "Vähemmistöjen osuus",
+          "estimateDefinition": [
+            { "field": "Kauden voitto", "period": "current" },
+            { "operator": "*" },
+            { "field": "Vähemmistöosuus-%", "period": "current" },
+            { "operator": "/" },
+            { "number": 100 }
+          ]
+        },
         {
           "name": "Emoyhtiön omistajien osuus",
           "estimateDefinition": [
@@ -221,6 +230,19 @@
             { "parenthesis": ")" },
             { "operator": "*" },
             { "number": -100 }
+          ]
+        },
+        {
+          "name": "Vähemmistöosuus-%",
+          "type": "minority_interest_percent",
+          "valueFormat": "percent",
+          "estimateType": "absolute",
+          "actualDefinition": [
+            { "field": "Vähemmistöjen osuus", "period": "current" },
+            { "operator": "/" },
+            { "field": "Kauden voitto", "period": "current" },
+            { "operator": "*" },
+            { "number": 100 }
           ]
         }
       ]

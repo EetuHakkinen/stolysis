@@ -13,6 +13,7 @@ const fieldIds: DcfFieldIds = {
   operating_free_cash_flow: 1,
   net_debt: 2,
   dividend: 3,
+  minority_interest_percent: 11,
   share_count: 4,
   ebit: 5,
   depreciation: 6,
@@ -50,6 +51,8 @@ const values = {
   8: { 2027: -15 },
   9: { 2027: -50 },
   10: { 2027: -10 },
+  // Percent of the enterprise value.
+  11: { 2026: 5, 2027: 999 },
 };
 const near = (actual: number | null, expected: number) =>
   assert.ok(Math.abs(actual! - expected) < Math.abs(expected) * 1e-3, `${actual} ≉ ${expected}`);
@@ -64,8 +67,9 @@ describe("calculateDcf", () => {
     near(result.enterpriseValue, enterpriseValue);
     assert.equal(result.netDebt, 50);
     assert.equal(result.dividend, 20);
-    near(result.equityValue, enterpriseValue - 50 - 20);
-    near(result.valuePerShare, (enterpriseValue - 70) / 10);
+    near(result.minorityInterest, enterpriseValue * 0.05);
+    near(result.equityValue, enterpriseValue * 0.95 - 50 - 20);
+    near(result.valuePerShare, (enterpriseValue * 0.95 - 70) / 10);
   });
 
   it("shows each year's cash flow with the signs of its effects", () => {
@@ -115,7 +119,19 @@ describe("calculateDcf", () => {
   it("counts a missing dividend as zero", () => {
     const result = calculateDcf({ ...input, prediction: prediction({ ...values, 3: {} }) });
     assert.equal(result.dividend, 0);
-    near(result.equityValue, result.enterpriseValue! - 50);
+    near(result.equityValue, result.enterpriseValue! * 0.95 - 50);
+  });
+
+  it("counts missing minority interests as zero", () => {
+    const result = calculateDcf({ ...input, prediction: prediction({ ...values, 11: {} }) });
+    assert.equal(result.minorityInterest, 0);
+    near(result.equityValue, result.enterpriseValue! - 50 - 20);
+    const noField = calculateDcf({
+      ...input,
+      fieldIds: { ...fieldIds, minority_interest_percent: null },
+      prediction: prediction(values),
+    });
+    assert.equal(noField.minorityInterest, 0);
   });
 
   it("has no enterprise value without every cash flow, the rates or a WACC above the terminal growth", () => {

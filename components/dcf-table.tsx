@@ -18,6 +18,7 @@ export function DcfTable({ dcf, unit }: { dcf: DcfResult; unit: Unit }) {
     { key: "enterpriseValue", value: dcf.enterpriseValue },
     { key: "netDebt", value: dcf.netDebt },
     { key: "dividend", value: dcf.dividend },
+    { key: "minorityInterest", value: dcf.minorityInterest },
     { key: "equityValue", value: dcf.equityValue },
   ] as const;
 
