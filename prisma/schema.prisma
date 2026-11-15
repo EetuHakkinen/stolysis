@@ -126,6 +126,7 @@ enum ResultFieldType {
   operating_free_cash_flow
   dividend
   minority_interest_percent
+  revenue
   ebit
   depreciation
   goodwill_amortization

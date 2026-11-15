@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import type { EstimateType, ResultFieldType, ValueFormat, YearlyValue } from "@/app/generated/prisma/client";
 import { requireUserId } from "@/lib/auth";
-import { fieldFormulas, referencedFieldIds, type Formula } from "@/lib/formulas";
+import { fieldFormulas, formulaUsers, type Formula } from "@/lib/formulas";
 import { isReordering } from "@/lib/ordering";
 import { prisma } from "@/lib/prisma";
 
@@ -65,15 +65,10 @@ export async function getResultFieldGroups(companyId: number): Promise<ResultFie
       hasResults: _count.resultRows > 0,
     })),
   }));
-  // A field's own formula may use its previous value, and is deleted with the field.
-  const usedBy = new Map<number, Set<number>>();
-  for (const field of withDefinitions.flatMap((group) => group.fields))
-    for (const formula of [field.actualDefinition, field.estimateDefinition])
-      for (const id of formula ? referencedFieldIds(formula) : [])
-        if (id !== field.id) usedBy.set(id, (usedBy.get(id) ?? new Set()).add(field.id));
+  const usedBy = formulaUsers(withDefinitions.flatMap((group) => group.fields));
   return withDefinitions.map((group) => ({
     ...group,
-    fields: group.fields.map((field) => ({ ...field, usedBy: [...(usedBy.get(field.id) ?? [])] })),
+    fields: group.fields.map((field) => ({ ...field, usedBy: usedBy.get(field.id) ?? [] })),
   }));
 }
 

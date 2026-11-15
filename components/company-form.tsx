@@ -22,7 +22,9 @@ const INLINE_INPUT = "w-64";
 // picker of the company's Nasdaq issuer. Submit returns
 // the validation errors; a successful submit that doesn't navigate away shows a saved note until
 // the values change. An inline form has each label on the same row as its input, with the inputs
-// and buttons aligned to the right.
+// and buttons aligned to the right. Children are extra fields shown before the buttons, with their
+// values kept by the parent. A form with its own submit label moves on to something else, so it
+// doesn't show the saved note.
 export function CompanyForm({
   initialValues = { name: "", ticker: "" },
   submit,
@@ -31,6 +33,9 @@ export function CompanyForm({
   withPriceSymbol = false,
   shares,
   nasdaqIssuers,
+  submitLabel,
+  pendingLabel,
+  children,
 }: {
   initialValues?: CompanyInput;
   submit: (values: CompanyInput) => Promise<{ errors?: CompanyFormErrors }>;
@@ -39,6 +44,9 @@ export function CompanyForm({
   withPriceSymbol?: boolean;
   shares?: ShareOption[];
   nasdaqIssuers?: string[];
+  submitLabel?: string;
+  pendingLabel?: string;
+  children?: React.ReactNode;
 }) {
   const t = useTranslations("CompanyForm");
   const [values, setValues] = useState<CompanyInput>(initialValues);
@@ -152,16 +160,17 @@ export function CompanyForm({
               className="w-full"
             />,
           )}
+        {children}
         <Field orientation="horizontal" className={cn(inline && "justify-end")}>
           <Button type="submit" disabled={pending}>
-            {pending ? t("saving") : t("save")}
+            {pending ? (pendingLabel ?? t("saving")) : (submitLabel ?? t("save"))}
           </Button>
           {cancelHref && (
             <ButtonLink href={cancelHref} variant="outline">
               {t("cancel")}
             </ButtonLink>
           )}
-          {saved && !pending && (
+          {saved && !pending && !submitLabel && (
             // Before the buttons when they are aligned to the right.
             <span className={cn("text-sm text-muted-foreground", inline && "order-first")}>
               {t("saved")}

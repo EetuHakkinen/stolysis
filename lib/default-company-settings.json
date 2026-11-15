@@ -3,8 +3,9 @@
   "resultFieldGroups": [
     {
       "name": "Tuloslaskelma",
+      "statement": "incomeStatement",
       "fields": [
-        { "name": "Liikevaihto" },
+        { "name": "Liikevaihto", "type": "revenue" },
         { "name": "Liiketoiminnan muut tuotot" },
         {
           "name": "Materiaalit ja palvelut",
@@ -249,6 +250,7 @@
     },
     {
       "name": "Tase",
+      "statement": "balanceSheet",
       "fields": [
         { "name": "Vaihto-omaisuus", "yearlyValue": "last_period" },
         { "name": "Myyntisaamiset", "yearlyValue": "last_period" },
@@ -308,6 +310,7 @@
     },
     {
       "name": "Rahavirtalaskelma",
+      "statement": "cashFlow",
       "fields": [
         {
           "name": "Käyttöpääoman muutos",

@@ -36,6 +36,55 @@
       "tickerTaken": "Tällä tunnuksella on jo yhtiö."
     }
   },
+  "CompanyReporting": {
+    "reportingCycle": "Raportointisykli",
+    "reportingCycleDescription": "Kuinka usein yhtiö raportoi tuloksensa. Yhtiön ensimmäinen tilikausi on kuluva kalenterivuosi.",
+    "cycles": {
+      "quarterly": "Neljännesvuosittain",
+      "halfYearly": "Puolivuosittain",
+      "yearly": "Vuosittain"
+    },
+    "statements": {
+      "incomeStatement": "Tuloslaskelma",
+      "balanceSheet": "Tase",
+      "cashFlow": "Rahavirtalaskelma"
+    },
+    "descriptions": {
+      "incomeStatement": "Jos tuloslaskelma raportoidaan kokonaan vain vuosittain, liikevoiton alapuoliset rivit ja niistä lasketut kentät raportoidaan vain tilikausittain.",
+      "balanceSheet": "Jos tase raportoidaan vain vuosittain, sen rivit ja niistä lasketut kentät raportoidaan vain tilikausittain.",
+      "cashFlow": "Jos rahavirtalaskelma raportoidaan vain vuosittain, sen rivit ja niistä lasketut kentät raportoidaan vain tilikausittain."
+    }
+  },
+  "CreateCompany": {
+    "next": "Seuraava",
+    "checking": "Tarkistetaan…",
+    "fieldsTitle": "Tuloskentät",
+    "fieldsDescription": "Muokkaa yhtiön tuloslaskelman osioita ja tuloskenttiä ennen yhtiön luomista. Muutokset tallennetaan vasta, kun yhtiö luodaan.",
+    "back": "Takaisin",
+    "create": "Luo yhtiö",
+    "creating": "Luodaan…",
+    "createError": "Yhtiötä ei voitu luoda. Korjaa yhtiön tiedot palaamalla takaisin.",
+    "resetTitle": "Muodostetaanko tuloskentät uudelleen?",
+    "resetDescription": "Muuttuneiden raportointivalintojen vuoksi tuloskentät muodostetaan uudelleen oletusasetuksista, ja niihin tehdyt muutokset menetetään.",
+    "resetConfirm": "Muodosta uudelleen"
+  },
+  "ReportCheck": {
+    "findingReports": "Haetaan yhtiön viimeisimpiä raportteja Nasdaqista",
+    "readingReports": "Tarkistetaan tuloskenttiä raporteista",
+    "count": "{done} / {total}",
+    "failed": "Raporttien haku Nasdaqista epäonnistui, joten tuloskenttiä ei tarkistettu.",
+    "noIssuer": "Yhtiötä ei löytynyt Nasdaqista, joten tuloskenttiä ei tarkistettu raporteista.",
+    "noReports": "Yhtiön tilinpäätöstiedotetta tai osavuosikatsausta ei löytynyt viimeisen 18 kuukauden ajalta.",
+    "checkedAgainst": "Tuloskentät tarkistetaan raporteista (punainen X: kenttää ei löytynyt raportista):",
+    "reading": "luetaan…",
+    "unreadable": "raporttia ei voitu lukea",
+    "missing": "Ei löytynyt raportista: {reports}",
+    "breakdownsTitle": "Liikevaihdon jakaumat",
+    "breakdownsDescription": "Yhtiö raportoi liikevaihtonsa myös näin jaoteltuna. Lisätty jakauma tulee omaksi osiokseen tuloslaskelman yläpuolelle, ja liikevaihdon ennuste lasketaan sen kenttien summana.",
+    "addBreakdown": "Lisää",
+    "useForEstimate": "Käytä liikevaihdon ennusteessa",
+    "usedForEstimate": "Liikevaihdon ennuste lasketaan tästä"
+  },
   "StockPrices": {
     "empty": "Osakekursseja ei ole vielä. Ne haetaan automaattisesti sivun avautuessa, enintään kerran päivässä.",
     "close": "Päätöskurssi",
@@ -423,6 +472,7 @@
       "operating_free_cash_flow": "Operatiivinen vapaa kassavirta",
       "dividend": "Osinko/pääomanpalautus",
       "minority_interest_percent": "Vähemmistöosuus-%",
+      "revenue": "Liikevaihto",
       "ebit": "Liikevoitto",
       "depreciation": "Poistot",
       "goodwill_amortization": "Liikearvopoistot",

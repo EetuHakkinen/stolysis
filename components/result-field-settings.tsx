@@ -11,6 +11,8 @@ import {
   reorderResultFields,
   setResultFieldStarred,
   updateResultField,
+  type ResultFieldErrors,
+  type ResultFieldInput,
 } from "@/actions/result-fields";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { useFormatFormula } from "@/components/formula-editor";
@@ -20,11 +22,44 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
-// Company settings section with a table of result fields for each result field group, in display
+// What the result field tables do with the fields: save them to a company's settings, or change a
+// draft of a company being created. Create and update return the validation errors.
+export type ResultFieldActions = {
+  create: (input: ResultFieldInput) => Promise<ResultFieldErrors | undefined>;
+  update: (fieldId: number, input: ResultFieldInput) => Promise<ResultFieldErrors | undefined>;
+  remove: (fieldId: number) => Promise<unknown>;
+  reorder: (groupId: number, fieldIds: number[]) => Promise<unknown>;
+  setStarred: (fieldId: number, starred: boolean) => Promise<unknown>;
+};
+
+const SETTINGS_ACTIONS: ResultFieldActions = {
+  create: async (input) => (await createResultField(input)).errors,
+  update: async (fieldId, input) => (await updateResultField({ fieldId, ...input })).errors,
+  remove: (fieldId) => deleteResultField({ fieldId }),
+  reorder: (groupId, fieldIds) => reorderResultFields({ groupId, fieldIds }),
+  setStarred: (fieldId, starred) => setResultFieldStarred({ fieldId, starred }),
+};
+
+// Company settings section with a table of result fields for each result field group, saved to the
+// company's settings.
+export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettingsData[] }) {
+  return <ResultFieldList groups={groups} actions={SETTINGS_ACTIONS} />;
+}
+
+// Section with a table of result fields for each result field group, in display
 // order. Fields are created, edited (also moved to another group) and deleted with the buttons, and
 // reordered within their group by dragging, and starred with the star button. Only fields without results that no other field's
 // formula uses have a delete button; the edit dialog tells why a field can't be deleted. Calculated fields have badges with their formulas as tooltips.
-export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettingsData[] }) {
+// fieldMarker adds something after a field's name, e.g. whether it was found in a report.
+export function ResultFieldList({
+  groups,
+  actions,
+  fieldMarker,
+}: {
+  groups: ResultFieldGroupSettingsData[];
+  actions: ResultFieldActions;
+  fieldMarker?: (fieldId: number) => React.ReactNode;
+}) {
   const t = useTranslations("ResultFields");
 
   return (
@@ -33,7 +68,9 @@ export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettin
       {groups.length === 0 ? (
         <p className="text-muted-foreground">{t("noGroups")}</p>
       ) : (
-        groups.map((group) => <GroupFields key={group.id} group={group} groups={groups} />)
+        groups.map((group) => (
+          <GroupFields key={group.id} group={group} groups={groups} actions={actions} fieldMarker={fieldMarker} />
+        ))
       )}
     </section>
   );
@@ -44,9 +81,13 @@ export function ResultFieldSettings({ groups }: { groups: ResultFieldGroupSettin
 function GroupFields({
   group,
   groups,
+  actions,
+  fieldMarker,
 }: {
   group: ResultFieldGroupSettingsData;
   groups: ResultFieldGroupSettingsData[];
+  actions: ResultFieldActions;
+  fieldMarker?: (fieldId: number) => React.ReactNode;
 }) {
   const t = useTranslations("ResultFields");
   const [fields, setFields] = useOptimistic(group.fields);
@@ -57,14 +98,14 @@ function GroupFields({
     const reordered = arrayMove(fields, from, to);
     startTransition(async () => {
       setFields(reordered);
-      await reorderResultFields({ groupId: group.id, fieldIds: reordered.map((field) => field.id) });
+      await actions.reorder(group.id, reordered.map((field) => field.id));
     });
   }
 
   function toggleStar(fieldId: number, starred: boolean) {
     startTransition(async () => {
       setFields(fields.map((field) => (field.id === fieldId ? { ...field, starred } : field)));
-      await setResultFieldStarred({ fieldId, starred });
+      await actions.setStarred(fieldId, starred);
     });
   }
 
@@ -85,7 +126,7 @@ function GroupFields({
             actualDefinition: null,
             estimateDefinition: null,
           }}
-          save={async (values) => (await createResultField(values)).errors}
+          save={actions.create}
           trigger={
             <Button variant="outline" size="sm">
               <PlusIcon />
@@ -108,6 +149,7 @@ function GroupFields({
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{field.name}</span>
+                    {fieldMarker?.(field.id)}
                     {field.type && <Badge variant="secondary">{t(`types.${field.type}`)}</Badge>}
                     {field.valueFormat !== "money" && (
                       <Badge variant="secondary">{t(`valueFormats.${field.valueFormat}`)}</Badge>
@@ -152,7 +194,7 @@ function GroupFields({
                         actualDefinition: field.actualDefinition,
                         estimateDefinition: field.estimateDefinition,
                       }}
-                      save={async (values) => (await updateResultField({ fieldId: field.id, ...values })).errors}
+                      save={(values) => actions.update(field.id, values)}
                       trigger={
                         <Button variant="ghost" size="icon-sm" aria-label={t("edit")}>
                           <PencilIcon />
@@ -163,7 +205,7 @@ function GroupFields({
                       <DeleteDialog
                         title={t("deleteTitle")}
                         description={t("deleteDescription", { name: field.name })}
-                        remove={() => deleteResultField({ fieldId: field.id })}
+                        remove={() => actions.remove(field.id)}
                         trigger={
                           <Button variant="ghost" size="icon-sm" aria-label={t("delete")}>
                             <Trash2Icon />

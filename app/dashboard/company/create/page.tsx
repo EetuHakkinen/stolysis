@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
-import { createCompany, getNasdaqShares } from "@/actions/companies";
-import { CompanyForm } from "@/components/company-form";
+import { getNasdaqShares } from "@/actions/companies";
+import { CreateCompanyDetailsStep } from "@/components/create-company-steps";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 
@@ -13,7 +13,7 @@ export default async function CreateCompany() {
         <PageBreadcrumbs items={[{ label: t("title") }]} />
         <PageHeader title={t("title")} />
       </div>
-      <CompanyForm submit={createCompany} cancelHref="/dashboard" shares={shares} />
+      <CreateCompanyDetailsStep shares={shares} />
     </main>
   );
 }

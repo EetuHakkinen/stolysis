@@ -20,14 +20,31 @@ import { mergeDefaults } from "./ordering.ts";
 
 const nameFormulaSchema = formulaSchemaOf(z.string().min(1));
 
-const settingsSchema = z.strictObject({
+// The financial statements a company may report in full either every quarter or only yearly.
+export const STATEMENTS = ["incomeStatement", "balanceSheet", "cashFlow"] as const;
+export type Statement = (typeof STATEMENTS)[number];
+
+// seasonal: every reporting season (quarter or half-year) of the company's reporting cycle.
+export const REPORTING_FREQUENCIES = ["seasonal", "yearly"] as const;
+export type ReportingFrequency = (typeof REPORTING_FREQUENCIES)[number];
+export const statementReportingSchema = z.strictObject({
+  incomeStatement: z.enum(REPORTING_FREQUENCIES),
+  balanceSheet: z.enum(REPORTING_FREQUENCIES),
+  cashFlow: z.enum(REPORTING_FREQUENCIES),
+});
+export type StatementReporting = z.infer<typeof statementReportingSchema>;
+
+export const settingsSchema = z.strictObject({
   estimateScenarios: z.array(z.string().trim().min(1).max(100)),
   resultFieldGroups: z.array(
     z.strictObject({
-      name: z.string().min(1),
+      name: z.string().trim().min(1).max(100),
+      // The statement whose reporting frequency decides which of the group's fields are reported
+      // only yearly; see settingsWithReporting.
+      statement: z.enum(STATEMENTS).optional(),
       fields: z.array(
         z.strictObject({
-          name: z.string().min(1),
+          name: z.string().trim().min(1).max(100),
           type: z.enum(ResultFieldType).optional(),
           yearlyValue: z.enum(YearlyValue).optional(),
           valueFormat: z.enum(ValueFormat).optional(),
@@ -86,6 +103,14 @@ export function settingsProblems(settings: CompanySettings): string[] {
     seen.add(key);
   }
 
+  // Calculations rely on there being at most one field of each special type per company.
+  const types = new Set<string>();
+  for (const { name, type } of fields) {
+    if (!type) continue;
+    if (types.has(type)) problems.push(`Duplicate type ${type}: ${name}`);
+    types.add(type);
+  }
+
   const names = new Set(fields.map((field) => field.name));
   for (const kind of Object.values(FieldDefinitionKind)) {
     const formulas = new Map<string, Formula<string>>();
@@ -115,6 +140,40 @@ export function settingsProblems(settings: CompanySettings): string[] {
     }
   }
   return problems;
+}
+
+// The settings for a company that reports some statements in full only yearly. Their fields become
+// reported only yearly: all fields of a yearly balance sheet or cash flow statement, and the fields
+// after EBIT of a yearly income statement (all of them without an EBIT field). So does any field
+// whose actual formula refers to a field reported only yearly, in any group, since it would have no
+// quarterly values. Estimate formulas don't make a field reported only yearly.
+export function settingsWithReporting(settings: CompanySettings, reporting: StatementReporting): CompanySettings {
+  const fields = settings.resultFieldGroups.flatMap((group) => group.fields);
+  const yearly = new Set(fields.filter((field) => field.yearlyValue === "yearly_only").map((field) => field.name));
+  for (const group of settings.resultFieldGroups) {
+    if (!group.statement || reporting[group.statement] !== "yearly") continue;
+    const ebit = group.statement === "incomeStatement" ? group.fields.findIndex((field) => field.type === "ebit") : -1;
+    for (const field of group.fields.slice(ebit + 1)) yearly.add(field.name);
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const field of fields) {
+      if (yearly.has(field.name) || !field.actualDefinition?.some((token) => "field" in token && yearly.has(token.field)))
+        continue;
+      yearly.add(field.name);
+      changed = true;
+    }
+  }
+
+  return {
+    ...settings,
+    resultFieldGroups: settings.resultFieldGroups.map((group) => ({
+      ...group,
+      fields: group.fields.map((field) => (yearly.has(field.name) ? { ...field, yearlyValue: "yearly_only" } : field)),
+    })),
+  };
 }
 
 // Creates the company with the settings' estimate scenarios, result field groups, fields and

@@ -20,7 +20,8 @@ function period(year: number, startMonth: number, endMonth: number) {
   };
 }
 
-export type ReportingCycle = "quarterly" | "halfYearly" | "yearly";
+export const REPORTING_CYCLES = ["quarterly", "halfYearly", "yearly"] as const;
+export type ReportingCycle = (typeof REPORTING_CYCLES)[number];
 
 // Reporting seasons per financial year, with their names. A yearly season has no name of its
 // own: the financial year's name is enough.
@@ -67,11 +68,13 @@ export function financialYear({
   };
 }
 
-// Calendar-year financial year with its four quarters as reporting seasons.
-export function calendarFinancialYear(
-  year: number = yearOf(new Date()),
-): Prisma.FinancialYearCreateWithoutCompanyInput {
-  return financialYear({ year });
+// Calendar-year financial year (the current one by default) divided into reporting seasons by the
+// cycle.
+export function calendarFinancialYear({
+  year = yearOf(new Date()),
+  cycle = "quarterly",
+}: { year?: number; cycle?: ReportingCycle } = {}): Prisma.FinancialYearCreateWithoutCompanyInput {
+  return financialYear({ year, cycle });
 }
 
 // The given instant (a local midnight) moved by whole years.

@@ -14,9 +14,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-// Confirmation before an action, which closes the dialog once done.
+// Confirmation before an action, which closes the dialog once done. Opened by the trigger, or
+// without one, by the parent with open and onOpenChange.
 export function ConfirmDialog({
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   title,
   description,
   confirmLabel,
@@ -24,7 +27,9 @@ export function ConfirmDialog({
   destructive = false,
   confirm,
 }: {
-  trigger: React.ReactElement;
+  trigger?: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   description: string;
   confirmLabel: string;
@@ -33,7 +38,12 @@ export function ConfirmDialog({
   confirm: () => Promise<unknown>;
 }) {
   const t = useTranslations("Dialogs");
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const [pending, startTransition] = useTransition();
 
   function run() {
@@ -45,7 +55,7 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

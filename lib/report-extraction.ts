@@ -6,12 +6,15 @@ import { structuredCompletion } from "@/lib/openrouter";
 import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
 import { findFinancialYear, findOrCreateReportingSeason, parseLocalDate } from "@/lib/reporting-season";
+import type { RevenueBreakdown } from "@/lib/report-check-api";
 
 // Category of news whose report also has the figures of the whole financial year.
-const STATEMENTS_CATEGORY = "Tilinpäätöstiedote";
+export const STATEMENTS_CATEGORY = "Tilinpäätöstiedote";
+// Category of interim and half-year reports.
+export const INTERIM_CATEGORY = "Osavuosikatsaus";
 
 // Categories of news whose PDF attachment is a report with an income statement.
-export const REPORT_CATEGORIES = ["Osavuosikatsaus", STATEMENTS_CATEGORY];
+export const REPORT_CATEGORIES = [INTERIM_CATEGORY, STATEMENTS_CATEGORY];
 
 // Only news in these categories are worth extracting results from.
 export function isReportCategory(categoryName: string): boolean {
@@ -36,6 +39,13 @@ function yearlyInstructions(readYearly: boolean) {
     : "Return `yearly` and `referenceYearly` as empty lists, with the report's financial year and the previous one as their periods.";
 }
 
+// Revenue breakdowns are only read when checking a company being created.
+function revenueBreakdownInstructions(read: boolean) {
+  return read
+    ? `Also return in \`revenueBreakdowns\` each breakdown of the company's revenue (net sales) printed for the report's latest period, for example by geographical area, segment, business area, or product or service category. Only include breakdowns whose categories together make up the whole revenue. Name each breakdown in Finnish as "Liikevaihto" followed by its dimension (for example "Liikevaihto alueittain", "Liikevaihto segmenteittäin", "Liikevaihto tuotteittain") and its categories as the report names them, translated to Finnish if the report is in English, in the order the report prints them. Leave out total rows; a row such as eliminations or other is a category. Return an empty list if there is none.`
+    : "Return `revenueBreakdowns` as an empty list.";
+}
+
 function fieldList(fields: { id: number; name: string }[]) {
   return fields.length > 0 ? fields.map((field) => `- ${fieldKey(field.id)}: ${field.name}`) : ["(none)"];
 }
@@ -44,12 +54,14 @@ function instructions(
   months: number,
   periodFields: { id: number; name: string }[],
   yearlyFields: { id: number; name: string }[] | undefined,
+  readRevenueBreakdowns: boolean,
 ) {
   const lines = [
     `You extract financial figures from the attached PDF report of a Finnish listed company: an interim report, a half-year report or a financial statements release.
 
 Return figures for ${PERIODS[months]} and for the same period one year earlier. Prefer the consolidated income statement.
 ${yearlyInstructions(yearlyFields != null)}
+${revenueBreakdownInstructions(readRevenueBreakdowns)}
 
 Rules:
 - Use only figures printed in the report. Never calculate, estimate or infer a figure, for example from cumulative or full-year figures. If a field's figure isn't printed for a period, leave the field out of that period's list.
@@ -92,6 +104,9 @@ function reportSchema(fields: { id: number }[]) {
     referenceYearPeriod: periodSchema.describe("The previous financial year"),
     yearly: figures.describe("Figures for `yearPeriod`"),
     referenceYearly: figures.describe("Figures for `referenceYearPeriod`"),
+    revenueBreakdowns: z
+      .array(z.object({ name: z.string(), categories: z.array(z.string()) }))
+      .describe("Breakdowns of the revenue of `period`"),
   });
 }
 
@@ -110,6 +125,10 @@ function figureValues(figures: { field: string; value: number }[]): Map<string, 
 
 function fieldKey(id: number) {
   return `field_${id}`;
+}
+
+function fieldIdOf(key: string) {
+  return Number(key.slice("field_".length));
 }
 
 // Links don't always name the file (e.g. ".../Resource/Download/0f79…" labelled
@@ -155,6 +174,78 @@ async function downloadPdf(url: string): Promise<string | undefined> {
   if (bytes.length > MAX_PDF_BYTES) throw new Error(`PDF is too large: ${bytes.length} bytes`);
   if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return undefined;
   return `data:application/pdf;base64,${bytes.toString("base64")}`;
+}
+
+export type ReportFigures = {
+  // The periods as the report prints them, YYYY-MM-DD.
+  period: z.infer<typeof periodSchema>;
+  referencePeriod: z.infer<typeof periodSchema>;
+  yearPeriod: z.infer<typeof periodSchema>;
+  referenceYearPeriod: z.infer<typeof periodSchema>;
+  // Values by field id in whole euros, for the periods above.
+  values: Record<"current" | "reference" | "yearly" | "referenceYearly", Map<number, number>>;
+  // Empty unless asked for.
+  revenueBreakdowns: RevenueBreakdown[];
+};
+
+
+
+// Reads the figures of the fields from the PDF report among the attachments with AI: the period
+// fields for the report's latest season as long as `months` and the same season a year earlier,
+// and the yearly fields, if given, for the report's financial year and the previous one, and with
+// `revenueBreakdowns`, the breakdowns of the latest period's revenue. Field names are shown to the
+// AI as is. Undefined when there's no PDF.
+export async function readReportFigures({
+  attachments,
+  months,
+  periodFields,
+  yearlyFields,
+  revenueBreakdowns = false,
+}: {
+  attachments: { url: string; name: string | null }[];
+  months: number;
+  periodFields: { id: number; name: string }[];
+  yearlyFields: { id: number; name: string }[] | undefined;
+  revenueBreakdowns?: boolean;
+}): Promise<ReportFigures | undefined> {
+  const pdf = await findPdf(attachments);
+  if (!pdf) return undefined;
+
+  const report = await structuredCompletion({
+    schemaName: "report_figures",
+    schema: reportSchema([...periodFields, ...(yearlyFields ?? [])]),
+    messages: [
+      { role: "system", content: instructions(months, periodFields, yearlyFields, revenueBreakdowns) },
+      {
+        role: "user",
+        content: [{ type: "file", file: { filename: pdf.name ?? "report.pdf", file_data: pdf.fileData } }],
+      },
+    ],
+  });
+
+  const multiplier = UNIT_MULTIPLIERS[report.unit];
+  const byFieldId = (figures: { field: string; value: number }[]) =>
+    new Map([...figureValues(figures)].map(([key, value]) => [fieldIdOf(key), value * multiplier]));
+  return {
+    period: report.period,
+    referencePeriod: report.referencePeriod,
+    yearPeriod: report.yearPeriod,
+    referenceYearPeriod: report.referenceYearPeriod,
+    values: {
+      current: byFieldId(report.current),
+      reference: byFieldId(report.reference),
+      yearly: byFieldId(report.yearly),
+      referenceYearly: byFieldId(report.referenceYearly),
+    },
+    revenueBreakdowns: revenueBreakdowns
+      ? report.revenueBreakdowns
+          .map((breakdown) => ({
+            name: breakdown.name.trim(),
+            categories: [...new Set(breakdown.categories.map((category) => category.trim()).filter(Boolean))],
+          }))
+          .filter((breakdown) => breakdown.name && breakdown.categories.length > 1)
+      : [],
+  };
 }
 
 export type ExtractResultsResult =
@@ -235,22 +326,13 @@ export async function extractResultsFromNews(
   if (!months) return { saved: false, reason: "noSeason" };
 
   // Downloaded only now: finding the PDF may take several downloads.
-  const pdf = await findPdf(news.attachments);
-  if (!pdf) return { saved: false, reason: "noPdf" };
-
-  const report = await structuredCompletion({
-    schemaName: "report_figures",
-    schema: reportSchema([...periodFields, ...yearlyFields]),
-    messages: [
-      { role: "system", content: instructions(months, periodFields, readYearly ? yearlyFields : undefined) },
-      {
-        role: "user",
-        content: [
-          { type: "file", file: { filename: pdf.name ?? "report.pdf", file_data: pdf.fileData } },
-        ],
-      },
-    ],
+  const report = await readReportFigures({
+    attachments: news.attachments,
+    months,
+    periodFields,
+    yearlyFields: readYearly ? yearlyFields : undefined,
   });
+  if (!report) return { saved: false, reason: "noPdf" };
 
   const parsePeriod = ({ startDate, endDate }: z.infer<typeof periodSchema>) => {
     const start = parseLocalDate(startDate);
@@ -264,16 +346,10 @@ export async function extractResultsFromNews(
   const yearPeriod = readYearly ? parsePeriod(report.yearPeriod) : undefined;
   const referenceYearPeriod = readYearly ? parsePeriod(report.referenceYearPeriod) : undefined;
 
-  const multiplier = UNIT_MULTIPLIERS[report.unit];
-  const values = {
-    current: figureValues(report.current),
-    reference: figureValues(report.reference),
-    yearly: figureValues(report.yearly),
-    referenceYearly: figureValues(report.referenceYearly),
-  };
+  const { values } = report;
   const valueOf = (fieldId: number, key: keyof typeof values) => {
-    const value = values[key].get(fieldKey(fieldId));
-    return value === undefined ? undefined : BigInt(Math.round(value * multiplier));
+    const value = values[key].get(fieldId);
+    return value === undefined ? undefined : BigInt(Math.round(value));
   };
 
   return prisma.$transaction(

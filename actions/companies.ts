@@ -4,8 +4,15 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
-import { applySettings, createCompanyWithSettings, type AppliedSettings } from "@/lib/default-company-settings";
-import { calendarFinancialYear } from "@/lib/financial-year";
+import {
+  applySettings,
+  createCompanyWithSettings,
+  settingsProblems,
+  settingsSchema,
+  type AppliedSettings,
+  type CompanySettings,
+} from "@/lib/default-company-settings";
+import { calendarFinancialYear, REPORTING_CYCLES, type ReportingCycle } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
 import { fetchIssuers, fetchShares } from "@/lib/nasdaq";
 import { shareOptions, type ShareOption } from "@/lib/nasdaq-news";
@@ -75,8 +82,25 @@ const companySchema = z.object({
     .transform((value) => value || null),
 });
 
+// Validation errors of a company to be created, before its result fields are reviewed. The ticker
+// may still be taken by the time the company is created.
+export async function validateCompany(input: CompanyInput): Promise<{ errors?: CompanyFormErrors }> {
+  await requireUserId();
+
+  const parsed = companySchema.safeParse(input);
+  if (!parsed.success) {
+    const { fieldErrors } = z.flattenError(parsed.error);
+    return { errors: fieldErrors as CompanyFormErrors };
+  }
+  const existing = await prisma.company.findUnique({ where: { ticker: parsed.data.ticker }, select: { id: true } });
+  return existing ? { errors: { ticker: ["tickerTaken"] } } : {};
+}
+
+// Creates the company with the reviewed settings and the current calendar year as its financial
+// year, divided into reporting seasons by the reporting cycle. The settings come from the client's
+// draft, which the user can't make invalid, so invalid settings throw.
 export async function createCompany(
-  input: CompanyInput,
+  input: CompanyInput & { reportingCycle: ReportingCycle; settings: CompanySettings },
 ): Promise<{ errors?: CompanyFormErrors }> {
   await requireUserId();
 
@@ -86,12 +110,20 @@ export async function createCompany(
     const { fieldErrors } = z.flattenError(parsed.error);
     return { errors: fieldErrors as CompanyFormErrors };
   }
+  const cycle = z.enum(REPORTING_CYCLES).parse(input.reportingCycle);
+  const settings = settingsSchema.parse(input.settings);
+  const problems = settingsProblems(settings);
+  if (problems.length > 0) throw new Error(`Invalid company settings: ${problems.join("; ")}`);
 
   let company;
   try {
-    // The company, its financial year, quarters, result fields and formulas in one transaction.
+    // The company, its financial year, seasons, result fields and formulas in one transaction.
     company = await prisma.$transaction((tx) =>
-      createCompanyWithSettings(tx, { ...parsed.data, financialYears: { create: calendarFinancialYear() } }),
+      createCompanyWithSettings(
+        tx,
+        { ...parsed.data, financialYears: { create: calendarFinancialYear({ cycle }) } },
+        settings,
+      ),
     );
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -101,7 +133,7 @@ export async function createCompany(
   }
 
   startNewsBackfill(company.id);
-  redirect("/dashboard");
+  return {};
 }
 
 // Updates the company's name, ticker, price symbol and Nasdaq issuer. A changed ticker changes the

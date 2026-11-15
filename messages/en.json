@@ -36,6 +36,55 @@
       "tickerTaken": "A company with this ticker already exists."
     }
   },
+  "CompanyReporting": {
+    "reportingCycle": "Reporting cycle",
+    "reportingCycleDescription": "How often the company reports its results. The company's first financial year is the current calendar year.",
+    "cycles": {
+      "quarterly": "Quarterly",
+      "halfYearly": "Half-yearly",
+      "yearly": "Yearly"
+    },
+    "statements": {
+      "incomeStatement": "Income statement",
+      "balanceSheet": "Balance sheet",
+      "cashFlow": "Cash flow statement"
+    },
+    "descriptions": {
+      "incomeStatement": "If the income statement is reported in full only yearly, the rows below EBIT and the fields calculated from them are reported only for financial years.",
+      "balanceSheet": "If the balance sheet is reported only yearly, its rows and the fields calculated from them are reported only for financial years.",
+      "cashFlow": "If the cash flow statement is reported only yearly, its rows and the fields calculated from them are reported only for financial years."
+    }
+  },
+  "CreateCompany": {
+    "next": "Next",
+    "checking": "Checking…",
+    "fieldsTitle": "Result fields",
+    "fieldsDescription": "Edit the company's income statement sections and result fields before creating the company. The changes are saved only when the company is created.",
+    "back": "Back",
+    "create": "Create company",
+    "creating": "Creating…",
+    "createError": "The company couldn't be created. Go back to correct its details.",
+    "resetTitle": "Rebuild the result fields?",
+    "resetDescription": "Since the reporting choices changed, the result fields are rebuilt from the default settings, and the changes made to them are lost.",
+    "resetConfirm": "Rebuild"
+  },
+  "ReportCheck": {
+    "findingReports": "Finding the company's latest reports on Nasdaq",
+    "readingReports": "Checking the result fields against the reports",
+    "count": "{done} / {total}",
+    "failed": "Finding the reports on Nasdaq failed, so the result fields weren't checked.",
+    "noIssuer": "The company wasn't found on Nasdaq, so the result fields weren't checked against its reports.",
+    "noReports": "No financial statements release or interim report of the company was found from the past 18 months.",
+    "checkedAgainst": "The result fields are checked against these reports (red X: the field wasn't found in a report):",
+    "reading": "reading…",
+    "unreadable": "the report couldn't be read",
+    "missing": "Not found in the report: {reports}",
+    "breakdownsTitle": "Revenue breakdowns",
+    "breakdownsDescription": "The company also reports its revenue broken down like this. An added breakdown becomes a section of its own above the income statement, and the revenue estimate is calculated as the sum of its fields.",
+    "addBreakdown": "Add",
+    "useForEstimate": "Use for the revenue estimate",
+    "usedForEstimate": "The revenue estimate is calculated from this"
+  },
   "StockPrices": {
     "empty": "No stock prices yet. They are fetched automatically when the page is opened, at most once a day.",
     "close": "Close",
@@ -423,6 +472,7 @@
       "operating_free_cash_flow": "Operating free cash flow",
       "dividend": "Dividend / capital return",
       "minority_interest_percent": "Minority interest %",
+      "revenue": "Revenue",
       "ebit": "EBIT",
       "depreciation": "Depreciation",
       "goodwill_amortization": "Goodwill amortization",

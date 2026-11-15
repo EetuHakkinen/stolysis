@@ -88,6 +88,19 @@ export function referencedFieldIds<Field>(formula: Formula<Field>): Field[] {
   return [...new Set(ids)];
 }
 
+// Ids of the other fields whose formulas use each field. A field's own formula may use its previous
+// value, which doesn't count.
+export function formulaUsers(
+  fields: { id: number; actualDefinition: Formula | null; estimateDefinition: Formula | null }[],
+): Map<number, number[]> {
+  const usedBy = new Map<number, Set<number>>();
+  for (const field of fields)
+    for (const formula of [field.actualDefinition, field.estimateDefinition])
+      for (const id of formula ? referencedFieldIds(formula) : [])
+        if (id !== field.id) usedBy.set(id, (usedBy.get(id) ?? new Set()).add(field.id));
+  return new Map([...usedBy].map(([id, users]) => [id, [...users]]));
+}
+
 // Whether the formulas (by field id) depend on each other in a loop through current period values,
 // e.g. A = B + 1 and B = A * 2. A previous period value doesn't depend on the current period, so a
 // field may use its own previous value.
