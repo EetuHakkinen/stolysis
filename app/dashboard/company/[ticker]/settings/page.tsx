@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getCompany } from "@/actions/companies";
+import { getCompany, getNasdaqIssuers } from "@/actions/companies";
 import { getEstimateScenarios } from "@/actions/estimates";
 import { getGraphs } from "@/actions/graphs";
 import { getResultFieldGroups } from "@/actions/result-field-groups";
@@ -24,12 +24,13 @@ export default async function CompanySettingsPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [scenarios, groups, graphs, valuation, refetch] = await Promise.all([
+  const [scenarios, groups, graphs, valuation, refetch, issuers] = await Promise.all([
     getEstimateScenarios(company.id),
     getResultFieldGroups(company.id),
     getGraphs(company.id),
     getValuation(company.id),
     getResultRefetch(company.id),
+    getNasdaqIssuers(),
   ]);
   const companyPath = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
 
@@ -39,7 +40,7 @@ export default async function CompanySettingsPage({
         <PageBreadcrumbs items={[{ label: company.name, href: companyPath }, { label: t("title") }]} />
         <PageHeader title={`${company.name}: ${t("title")}`} />
       </div>
-      <CompanyDetailsSettings company={company} />
+      <CompanyDetailsSettings company={company} issuers={issuers} />
       <EstimateScenarioSettings companyId={company.id} scenarios={scenarios} />
       <ResultFieldGroupSettings companyId={company.id} groups={groups} />
       <ResultFieldSettings groups={groups} />

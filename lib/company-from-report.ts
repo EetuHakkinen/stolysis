@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { createCompanyWithSettings } from "@/lib/default-company-settings";
 import { financialYear } from "@/lib/financial-year";
+import { startNewsBackfill } from "@/lib/nasdaq-news-fetch";
 import type { ContentPart } from "@/lib/openrouter";
 import { structuredCompletion } from "@/lib/openrouter";
 import { prisma } from "@/lib/prisma";
@@ -48,7 +49,7 @@ export type ReportRelease = {
 };
 
 // The company of a report release, created with its financial year (divided by its reporting
-// cycle) and the default settings. When the ticker found belongs to a company already in the
+// cycle) and the default settings; its news are then fetched from Nasdaq after the response. When the ticker found belongs to a company already in the
 // database, that company is returned instead. Undefined when the report doesn't tell enough.
 export async function findOrCreateCompanyFromReport(
   release: ReportRelease,
@@ -110,6 +111,7 @@ export async function findOrCreateCompanyFromReport(
         },
       }),
     );
+    startNewsBackfill(company.id);
     return { id: company.id, created: true };
   } catch (error) {
     // Another release of the same company created it first.

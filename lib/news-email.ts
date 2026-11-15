@@ -1,3 +1,4 @@
+import { decodeHTML } from "entities";
 import { helsinkiTime } from "@/lib/helsinki-time";
 
 // Parsing helpers for stock exchange releases received by email. Pure functions, no db access.
@@ -158,15 +159,9 @@ export function safeDecode(value: string): string {
   }
 }
 
+// All HTML entities, e.g. "&auml;" in Nasdaq's release pages. Non-breaking spaces become spaces.
 export function decodeEntities(html: string): string {
-  return html
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&amp;/g, "&");
+  return decodeHTML(html).replace(/\u00a0/g, " ");
 }
 
 // Plain text version of an HTML body, for emails that have no text part.

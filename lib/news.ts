@@ -23,6 +23,7 @@ export type NewsInput = {
   releasedAt: Date;
   categoryId: number;
   attachments: { url: string; name?: string }[];
+  nasdaqId?: number;
 };
 
 export async function saveNews({ attachments, ...news }: NewsInput) {

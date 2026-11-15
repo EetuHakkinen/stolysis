@@ -7,6 +7,9 @@ import { ButtonLink } from "@/components/button-link";
 import { Button } from "@/components/ui/button";
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NasdaqIssuerPicker } from "@/components/nasdaq-issuer-picker";
+import { NasdaqSharePicker } from "@/components/nasdaq-share-picker";
+import type { ShareOption } from "@/lib/nasdaq-news";
 import { defaultPriceSymbol } from "@/lib/stock-price";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +17,9 @@ import { cn } from "@/lib/utils";
 const INLINE_INPUT = "w-64";
 
 // Form for a company's name and ticker (and price symbol, with `withPriceSymbol`), for both
-// creating and editing a company. Submit returns
+// creating and editing a company. With `shares`, the form starts with a picker of a share on Nasdaq
+// Helsinki that fills in the name, ticker and Nasdaq issuer. With `nasdaqIssuers`, the form has a
+// picker of the company's Nasdaq issuer. Submit returns
 // the validation errors; a successful submit that doesn't navigate away shows a saved note until
 // the values change. An inline form has each label on the same row as its input, with the inputs
 // and buttons aligned to the right.
@@ -24,23 +29,39 @@ export function CompanyForm({
   cancelHref,
   inline = false,
   withPriceSymbol = false,
+  shares,
+  nasdaqIssuers,
 }: {
   initialValues?: CompanyInput;
   submit: (values: CompanyInput) => Promise<{ errors?: CompanyFormErrors }>;
   cancelHref?: string;
   inline?: boolean;
   withPriceSymbol?: boolean;
+  shares?: ShareOption[];
+  nasdaqIssuers?: string[];
 }) {
   const t = useTranslations("CompanyForm");
   const [values, setValues] = useState<CompanyInput>(initialValues);
+  const [share, setShare] = useState<ShareOption | null>(null);
   const [errors, setErrors] = useState<CompanyFormErrors>();
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const set = (field: keyof CompanyInput) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setValues((prev) => ({ ...prev, [field]: e.target.value }));
+  const setValue = (field: keyof CompanyInput, value: string) => {
+    setValues((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
   };
+  const set = (field: keyof CompanyInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setValue(field, e.target.value);
+
+  // The values stay when the share is cleared, so that they can be edited from there.
+  function pickShare(next: ShareOption | null) {
+    setShare(next);
+    if (!next) return;
+    setValues((prev) => ({ ...prev, name: next.name, ticker: next.ticker, nasdaqName: next.nasdaqName ?? "" }));
+    setErrors(undefined);
+    setSaved(false);
+  }
 
   // The default price symbol follows the ticker being typed.
   const defaultTicker = values.ticker.trim().toUpperCase();
@@ -61,9 +82,10 @@ export function CompanyForm({
     name: keyof CompanyInput,
     inputProps?: React.ComponentProps<typeof Input>,
     description?: string,
+    control?: React.ReactNode,
   ) {
     const invalid = !!errors?.[name];
-    const input = (
+    const input = control ?? (
       <Input
         id={name}
         value={values[name] ?? ""}
@@ -101,6 +123,13 @@ export function CompanyForm({
   return (
     <form onSubmit={onSubmit}>
       <FieldGroup className={cn(inline && "gap-4")}>
+        {shares && (
+          <Field>
+            <FieldLabel htmlFor="share">{t("share")}</FieldLabel>
+            <NasdaqSharePicker id="share" shares={shares} value={share} onChange={pickShare} className="w-full" />
+            <FieldDescription>{t("shareDescription")}</FieldDescription>
+          </Field>
+        )}
         {field("name")}
         {field("ticker", { className: "uppercase" })}
         {withPriceSymbol &&
@@ -108,6 +137,20 @@ export function CompanyForm({
             "priceSymbol",
             { className: "uppercase", required: false, placeholder: defaultPriceSymbol(defaultTicker) },
             t("priceSymbolDescription", { symbol: defaultPriceSymbol(defaultTicker) }),
+          )}
+        {nasdaqIssuers &&
+          field(
+            "nasdaqName",
+            undefined,
+            t("nasdaqNameDescription"),
+            <NasdaqIssuerPicker
+              id="nasdaqName"
+              issuers={nasdaqIssuers}
+              value={values.nasdaqName ?? ""}
+              onChange={(value) => setValue("nasdaqName", value)}
+              invalid={!!errors?.nasdaqName}
+              className="w-full"
+            />,
           )}
         <Field orientation="horizontal" className={cn(inline && "justify-end")}>
           <Button type="submit" disabled={pending}>

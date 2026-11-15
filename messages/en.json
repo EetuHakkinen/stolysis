@@ -14,10 +14,18 @@
   },
   "CompanyForm": {
     "title": "New company",
+    "share": "Share",
+    "sharePlaceholder": "Search by name or ticker…",
+    "shareEmpty": "No shares found.",
+    "shareDescription": "Pick a share on Nasdaq Helsinki to fill in the name and ticker, or type them below.",
     "name": "Name",
     "ticker": "Ticker",
     "priceSymbol": "Price symbol",
     "priceSymbolDescription": "Symbol of the stock in EODHD. Leave empty to use {symbol}.",
+    "nasdaqName": "Nasdaq issuer",
+    "nasdaqNamePlaceholder": "Search issuers…",
+    "nasdaqNameEmpty": "No issuers found.",
+    "nasdaqNameDescription": "The company's name in Nasdaq's company announcements, from which its news are fetched. News aren't fetched when this is empty.",
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved.",
@@ -50,7 +58,20 @@
   "News": {
     "title": "News",
     "empty": "No news yet.",
-    "attachments": "Attachments"
+    "attachments": "Attachments",
+    "refresh": {
+      "open": "Check for new news on Nasdaq",
+      "saved": "{count, plural, =0 {No new news.} one {# new news item.} other {# new news items.}}",
+      "errors": {
+        "failed": "Checking the news on Nasdaq failed.",
+        "running": "The news are already being processed."
+      }
+    },
+    "fetch": {
+      "savingNews": "Fetching news from Nasdaq",
+      "extractingResults": "Extracting results from reports",
+      "count": "{done} / {total}"
+    }
   },
   "CompanyTabs": {
     "news": "News",

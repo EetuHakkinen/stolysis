@@ -14,10 +14,18 @@
   },
   "CompanyForm": {
     "title": "Uusi yhtiö",
+    "share": "Osake",
+    "sharePlaceholder": "Hae nimellä tai kaupankäyntitunnuksella…",
+    "shareEmpty": "Osakkeita ei löytynyt.",
+    "shareDescription": "Valitse osake Nasdaq Helsingistä, niin nimi ja kaupankäyntitunnus täytetään, tai kirjoita ne alle.",
     "name": "Nimi",
     "ticker": "Kaupankäyntitunnus",
     "priceSymbol": "Kurssitunnus",
     "priceSymbolDescription": "Osakkeen tunnus EODHD:ssa. Jätä tyhjäksi, niin käytetään tunnusta {symbol}.",
+    "nasdaqName": "Nasdaq-liikkeeseenlaskija",
+    "nasdaqNamePlaceholder": "Hae liikkeeseenlaskijaa…",
+    "nasdaqNameEmpty": "Liikkeeseenlaskijoita ei löytynyt.",
+    "nasdaqNameDescription": "Yhtiön nimi Nasdaqin yhtiötiedotteissa, joista sen uutiset haetaan. Uutisia ei haeta, jos tämä on tyhjä.",
     "save": "Tallenna",
     "saving": "Tallennetaan…",
     "saved": "Tallennettu.",
@@ -50,7 +58,20 @@
   "News": {
     "title": "Uutiset",
     "empty": "Ei vielä uutisia.",
-    "attachments": "Liitteet"
+    "attachments": "Liitteet",
+    "refresh": {
+      "open": "Tarkista uudet uutiset Nasdaqista",
+      "saved": "{count, plural, =0 {Ei uusia uutisia.} one {# uusi uutinen.} other {# uutta uutista.}}",
+      "errors": {
+        "failed": "Uutisten tarkistus Nasdaqista epäonnistui.",
+        "running": "Uutisia käsitellään jo."
+      }
+    },
+    "fetch": {
+      "savingNews": "Haetaan uutisia Nasdaqista",
+      "extractingResults": "Poimitaan tuloksia katsauksista",
+      "count": "{done} / {total}"
+    }
   },
   "CompanyTabs": {
     "news": "Uutiset",

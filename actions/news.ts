@@ -1,8 +1,17 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
+import { NasdaqError } from "@/lib/nasdaq";
+import {
+  extractFetchedReports,
+  latestNewsFetch,
+  refreshStaleNews,
+  type NewsFetchResult,
+  type NewsFetchState,
+} from "@/lib/nasdaq-news-fetch";
 import { extractResultsAfterResponse } from "@/lib/news";
 import { saveNewsFromUrl, type SaveNewsUrlResult } from "@/lib/news-url";
 import { MAX_NEWS_URLS } from "@/lib/news-urls";
@@ -134,6 +143,55 @@ export async function addNewsFromUrls({ urls }: { urls: string[] }): Promise<Add
 
   if (results.some((result) => result.saved)) refresh();
   return results;
+}
+
+// The company's latest fetch of news from Nasdaq that found news to save, or null.
+export async function getNewsFetch(input: { companyId: number }): Promise<NewsFetchState | null> {
+  await requireUserId();
+  return latestNewsFetch(z.number().int().positive().parse(input.companyId));
+}
+
+// Fetches the company's latest news from Nasdaq when they haven't been checked in 4 hours, and
+// refreshes the page when any were saved. A failed fetch is retried 4 hours later.
+export async function updateNews(input: { companyId: number }): Promise<void> {
+  await requireUserId();
+  const companyId = z.number().int().positive().parse(input.companyId);
+
+  try {
+    afterNewsFetch(await refreshStaleNews(companyId));
+  } catch (error) {
+    if (!(error instanceof NasdaqError)) throw error;
+    console.error(error);
+  }
+}
+
+// Error values are translation keys under News.refresh.errors.
+export type RefreshNewsResult = { savedCount: number } | { error: "failed" | "running" };
+
+// Fetches the company's latest news from Nasdaq right away, also within 4 hours of the latest
+// check, unless a fetch is already running.
+export async function refreshNews(input: { companyId: number }): Promise<RefreshNewsResult> {
+  await requireUserId();
+  const companyId = z.number().int().positive().parse(input.companyId);
+
+  try {
+    const result = await refreshStaleNews(companyId, { force: true });
+    afterNewsFetch(result);
+    if (!result.fetched) return result.reason === "running" ? { error: "running" } : { savedCount: 0 };
+    return { savedCount: result.savedCount };
+  } catch (error) {
+    if (!(error instanceof NasdaqError)) throw error;
+    console.error(error);
+    return { error: "failed" };
+  }
+}
+
+// Shows the saved news, and extracts results from the saved reports after the response is sent.
+function afterNewsFetch(result: NewsFetchResult) {
+  if (!result.fetched) return;
+  if (result.savedCount > 0) refresh();
+  const { fetchId, reportNewsIds } = result;
+  if (fetchId !== null && reportNewsIds.length > 0) after(() => extractFetchedReports(fetchId, reportNewsIds));
 }
 
 function preview(description: string): string {

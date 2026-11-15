@@ -7,6 +7,9 @@ import { requireUserId } from "@/lib/auth";
 import { applySettings, createCompanyWithSettings, type AppliedSettings } from "@/lib/default-company-settings";
 import { calendarFinancialYear } from "@/lib/financial-year";
 import { prisma } from "@/lib/prisma";
+import { fetchIssuers, fetchShares } from "@/lib/nasdaq";
+import { shareOptions, type ShareOption } from "@/lib/nasdaq-news";
+import { startNewsBackfill } from "@/lib/nasdaq-news-fetch";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import { priceSymbol } from "@/lib/stock-price";
 
@@ -20,8 +23,35 @@ export async function getCompany(ticker: string) {
   return prisma.company.findUnique({ where: { ticker } });
 }
 
-// An empty price symbol stands for the default one (see lib/stock-price.ts).
-export type CompanyInput = { name: string; ticker: string; priceSymbol?: string };
+// Names of the issuers on Nasdaq Helsinki for choosing a company's Nasdaq issuer; empty when the
+// list can't be fetched.
+export async function getNasdaqIssuers(): Promise<string[]> {
+  await requireUserId();
+  try {
+    return await fetchIssuers();
+  } catch (error) {
+    console.error("Fetching Nasdaq issuers failed", error);
+    return [];
+  }
+}
+
+// The shares on Nasdaq Helsinki for creating a company from, with the company's name and Nasdaq
+// issuer; empty when the lists can't be fetched.
+export async function getNasdaqShares(): Promise<ShareOption[]> {
+  await requireUserId();
+  try {
+    const [shares, issuers] = await Promise.all([fetchShares(), fetchIssuers()]);
+    return shareOptions(shares, issuers);
+  } catch (error) {
+    console.error("Fetching Nasdaq shares failed", error);
+    return [];
+  }
+}
+
+// An empty price symbol stands for the default one (see lib/stock-price.ts). An empty Nasdaq name
+// is matched by the company's name when the company is created, and otherwise means that the
+// company's news aren't fetched from Nasdaq.
+export type CompanyInput = { name: string; ticker: string; priceSymbol?: string; nasdaqName?: string };
 
 // Error values are translation keys under CompanyForm.errors.
 export type CompanyFormError = "required" | "tooLong" | "tickerTaken";
@@ -35,6 +65,12 @@ const companySchema = z.object({
     .trim()
     .toUpperCase()
     .max(30, "tooLong")
+    .optional()
+    .transform((value) => value || null),
+  nasdaqName: z
+    .string()
+    .trim()
+    .max(200, "tooLong")
     .optional()
     .transform((value) => value || null),
 });
@@ -51,9 +87,10 @@ export async function createCompany(
     return { errors: fieldErrors as CompanyFormErrors };
   }
 
+  let company;
   try {
     // The company, its financial year, quarters, result fields and formulas in one transaction.
-    await prisma.$transaction((tx) =>
+    company = await prisma.$transaction((tx) =>
       createCompanyWithSettings(tx, { ...parsed.data, financialYears: { create: calendarFinancialYear() } }),
     );
   } catch (error) {
@@ -63,13 +100,14 @@ export async function createCompany(
     throw error;
   }
 
+  startNewsBackfill(company.id);
   redirect("/dashboard");
 }
 
-// Updates the company's name, ticker and price symbol. A changed ticker changes the company's URLs, so then this
-// redirects to the settings page under the new ticker. A changed price symbol (also by a changed
-// ticker) clears the failure of the latest price fetch and lets the prices be fetched again right
-// away.
+// Updates the company's name, ticker, price symbol and Nasdaq issuer. A changed ticker changes the
+// company's URLs, so then this redirects to the settings page under the new ticker. A changed price
+// symbol (also by a changed ticker) clears the failure of the latest price fetch and lets the prices
+// be fetched again right away. A changed Nasdaq issuer lets the news be fetched again right away.
 export async function updateCompany(
   input: CompanyInput & { companyId: number },
 ): Promise<{ errors?: CompanyFormErrors }> {
@@ -82,14 +120,22 @@ export async function updateCompany(
   }
   const id = z.number().int().positive().parse(input.companyId);
 
-  const company = await prisma.company.findUnique({ where: { id }, select: { ticker: true, priceSymbol: true } });
+  const company = await prisma.company.findUnique({
+    where: { id },
+    select: { ticker: true, priceSymbol: true, nasdaqName: true },
+  });
   if (!company) return {};
   const symbolChanged = priceSymbol(parsed.data) !== priceSymbol(company);
+  const issuerChanged = parsed.data.nasdaqName !== company.nasdaqName;
 
   try {
     await prisma.company.update({
       where: { id },
-      data: { ...parsed.data, ...(symbolChanged && { pricesFetchedAt: null, pricesFetchError: null }) },
+      data: {
+        ...parsed.data,
+        ...(symbolChanged && { pricesFetchedAt: null, pricesFetchError: null }),
+        ...(issuerChanged && { newsFetchedAt: null }),
+      },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
