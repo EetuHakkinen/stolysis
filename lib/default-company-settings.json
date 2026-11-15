@@ -417,6 +417,25 @@
             { "operator": "/" },
             { "field": "Osakemäärä", "period": "current" }
           ]
+        },
+        {
+          "name": "Osinko/osake",
+          "valueFormat": "per_share",
+          "yearlyValue": "yearly_only",
+          "actualDefinition": [
+            { "field": "Osinko/pääomanpalautus", "period": "current" },
+            { "operator": "/" },
+            { "field": "Osakemäärä", "period": "current" },
+            { "operator": "*" },
+            { "number": -1 }
+          ],
+          "estimateDefinition": [
+            { "field": "Osinko/pääomanpalautus", "period": "current" },
+            { "operator": "/" },
+            { "field": "Osakemäärä", "period": "current" },
+            { "operator": "*" },
+            { "number": -1 }
+          ]
         }
       ]
     }
@@ -428,6 +447,14 @@
       "fields": [
         { "field": "Liikevaihto", "type": "line", "axis": "left" },
         { "field": "Liikevoitto-%", "type": "bar", "axis": "right" }
+      ]
+    },
+    {
+      "name": "EPS ja osinko/osake",
+      "starred": true,
+      "fields": [
+        { "field": "EPS", "type": "bar", "axis": "left" },
+        { "field": "Osinko/osake", "type": "bar", "axis": "left" }
       ]
     }
   ]
