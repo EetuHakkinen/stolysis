@@ -201,7 +201,8 @@ function periodKey(fieldId: number, periodId: number) {
 // formed from their seasons, the estimate one elsewhere. A year's formula is calculated from the
 // fields' yearly values, not summed from its seasons, so e.g. a margin is the year's margin. In
 // years formed from their seasons, fields calculated only for estimates are summed like entered
-// ones, or calculated with the estimate formula when reported only yearly and the year has no data.
+// ones. Fields reported only yearly use their estimate formula or yearly estimate in years without
+// data from such fields, also in years formed from their seasons.
 // Periods are calculated oldest first, and the fields of a period in an order where a formula's
 // fields come before it.
 export function predictCompany({
@@ -239,14 +240,17 @@ export function predictCompany({
   const fieldsById = new Map(fields.map((field) => [field.id, field]));
   const yearlyOnly = fields.filter((field) => field.yearlyValue === "yearly_only");
 
-  // Formulas of a year formed from its seasons: the actual ones, and the estimate ones of fields
-  // reported only yearly when the year has no data for them.
+  // Formulas of a year formed from its seasons: the actual ones, except that fields reported only
+  // yearly are estimated like in a year estimated as a whole when the year has no data for them.
+  // Their actual formulas would use the yearly values they are estimated from, e.g. a tax rate
+  // calculated from the taxes calculated from it.
   const seasonYearFormulas = (hasYearlyData: boolean) => {
-    if (hasYearlyData || !yearlyOnly.some((field) => !field.actualDefinition && field.estimateDefinition))
-      return actualFormulas;
+    if (hasYearlyData || yearlyOnly.length === 0) return actualFormulas;
     const formulas = new Map(actualFormulas.formulas);
-    for (const field of yearlyOnly)
-      if (!field.actualDefinition && field.estimateDefinition) formulas.set(field.id, field.estimateDefinition);
+    for (const field of yearlyOnly) {
+      if (field.estimateDefinition) formulas.set(field.id, field.estimateDefinition);
+      else formulas.delete(field.id);
+    }
     return { formulas, order: evaluationOrder(fieldIds, formulas) };
   };
 

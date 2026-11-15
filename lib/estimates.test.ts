@@ -352,6 +352,51 @@ describe("predictCompany with a field reported only yearly", () => {
     assert.equal(Math.round(prediction.yearly[4][2028].value!), 26.62 * M);
   });
 
+  it("estimates fields with an actual formula from their yearly estimate in years without data", () => {
+    // Taxes are calculated from the tax rate for estimates, and the tax rate from the taxes for
+    // actual values; the profit after taxes is calculated from both for estimates.
+    const taxRate = [field(2), op("/"), field(1), op("*"), { number: -100 }];
+    const { yearly } = predictCompany({
+      years,
+      fields: [
+        { id: 1, estimateType: "relative", yearlyValue: "sum", ...entered },
+        {
+          id: 2,
+          estimateType: "relative",
+          yearlyValue: "yearly_only",
+          actualDefinition: null,
+          estimateDefinition: [field(1), op("*"), field(3), op("/"), { number: -100 }],
+        },
+        { id: 3, estimateType: "absolute", yearlyValue: "yearly_only", actualDefinition: taxRate, estimateDefinition: null },
+        {
+          id: 4,
+          estimateType: "relative",
+          yearlyValue: "yearly_only",
+          actualDefinition: null,
+          estimateDefinition: [field(1), op("+"), field(2)],
+        },
+      ],
+      actuals: { 1: quarters(2025, 100 * M) },
+      yearlyActuals: { 2: { 2025: BigInt(-80 * M) } },
+      estimates: [
+        ...[20261, 20262, 20263, 20264].map((id) => ({
+          resultFieldId: 1,
+          reportingSeasonId: id,
+          financialYearId: null,
+          value: 0,
+        })),
+        { resultFieldId: 3, reportingSeasonId: null, financialYearId: 2026, value: 20 },
+      ],
+    });
+
+    assert.equal(yearly[3][2025].value, 20);
+    assert.equal(yearly[3][2025].source, "actual");
+    assert.deepEqual(yearly[3][2026], { value: 20, source: "estimate", change: 0 });
+    assert.equal(yearly[2][2026].value, -80 * M);
+    assert.equal(yearly[2][2026].source, "estimate");
+    assert.equal(yearly[4][2026].value, 320 * M);
+  });
+
   it("finds years with data", async () => {
     const { yearsWithData } = await import("./estimates.ts");
     assert.deepEqual([...yearsWithData({ 2: { 2025: BigInt(1), 2026: null } })], [2025]);
