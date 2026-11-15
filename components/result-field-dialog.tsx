@@ -80,8 +80,15 @@ export function ResultFieldDialog({
     setValues((values) => ({ ...values, [key]: value }));
   }
 
+  // A formula switched to calculated without one of its own starts as a copy of the other formula,
+  // when that one is calculated, since actual and estimated values are usually calculated the same
+  // way.
   function setCalculated(key: DefinitionKey, calculated: boolean) {
-    set(key, calculated ? drafts[key] : null);
+    if (!calculated) return set(key, null);
+    const other = values[key === "actualDefinition" ? "estimateDefinition" : "actualDefinition"];
+    const formula = drafts[key].length === 0 && other ? other : drafts[key];
+    setDrafts((drafts) => ({ ...drafts, [key]: formula }));
+    set(key, formula);
   }
 
   function changeFormula(key: DefinitionKey, formula: Formula) {
