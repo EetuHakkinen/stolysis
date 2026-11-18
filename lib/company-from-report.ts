@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { findPdf } from "@/lib/attachments";
 import { createCompanyWithSettings } from "@/lib/default-company-settings";
 import { financialYear } from "@/lib/financial-year";
 import { startNewsBackfill } from "@/lib/nasdaq-news-fetch";
@@ -7,7 +8,6 @@ import type { ContentPart } from "@/lib/openrouter";
 import { structuredCompletion } from "@/lib/openrouter";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
-import { findPdf } from "@/lib/report-extraction";
 import { parseLocalDate } from "@/lib/reporting-season";
 
 // Companies created from reports of companies that aren't in the database yet. AI reads the

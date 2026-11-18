@@ -119,12 +119,14 @@
     "fetch": {
       "savingNews": "Haetaan uutisia Nasdaqista",
       "extractingResults": "Poimitaan tuloksia katsauksista",
+      "analyzingNews": "Päivitetään liiketoiminta-analyysiä",
       "count": "{done} / {total}"
     }
   },
   "CompanyTabs": {
     "news": "Uutiset",
-    "notes": "Muistiinpanot"
+    "notes": "Muistiinpanot",
+    "analysis": "Liiketoiminta-analyysi"
   },
   "Notes": {
     "title": "Muistiinpanot",
@@ -139,11 +141,8 @@
     "estimates": "Ennusteet",
     "multiples": "Arvostuskertoimet",
     "noYear": "Muistiinpanon päivämäärälle ei ole tilikautta.",
-    "write": "Kirjoita",
-    "preview": "Esikatselu",
     "text": "Muistiinpano",
     "placeholder": "Kirjoita muistiinpano markdownina…",
-    "nothingToPreview": "Ei esikatseltavaa.",
     "status": {
       "empty": "Tallentuu, kun kirjoitat jotain",
       "saved": "Tallennettu",
@@ -160,6 +159,43 @@
     "deleteDescription": "Muistiinpano poistetaan pysyvästi.",
     "createFromNews": "Luo muistiinpano",
     "noneForNews": "Tästä uutisesta ei ole vielä muistiinpanoja."
+  },
+  "MarkdownEditor": {
+    "write": "Kirjoita",
+    "preview": "Esikatselu",
+    "nothingToPreview": "Ei esikatseltavaa."
+  },
+  "BusinessAnalysis": {
+    "description": "Yleiskuva yhtiön liiketoiminnasta sijoittajalle. Tekoäly päivittää sitä yhtiön tiedotteista.",
+    "openAll": "Avaa kaikki",
+    "collapseAll": "Sulje kaikki",
+    "categories": {
+      "company_description": "Yhtiön kuvaus",
+      "business_model": "Liiketoimintamalli",
+      "products": "Tuotteet ja palvelut",
+      "markets_and_competitors": "Markkinat ja kilpailijat",
+      "strategy": "Strategia",
+      "acquisitions": "Yritysostot",
+      "risks": "Riskit"
+    },
+    "empty": "Ei vielä analyysiä.",
+    "fromNews": "Päivitetty {date} tiedotteesta <news></news>",
+    "byHand": "Muokattu käsin {date}",
+    "edit": "Muokkaa",
+    "placeholder": "Kirjoita osio markdownina…",
+    "save": "Tallenna",
+    "saving": "Tallennetaan…",
+    "cancel": "Peruuta",
+    "errors": {
+      "empty": "Osio ei voi olla tyhjä.",
+      "changed": "Osiota päivitettiin muokkauksesi aikana. Kopioi tekstisi, peruuta ja muokkaa uudelleen.",
+      "failed": "Tallentaminen epäonnistui."
+    },
+    "history": "Historia",
+    "historyTitle": "Historia: {section}",
+    "loading": "Ladataan…",
+    "noHistory": "Ei vielä versioita.",
+    "updatedByNews": "Tämä tiedote päivitti <link>liiketoiminta-analyysiä</link>: {sections}."
   },
   "AddNews": {
     "open": "Lisää uutisia",
@@ -399,6 +435,26 @@
       "interrupted": "{startedAt} aloitettu uudelleenhaku keskeytyi {processed}/{total} raportin jälkeen. {rows, plural, one {# arvo} other {# arvoa}} tallennettiin."
     },
     "failedNews": "{count} raportin lukeminen epäonnistui."
+  },
+  "BusinessAnalysisRun": {
+    "title": "Aiempien tiedotteiden liiketoiminta-analyysi",
+    "description": "Päivittää liiketoiminta-analyysin yhtiön osavuosikatsauksista ja tilinpäätöstiedotteista, joita ei ole vielä käyty läpi, vanhimmasta alkaen. Esimerkiksi tiedotteet, jotka saapuivat ennen analyysin käyttöönottoa tai joiden analysointi epäonnistui. Uudet tiedotteet käydään läpi niiden saapuessa.",
+    "pending": "{count, plural, =0 {Kaikki raportit on käyty läpi.} one {# raportti on vielä käymättä läpi.} other {# raporttia on vielä käymättä läpi.}}",
+    "start": "Aja analyysi",
+    "starting": "Aloitetaan…",
+    "confirmTitle": "Ajetaanko liiketoiminta-analyysi?",
+    "confirmDescription": "{count, plural, one {# raportti luetaan} other {# raporttia luetaan}} tekoälyllä vanhimmasta alkaen, mikä voi kestää pitkään. Jokainen raportti, joka kertoo jotain pysyvää liiketoiminnasta, päivittää analyysiä.",
+    "errors": {
+      "running": "Analyysi on jo käynnissä.",
+      "noNews": "Kaikki raportit on jo käyty läpi."
+    },
+    "status": {
+      "running": "Analysoidaan: {processed}/{total} raporttia käyty läpi.",
+      "done": "{startedAt} aloitettu analyysi kävi läpi {total, plural, one {# raportin} other {# raporttia}}.",
+      "failed": "{startedAt} aloitettu analyysi epäonnistui {processed}/{total} raportin jälkeen.",
+      "interrupted": "{startedAt} aloitettu analyysi keskeytyi {processed}/{total} raportin jälkeen."
+    },
+    "failedNews": "{count} raportin läpikäynti epäonnistui."
   },
   "ShowMore": {
     "more": "Näytä lisää",

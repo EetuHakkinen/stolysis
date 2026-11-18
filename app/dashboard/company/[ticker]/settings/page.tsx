@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { getBusinessAnalysisRun } from "@/actions/business-analysis";
 import { getCompany, getNasdaqIssuers } from "@/actions/companies";
 import { getEstimateScenarios } from "@/actions/estimates";
 import { getGraphs } from "@/actions/graphs";
 import { getResultFieldGroups } from "@/actions/result-field-groups";
 import { getResultRefetch } from "@/actions/result-refetch";
 import { getValuation } from "@/actions/valuation";
+import { BusinessAnalysisRunSettings } from "@/components/business-analysis-run-settings";
 import { CompanyDetailsSettings } from "@/components/company-details-settings";
 import { DefaultSettingsSettings } from "@/components/default-settings-settings";
 import { EstimateScenarioSettings } from "@/components/estimate-scenario-settings";
@@ -24,13 +26,14 @@ export default async function CompanySettingsPage({
   const company = await getCompany(ticker);
   if (!company) notFound();
 
-  const [scenarios, groups, graphs, valuation, refetch, issuers] = await Promise.all([
+  const [scenarios, groups, graphs, valuation, refetch, issuers, analysisRun] = await Promise.all([
     getEstimateScenarios(company.id),
     getResultFieldGroups(company.id),
     getGraphs(company.id),
     getValuation(company.id),
     getResultRefetch(company.id),
     getNasdaqIssuers(),
+    getBusinessAnalysisRun({ companyId: company.id }),
   ]);
   const companyPath = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
 
@@ -45,6 +48,7 @@ export default async function CompanySettingsPage({
       <ResultFieldGroupSettings companyId={company.id} groups={groups} />
       <ResultFieldSettings groups={groups} />
       <ResultRefetchSettings companyId={company.id} groups={groups} refetch={refetch} />
+      <BusinessAnalysisRunSettings companyId={company.id} info={analysisRun} />
       <GraphSettings companyId={company.id} graphs={graphs} groups={groups} />
       <ValuationMultipleSettings companyId={company.id} multiples={valuation.multiples} groups={groups} />
       <DefaultSettingsSettings companyId={company.id} />

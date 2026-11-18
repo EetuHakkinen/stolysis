@@ -10,7 +10,9 @@ import {
   parseDateHeader,
   parseReleaseTime,
 } from "@/lib/news-email";
+import { analyzeNewsForBusiness, ANALYZED_NEWS_CATEGORIES } from "@/lib/business-analysis";
 import { findOrCreateCompanyFromReport } from "@/lib/company-from-report";
+import { COMPANY_RELEASE_CATEGORY, INVESTOR_CALL_CATEGORY } from "@/lib/news-categories";
 import { extractResultsFromNews, isReportCategory } from "@/lib/report-extraction";
 
 // Not server actions: these are also called by the SendGrid webhook, which has no Clerk session.
@@ -33,9 +35,6 @@ export async function saveNews({ attachments, ...news }: NewsInput) {
   });
 }
 
-// Category of investor call transcripts, which are added by hand and never matched by keywords.
-export const INVESTOR_CALL_CATEGORY = "Sijoittajapuhelu";
-
 // Saves an investor call transcript as the company's news.
 export async function saveInvestorCall({
   companyId,
@@ -47,13 +46,13 @@ export async function saveInvestorCall({
   title: string;
   transcript: string;
   releasedAt: Date;
-}) {
+}): Promise<SaveNewsResult> {
   const category = await prisma.newsCategory.findUnique({
     where: { name: INVESTOR_CALL_CATEGORY },
     select: { id: true },
   });
   if (!category) throw new Error(`News category "${INVESTOR_CALL_CATEGORY}" is missing`);
-  return saveNews({
+  const news = await saveNews({
     companyId,
     title,
     description: transcript,
@@ -61,13 +60,14 @@ export async function saveInvestorCall({
     categoryId: category.id,
     attachments: [],
   });
+  return { saved: true, newsId: news.id, companyId, companyCreated: false, category: INVESTOR_CALL_CATEGORY };
 }
 
 // Category for news that match no other category.
 const FALLBACK_CATEGORY = "Muu";
 
 // Release types that say little about the content, so a more specific category wins over them.
-const GENERIC_CATEGORIES = ["Yhtiötiedote", "Muut pörssin sääntöjen nojalla julkistettavat tiedot"];
+const GENERIC_CATEGORIES = [COMPANY_RELEASE_CATEGORY, "Muut pörssin sääntöjen nojalla julkistettavat tiedot"];
 
 // Category of a news item by its subject and release line, falling back to Muu.
 export async function categorizeNews({
@@ -187,17 +187,34 @@ export function autoCreateCompaniesFromUi(): boolean {
   return process.env.AUTO_CREATE_COMPANIES_FROM_UI !== "false";
 }
 
-// Extracts results from saved report news after the response is sent: reading a report takes a
-// while. Other news have no results to extract.
-export function extractResultsAfterResponse(result: SaveNewsResult) {
-  if (!result.saved || !isReportCategory(result.category)) return;
-  const { newsId } = result;
+// Processes saved news after the response is sent, as reading a report takes a while: extracts
+// results from reports, then goes through the news for the business analysis. Other news have no
+// results to extract, and only some categories are gone through for the analysis.
+export function processNewsAfterResponse(result: SaveNewsResult) {
+  if (!result.saved) return;
+  const { newsId, category } = result;
+  const report = isReportCategory(category);
+  if (!report && !ANALYZED_NEWS_CATEGORIES.includes(category)) return;
   after(async () => {
-    try {
-      const extraction = await extractResultsFromNews(newsId);
-      console.log("Extracted results from news", { newsId, ...extraction });
-    } catch (error) {
-      console.error("Extracting results from news failed", { newsId, error });
+    if (report) {
+      try {
+        const extraction = await extractResultsFromNews(newsId);
+        console.log("Extracted results from news", { newsId, ...extraction });
+      } catch (error) {
+        console.error("Extracting results from news failed", { newsId, error });
+      }
     }
+    await analyzeNewsAndLog(newsId);
   });
+}
+
+// Goes through the news for the business analysis, logging the outcome. A failure is logged too, and
+// leaves the news to be gone through again later.
+export async function analyzeNewsAndLog(newsId: number, categories?: string[]) {
+  try {
+    const analysis = await analyzeNewsForBusiness(newsId, categories);
+    console.log("Analyzed news for the business analysis", { newsId, ...analysis });
+  } catch (error) {
+    console.error("Analyzing news for the business analysis failed", { newsId, error });
+  }
 }

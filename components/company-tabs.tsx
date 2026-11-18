@@ -4,18 +4,20 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export type CompanyTab = "news" | "notes";
+export type CompanyTab = "news" | "notes" | "analysis";
 
-// A company's news and notes in tabs. The open tab is kept in the URL, so it survives a reload and
+// A company's news, notes and business analysis in tabs. The open tab is kept in the URL, so it survives a reload and
 // pagination; changing it only replaces the history entry.
 export function CompanyTabs({
   initialTab,
   news,
   notes,
+  analysis,
 }: {
   initialTab: CompanyTab;
   news: React.ReactNode;
   notes: React.ReactNode;
+  analysis: React.ReactNode;
 }) {
   const t = useTranslations("CompanyTabs");
   const [tab, setTab] = useState(initialTab);
@@ -31,6 +33,7 @@ export function CompanyTabs({
   const tabs: { value: CompanyTab; content: React.ReactNode }[] = [
     { value: "news", content: news },
     { value: "notes", content: notes },
+    { value: "analysis", content: analysis },
   ];
 
   return (

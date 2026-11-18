@@ -6,13 +6,14 @@ All postgres tables and columns must be named with snakecase, for example `compa
 
 All db tables must have `createdAt` and `updatedAt`-columns.
 
-`result_row`, `estimate_row` and `valuation_multiple_value` are insert-only: never update or delete
+`result_row`, `estimate_row`, `valuation_multiple_value` and `business_analysis` are insert-only: never update or delete
 their rows, so the history of how values have changed is kept. A new value is a new row, and only the
 latest row (by `created_at`, then `id`) per key is shown to the user:
 
 - `result_row`: per reporting season and result field
 - `estimate_row`: per scenario, result field and period (reporting season or financial year)
 - `valuation_multiple_value`: per scenario and valuation multiple
+- `business_analysis`: per company and category
 
 ## Components
 

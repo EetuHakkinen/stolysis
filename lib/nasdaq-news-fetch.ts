@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import type { NewsFetchStatus } from "@/app/generated/prisma/enums";
+import { ANALYZED_NEWS_CATEGORIES, BACKFILL_ANALYZED_NEWS_CATEGORIES } from "@/lib/business-analysis";
 import { fetchAnnouncements, fetchIssuers, fetchReleaseText, type NasdaqAnnouncement } from "@/lib/nasdaq";
 import {
   DUPLICATE_WINDOW_MS,
@@ -10,7 +11,7 @@ import {
   newsFetchStart,
   withoutTranslations,
 } from "@/lib/nasdaq-news";
-import { categorizeNews, saveNews } from "@/lib/news";
+import { analyzeNewsAndLog, categorizeNews, saveNews } from "@/lib/news";
 import { findReleaseLine } from "@/lib/news-email";
 import { prisma } from "@/lib/prisma";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
@@ -20,7 +21,8 @@ import { extractResultsFromNews, isReportCategory } from "@/lib/report-extractio
 const TEXT_CONCURRENCY = 3;
 
 // A running fetch not updated for this long was interrupted, e.g. by a server restart: saving a
-// batch of news takes seconds and reading one report at most a few minutes.
+// batch of news takes seconds, and reading one report or analyzing one news item at most a few
+// minutes.
 const STALE_AFTER_MS = 15 * 60 * 1000;
 
 export type NewsFetchState = {
@@ -29,6 +31,8 @@ export type NewsFetchState = {
   processedCount: number;
   reportCount: number;
   extractedCount: number;
+  analysisCount: number;
+  analyzedCount: number;
 };
 
 // The company's latest fetch that found news to save, or null when there is none.
@@ -42,6 +46,8 @@ export async function latestNewsFetch(companyId: number): Promise<NewsFetchState
       processedCount: true,
       reportCount: true,
       extractedCount: true,
+      analysisCount: true,
+      analyzedCount: true,
       updatedAt: true,
     },
   });
@@ -61,14 +67,15 @@ export type NewsFetchResult =
       fetchId: number | null;
       // Saved report news to extract results from, oldest first.
       reportNewsIds: number[];
+      // Saved news to go through for the business analysis, oldest first.
+      analysisNewsIds: number[];
     };
 
 // When the company has a Nasdaq issuer, no fetch of its news is running and its news haven't been
 // checked in 4 hours (or always with `force`), fetches its announcements since the latest news
 // fetched from Nasdaq (5 years back when there are none) and saves them as news. The fetch time is
-// saved before fetching, so a page opened during the fetch doesn't fetch again. Results are
-// extracted from the saved reports with extractFetchedReports. Throws a NasdaqError when fetching
-// fails.
+// saved before fetching, so a page opened during the fetch doesn't fetch again. The saved news are
+// processed with processFetchedNews. Throws a NasdaqError when fetching fails.
 export async function refreshStaleNews(
   companyId: number,
   { force = false }: { force?: boolean } = {},
@@ -88,10 +95,14 @@ export async function refreshStaleNews(
   return fetchNasdaqNews(companyId, company.nasdaqName, now);
 }
 
-// Extracts results from the fetch's saved reports one at a time, oldest first so that newer reports
-// win, saving the progress after each, and then marks the fetch done. A failed report is logged and
-// skipped.
-export async function extractFetchedReports(fetchId: number, reportNewsIds: number[]) {
+// Processes the fetch's saved news one at a time, oldest first, saving the progress after each, and
+// then marks the fetch done: first extracts results from the reports, so that newer reports win,
+// then goes through the news for the business analysis, as each update builds on the previous ones.
+// A failed news item is logged and skipped.
+export async function processFetchedNews(
+  fetchId: number,
+  { reportNewsIds, analysisNewsIds }: { reportNewsIds: number[]; analysisNewsIds: number[] },
+) {
   try {
     for (const newsId of reportNewsIds) {
       try {
@@ -102,6 +113,10 @@ export async function extractFetchedReports(fetchId: number, reportNewsIds: numb
       }
       await prisma.newsFetch.update({ where: { id: fetchId }, data: { extractedCount: { increment: 1 } } });
     }
+    for (const newsId of analysisNewsIds) {
+      await analyzeNewsAndLog(newsId);
+      await prisma.newsFetch.update({ where: { id: fetchId }, data: { analyzedCount: { increment: 1 } } });
+    }
     await prisma.newsFetch.update({ where: { id: fetchId }, data: { status: "done" } });
   } catch (error) {
     console.error("Extracting results of fetched news failed", { fetchId, error });
@@ -110,13 +125,13 @@ export async function extractFetchedReports(fetchId: number, reportNewsIds: numb
 }
 
 // Sets the company's Nasdaq issuer by its name when it has none, then fetches its news (5 years
-// back) and extracts results from its reports after the response is sent, for a new company.
+// back) and processes them after the response is sent, for a new company.
 export function startNewsBackfill(companyId: number) {
   after(async () => {
     try {
       await matchCompanyIssuer(companyId);
       const result = await refreshStaleNews(companyId, { force: true });
-      if (result.fetched && result.fetchId !== null) await extractFetchedReports(result.fetchId, result.reportNewsIds);
+      if (result.fetched && result.fetchId !== null) await processFetchedNews(result.fetchId, result);
     } catch (error) {
       console.error("Fetching news of new company failed", { companyId, error });
     }
@@ -141,7 +156,8 @@ async function matchCompanyIssuer(companyId: number) {
 // Saves the issuer's announcements since the latest news fetched from Nasdaq as the company's
 // news, oldest first: when fetching stops halfway, the next fetch continues from where it stopped.
 // Announcements that are news already received by email or by URL only get their Nasdaq id. The
-// progress is saved after each batch of news.
+// progress is saved after each batch of news. The first fetch of a company's news, going years back,
+// only takes reports to the business analysis; later fetches take news of all analyzed categories.
 async function fetchNasdaqNews(companyId: number, issuer: string, now: Date): Promise<NewsFetchResult> {
   const latest = await prisma.news.findFirst({
     where: { companyId, nasdaqId: { not: null } },
@@ -164,7 +180,10 @@ async function fetchNasdaqNews(companyId: number, issuer: string, now: Date): Pr
   const announcements = fetched
     .filter((announcement) => !known.has(announcement.id))
     .sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime() || a.id - b.id);
-  if (announcements.length === 0) return { fetched: true, savedCount: 0, fetchId: null, reportNewsIds: [] };
+  if (announcements.length === 0) {
+    return { fetched: true, savedCount: 0, fetchId: null, reportNewsIds: [], analysisNewsIds: [] };
+  }
+  const analyzedCategories = latest ? ANALYZED_NEWS_CATEGORIES : BACKFILL_ANALYZED_NEWS_CATEGORIES;
 
   const { id: fetchId } = await prisma.newsFetch.create({
     data: { companyId, newsCount: announcements.length },
@@ -174,6 +193,7 @@ async function fetchNasdaqNews(companyId: number, issuer: string, now: Date): Pr
     const pairs = await pairWithExistingNews(companyId, issuer, announcements);
     let savedCount = 0;
     const reportNewsIds: number[] = [];
+    const analysisNewsIds: number[] = [];
     for (let i = 0; i < announcements.length; i += TEXT_CONCURRENCY) {
       const batch = announcements.slice(i, i + TEXT_CONCURRENCY);
       const texts = await Promise.all(
@@ -192,6 +212,7 @@ async function fetchNasdaqNews(companyId: number, issuer: string, now: Date): Pr
         if (!saved) continue;
         savedCount++;
         if (isReportCategory(saved.category)) reportNewsIds.push(saved.newsId);
+        if (analyzedCategories.includes(saved.category)) analysisNewsIds.push(saved.newsId);
       }
       await prisma.newsFetch.update({
         where: { id: fetchId },
@@ -200,10 +221,14 @@ async function fetchNasdaqNews(companyId: number, issuer: string, now: Date): Pr
     }
     await prisma.newsFetch.update({
       where: { id: fetchId },
-      data: { reportCount: reportNewsIds.length, ...(reportNewsIds.length === 0 && { status: "done" }) },
+      data: {
+        reportCount: reportNewsIds.length,
+        analysisCount: analysisNewsIds.length,
+        ...(reportNewsIds.length === 0 && analysisNewsIds.length === 0 && { status: "done" }),
+      },
     });
     console.log("Fetched news from Nasdaq", { companyId, issuer, since, savedCount, paired: pairs.size });
-    return { fetched: true, savedCount, fetchId, reportNewsIds };
+    return { fetched: true, savedCount, fetchId, reportNewsIds, analysisNewsIds };
   } catch (error) {
     await markFailed(fetchId);
     throw error;

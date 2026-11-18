@@ -6,13 +6,13 @@ import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
 import { NasdaqError } from "@/lib/nasdaq";
 import {
-  extractFetchedReports,
+  processFetchedNews,
   latestNewsFetch,
   refreshStaleNews,
   type NewsFetchResult,
   type NewsFetchState,
 } from "@/lib/nasdaq-news-fetch";
-import { extractResultsAfterResponse, saveInvestorCall } from "@/lib/news";
+import { processNewsAfterResponse, saveInvestorCall } from "@/lib/news";
 import { saveNewsFromUrl, type SaveNewsUrlResult } from "@/lib/news-url";
 import { MAX_NEWS_URLS } from "@/lib/news-urls";
 import { helsinkiTime } from "@/lib/helsinki-time";
@@ -133,7 +133,7 @@ export async function addNewsFromUrls({ urls }: { urls: string[] }): Promise<Add
       try {
         const result = await saveNewsFromUrl(url);
         if (!result.saved) return { url, saved: false, error: result.reason };
-        extractResultsAfterResponse(result);
+        processNewsAfterResponse(result);
         return { url, saved: true };
       } catch (error) {
         console.error("Adding news from URL failed", { url, error });
@@ -183,12 +183,13 @@ export async function addInvestorCall(input: InvestorCallInput): Promise<{ error
   const company = await prisma.company.findUnique({ where: { id: companyId.data }, select: { id: true } });
   if (!company) return { errors: { companyId: "required" } };
 
-  await saveInvestorCall({
+  const result = await saveInvestorCall({
     companyId: company.id,
     title,
     transcript,
     releasedAt: input.date === today ? now : helsinkiTime(date.year, date.month, date.day),
   });
+  processNewsAfterResponse(result);
   refresh();
   return {};
 }
@@ -234,12 +235,15 @@ export async function refreshNews(input: { companyId: number }): Promise<Refresh
   }
 }
 
-// Shows the saved news, and extracts results from the saved reports after the response is sent.
+// Shows the saved news, and processes them after the response is sent: extracts results from the
+// reports and goes through the news for the business analysis.
 function afterNewsFetch(result: NewsFetchResult) {
   if (!result.fetched) return;
   if (result.savedCount > 0) refresh();
-  const { fetchId, reportNewsIds } = result;
-  if (fetchId !== null && reportNewsIds.length > 0) after(() => extractFetchedReports(fetchId, reportNewsIds));
+  const { fetchId, reportNewsIds, analysisNewsIds } = result;
+  if (fetchId !== null && (reportNewsIds.length > 0 || analysisNewsIds.length > 0)) {
+    after(() => processFetchedNews(fetchId, { reportNewsIds, analysisNewsIds }));
+  }
 }
 
 function preview(description: string): string {

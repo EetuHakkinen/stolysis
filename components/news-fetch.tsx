@@ -86,22 +86,25 @@ export function useNewsFetch(): NewsFetchContextValue {
 }
 
 // Banner with the progress of the running news fetch: first the news saved, then the reports whose
-// results are extracted. Renders nothing when no fetch is running.
+// results are extracted, and then the news gone through for the business analysis. Renders nothing
+// when no fetch is running.
 export function NewsFetchBanner() {
   const t = useTranslations("News.fetch");
   const { fetch } = useNewsFetch();
   if (fetch?.status !== "running") return null;
 
-  const savingNews = fetch.processedCount < fetch.newsCount;
-  const [done, total] = savingNews
-    ? [fetch.processedCount, fetch.newsCount]
-    : [fetch.extractedCount, fetch.reportCount];
+  const [phase, done, total] =
+    fetch.processedCount < fetch.newsCount
+      ? (["savingNews", fetch.processedCount, fetch.newsCount] as const)
+      : fetch.extractedCount < fetch.reportCount
+        ? (["extractingResults", fetch.extractedCount, fetch.reportCount] as const)
+        : (["analyzingNews", fetch.analyzedCount, fetch.analysisCount] as const);
 
   return (
     <div role="status" className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
       <LoaderCircleIcon className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" />
       <Progress value={total > 0 ? (done / total) * 100 : 0} className="flex-1">
-        <ProgressLabel>{t(savingNews ? "savingNews" : "extractingResults")}</ProgressLabel>
+        <ProgressLabel>{t(phase)}</ProgressLabel>
         <span className="ml-auto text-sm text-muted-foreground tabular-nums">
           {t("count", { done, total })}
         </span>

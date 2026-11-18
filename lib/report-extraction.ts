@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Unit } from "@/app/generated/prisma/client";
 import { seasonMonths } from "@/lib/financial-year";
+import { findPdf } from "@/lib/attachments";
 import { structuredCompletion } from "@/lib/openrouter";
 import { latestRows } from "@/lib/latest-rows";
 import { prisma } from "@/lib/prisma";
@@ -20,8 +21,6 @@ export const REPORT_CATEGORIES = [INTERIM_CATEGORY, STATEMENTS_CATEGORY];
 export function isReportCategory(categoryName: string): boolean {
   return REPORT_CATEGORIES.includes(categoryName);
 }
-
-const MAX_PDF_BYTES = 30 * 1024 * 1024;
 
 const UNIT_MULTIPLIERS: Record<Unit, number> = { million: 1_000_000, thousand: 1_000, one: 1 };
 
@@ -129,51 +128,6 @@ function fieldKey(id: number) {
 
 function fieldIdOf(key: string) {
   return Number(key.slice("field_".length));
-}
-
-// Links don't always name the file (e.g. ".../Resource/Download/0f79…" labelled
-// "Harvia-Oyj-Osavuosikatsaus-Q2-2026-FIN"), so at most this many are downloaded to check.
-const MAX_PDF_CANDIDATES = 5;
-
-function looksLikePdf(attachment: { url: string; name: string | null }) {
-  return [attachment.name ?? "", new URL(attachment.url).pathname].some((name) =>
-    name.toLowerCase().endsWith(".pdf"),
-  );
-}
-
-// The first attachment that is a PDF, as a base64 data URL. Attachments named like PDFs are
-// tried first, then the rest by their content.
-export async function findPdf(attachments: { url: string; name: string | null }[]) {
-  const candidates = [
-    ...attachments.filter(looksLikePdf),
-    ...attachments.filter((attachment) => !looksLikePdf(attachment)),
-  ].slice(0, MAX_PDF_CANDIDATES);
-  for (const attachment of candidates) {
-    const fileData = await downloadPdf(attachment.url);
-    if (fileData) return { name: attachment.name, fileData };
-  }
-  return undefined;
-}
-
-// The file at the URL as a base64 data URL, or undefined when it isn't a PDF.
-async function downloadPdf(url: string): Promise<string | undefined> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    console.warn("Attachment download failed", { url, status: response.status });
-    await response.body?.cancel();
-    return undefined;
-  }
-  // Skip pages and images without downloading them. Servers that don't know the type send
-  // octet-stream or nothing, so those are checked by content.
-  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-  if (contentType && !/pdf|octet-stream/.test(contentType)) {
-    await response.body?.cancel();
-    return undefined;
-  }
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > MAX_PDF_BYTES) throw new Error(`PDF is too large: ${bytes.length} bytes`);
-  if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return undefined;
-  return `data:application/pdf;base64,${bytes.toString("base64")}`;
 }
 
 export type ReportFigures = {

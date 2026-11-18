@@ -119,12 +119,14 @@
     "fetch": {
       "savingNews": "Fetching news from Nasdaq",
       "extractingResults": "Extracting results from reports",
+      "analyzingNews": "Updating the business analysis",
       "count": "{done} / {total}"
     }
   },
   "CompanyTabs": {
     "news": "News",
-    "notes": "Notes"
+    "notes": "Notes",
+    "analysis": "Business analysis"
   },
   "Notes": {
     "title": "Notes",
@@ -139,11 +141,8 @@
     "estimates": "Estimates",
     "multiples": "Multiples at the day's price",
     "noYear": "No financial year covers the note's date.",
-    "write": "Write",
-    "preview": "Preview",
     "text": "Note",
     "placeholder": "Write the note in markdown…",
-    "nothingToPreview": "Nothing to preview.",
     "status": {
       "empty": "Saved once you write something",
       "saved": "Saved",
@@ -160,6 +159,43 @@
     "deleteDescription": "The note will be deleted permanently.",
     "createFromNews": "Create note",
     "noneForNews": "No notes about this news yet."
+  },
+  "MarkdownEditor": {
+    "write": "Write",
+    "preview": "Preview",
+    "nothingToPreview": "Nothing to preview."
+  },
+  "BusinessAnalysis": {
+    "description": "An overview of the company's business for investors, updated by AI from the company's news.",
+    "openAll": "Open all",
+    "collapseAll": "Collapse all",
+    "categories": {
+      "company_description": "Company description",
+      "business_model": "Business model",
+      "products": "Products and services",
+      "markets_and_competitors": "Markets and competitors",
+      "strategy": "Strategy",
+      "acquisitions": "Acquisitions",
+      "risks": "Risks"
+    },
+    "empty": "No analysis yet.",
+    "fromNews": "Updated {date} from <news></news>",
+    "byHand": "Edited by hand {date}",
+    "edit": "Edit",
+    "placeholder": "Write the section in markdown…",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "errors": {
+      "empty": "The section can't be empty.",
+      "changed": "The section was updated while you were editing it. Copy your text, cancel and edit again.",
+      "failed": "Saving failed."
+    },
+    "history": "History",
+    "historyTitle": "History: {section}",
+    "loading": "Loading…",
+    "noHistory": "No versions yet.",
+    "updatedByNews": "This news updated the <link>business analysis</link>: {sections}."
   },
   "AddNews": {
     "open": "Add news",
@@ -399,6 +435,26 @@
       "interrupted": "Re-fetch started {startedAt} was interrupted after {processed}/{total} reports. {rows, plural, one {# value was} other {# values were}} saved."
     },
     "failedNews": "Reading {count, plural, one {# report} other {# reports}} failed."
+  },
+  "BusinessAnalysisRun": {
+    "title": "Business analysis of past news",
+    "description": "Updates the business analysis from the company's interim reports and financial statements releases that haven't been gone through yet, oldest first, e.g. news received before the analysis existed or whose analysis failed. New news are gone through when they are received.",
+    "pending": "{count, plural, =0 {All reports have been gone through.} one {# report hasn't been gone through yet.} other {# reports haven't been gone through yet.}}",
+    "start": "Run analysis",
+    "starting": "Starting…",
+    "confirmTitle": "Run the business analysis?",
+    "confirmDescription": "{count, plural, one {# report is} other {# reports are}} read with AI, oldest first, which can take a long time. Each report that tells something lasting about the business updates the analysis.",
+    "errors": {
+      "running": "The analysis is already running.",
+      "noNews": "All reports have been gone through already."
+    },
+    "status": {
+      "running": "Analyzing: {processed}/{total} reports gone through.",
+      "done": "Analysis started {startedAt} went through {total, plural, one {# report} other {# reports}}.",
+      "failed": "Analysis started {startedAt} failed after {processed}/{total} reports.",
+      "interrupted": "Analysis started {startedAt} was interrupted after {processed}/{total} reports."
+    },
+    "failedNews": "Going through {count, plural, one {# report} other {# reports}} failed."
   },
   "ShowMore": {
     "more": "Show more",

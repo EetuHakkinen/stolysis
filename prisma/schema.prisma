@@ -30,18 +30,20 @@ model Company {
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at")
 
-  financialYears     FinancialYear[]
-  news               News[]
-  resultFieldGroups  ResultFieldGroup[]
-  estimateScenarios  EstimateScenario[]
-  valuationMultiples ValuationMultiple[]
-  valuation          CompanyValuation?
-  discountVariables  CompanyDiscountVariable[]
-  graphs             Graph[]
-  notes              Note[]
-  stockPrices        StockPrice[]
-  resultRefetches    ResultRefetch[]
-  newsFetches        NewsFetch[]
+  financialYears       FinancialYear[]
+  news                 News[]
+  resultFieldGroups    ResultFieldGroup[]
+  estimateScenarios    EstimateScenario[]
+  valuationMultiples   ValuationMultiple[]
+  valuation            CompanyValuation?
+  discountVariables    CompanyDiscountVariable[]
+  graphs               Graph[]
+  notes                Note[]
+  stockPrices          StockPrice[]
+  resultRefetches      ResultRefetch[]
+  newsFetches          NewsFetch[]
+  businessAnalyses     BusinessAnalysis[]
+  businessAnalysisRuns BusinessAnalysisRun[]
 
   @@map("company")
 }
@@ -390,22 +392,26 @@ model CompanyDiscountVariable {
 }
 
 model News {
-  id          Int      @id @default(autoincrement())
-  companyId   Int      @map("company")
-  title       String
-  description String
-  releasedAt  DateTime @map("released_at")
-  categoryId  Int      @map("category")
+  id                 Int       @id @default(autoincrement())
+  companyId          Int       @map("company")
+  title              String
+  description        String
+  releasedAt         DateTime  @map("released_at")
+  categoryId         Int       @map("category")
   // Id of the announcement in Nasdaq Nordic, for news fetched from Nasdaq or matched to one.
-  nasdaqId    Int?     @unique @map("nasdaq_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  nasdaqId           Int?      @unique @map("nasdaq_id")
+  // When the news was gone through for the business analysis, also when it had nothing to add;
+  // null when it hasn't been yet.
+  businessAnalyzedAt DateTime? @map("business_analyzed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category    NewsCategory     @relation(fields: [categoryId], references: [id])
-  attachments NewsAttachment[]
-  resultRows  ResultRow[]
-  notes       Note[]
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category         NewsCategory       @relation(fields: [categoryId], references: [id])
+  attachments      NewsAttachment[]
+  resultRows       ResultRow[]
+  notes            Note[]
+  businessAnalyses BusinessAnalysis[]
 
   // Feeds list news newest first, either all of them or one company's.
   @@index([releasedAt(sort: Desc)])
@@ -570,8 +576,8 @@ model ResultRefetch {
   @@map("result_refetch")
 }
 
-// State of a fetch of a company's news from Nasdaq: still saving news or extracting results from
-// reports, gone through all of them, or stopped by an error.
+// State of a fetch of a company's news from Nasdaq: still saving news, extracting results from
+// reports or updating the business analysis, gone through all of them, or stopped by an error.
 enum NewsFetchStatus {
   running
   done
@@ -581,7 +587,8 @@ enum NewsFetchStatus {
 }
 
 // A fetch of a company's news from Nasdaq that found news to save, for showing its progress: first
-// the news are saved, then results are extracted from the reports among them. A running fetch that
+// the news are saved, then results are extracted from the reports among them, and then the
+// business analysis is updated from the news. A running fetch that
 // hasn't been updated for a while was interrupted, e.g. by a server restart.
 model NewsFetch {
   id             Int             @id @default(autoincrement())
@@ -594,6 +601,10 @@ model NewsFetch {
   reportCount    Int             @default(0) @map("report_count")
   // Reports gone through so far, including those whose extraction failed.
   extractedCount Int             @default(0) @map("extracted_count")
+  // News among the saved news to go through for the business analysis; known once all news are saved.
+  analysisCount  Int             @default(0) @map("analysis_count")
+  // News gone through for the business analysis so far, including those that failed.
+  analyzedCount  Int             @default(0) @map("analyzed_count")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
 
@@ -602,4 +613,70 @@ model NewsFetch {
   // The company page shows a company's latest fetch.
   @@index([companyId, createdAt(sort: Desc)])
   @@map("news_fetch")
+}
+
+// Section of a company's business analysis.
+enum BusinessAnalysisCategory {
+  company_description
+  business_model
+  markets_and_competitors
+  products
+  strategy
+  acquisitions
+  risks
+
+  @@map("business_analysis_category")
+}
+
+// A version of one section of a company's business analysis: an overview of its business and
+// operating model for investors, in Finnish markdown. Written by AI from the company's news, or by
+// hand. Insert-only: a new version is a new row, and the latest row (by createdAt, then id) per
+// company and category is the current one.
+model BusinessAnalysis {
+  id        Int                      @id @default(autoincrement())
+  companyId Int                      @map("company")
+  // News the version was written from; null for versions written by hand.
+  newsId    Int?                     @map("news")
+  category  BusinessAnalysisCategory
+  content   String
+  createdAt DateTime                 @default(now()) @map("created_at")
+  updatedAt DateTime                 @default(now()) @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  news    News?   @relation(fields: [newsId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, category, createdAt(sort: Desc)])
+  @@index([newsId])
+  @@map("business_analysis")
+}
+
+// State of a business analysis run: still going through the news, gone through all of them, or
+// stopped by an error.
+enum BusinessAnalysisRunStatus {
+  running
+  done
+  failed
+
+  @@map("business_analysis_run_status")
+}
+
+// A run, started from the settings, that goes through a company's past report news not yet gone
+// through for the business analysis. A running run that hasn't been updated for a while was
+// interrupted, e.g. by a server restart.
+model BusinessAnalysisRun {
+  id             Int                       @id @default(autoincrement())
+  companyId      Int                       @map("company")
+  status         BusinessAnalysisRunStatus @default(running)
+  newsCount      Int                       @map("news_count")
+  // News gone through so far, including those that failed.
+  processedCount Int                       @default(0) @map("processed_count")
+  failedCount    Int                       @default(0) @map("failed_count")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @default(now()) @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // The settings show a company's latest run.
+  @@index([companyId, createdAt(sort: Desc)])
+  @@map("business_analysis_run")
 }

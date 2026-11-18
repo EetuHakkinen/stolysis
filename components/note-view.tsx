@@ -14,12 +14,11 @@ import {
 } from "@/actions/notes";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { NoteMargin } from "@/components/note-margin";
 import { ShowMore } from "@/components/show-more";
 import { useSelectedScenario } from "@/components/selected-scenario";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useElementHeight } from "@/hooks/use-element-height";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -51,7 +50,6 @@ export function NoteView({
   const idRef = useRef(note.id);
   const [id, setId] = useState(note.id);
   const [editing, setEditing] = useState(note.id == null);
-  const [mode, setMode] = useState<"write" | "preview">("write");
   const [text, setText] = useState(note.text);
   const [date, setDate] = useState(note.date);
   const [news, setNews] = useState(note.news);
@@ -102,7 +100,6 @@ export function NoteView({
 
   function startEditing() {
     setEditing(true);
-    setMode("write");
     if (newsOptions == null) loadNewsOptions();
   }
 
@@ -143,44 +140,22 @@ export function NoteView({
       >
         {editing ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Tabs value={mode} onValueChange={(value) => setMode(value)}>
-                <TabsList>
-                  <TabsTrigger value="write" className="px-3">
-                    {t("write")}
-                  </TabsTrigger>
-                  <TabsTrigger value="preview" className="px-3">
-                    {t("preview")}
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <span
-                className="text-xs text-muted-foreground"
-                aria-live="polite"
-              >
-                {id == null && text.trim() === ""
-                  ? t("status.empty")
-                  : t(`status.${status}`)}
-              </span>
-            </div>
-            {mode === "write" ? (
-              <Textarea
-                value={text}
-                onChange={(e) => changeText(e.target.value)}
-                placeholder={t("placeholder")}
-                aria-label={t("text")}
-                autoFocus
-                className="min-h-64 font-mono"
-              />
-            ) : text.trim() === "" ? (
-              <p className="min-h-64 text-muted-foreground">
-                {t("nothingToPreview")}
-              </p>
-            ) : (
-              <div className="min-h-64">
-                <Markdown>{text}</Markdown>
-              </div>
-            )}
+            <MarkdownEditor
+              value={text}
+              onChange={changeText}
+              label={t("text")}
+              placeholder={t("placeholder")}
+              status={
+                <span
+                  className="text-xs text-muted-foreground"
+                  aria-live="polite"
+                >
+                  {id == null && text.trim() === ""
+                    ? t("status.empty")
+                    : t(`status.${status}`)}
+                </span>
+              }
+            />
             <div className="flex flex-wrap items-center justify-between gap-2">
               {id != null ? (
                 <ConfirmDialog

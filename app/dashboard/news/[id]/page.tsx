@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { NotebookPenIcon } from "lucide-react";
+import { getNewsBusinessAnalysis } from "@/actions/business-analysis";
 import { getNews } from "@/actions/news";
 import { getNotesForNews } from "@/actions/notes";
 import { ButtonLink } from "@/components/button-link";
@@ -16,10 +18,12 @@ export default async function NewsPage({ params }: PageProps<"/dashboard/news/[i
   const news = await getNews(Number(id));
   if (!news) notFound();
 
-  const [t, tNotes, notes] = await Promise.all([
+  const [t, tNotes, tAnalysis, notes, analysisCategories] = await Promise.all([
     getTranslations("News"),
     getTranslations("Notes"),
+    getTranslations("BusinessAnalysis"),
     getNotesForNews({ newsId: news.id }),
+    getNewsBusinessAnalysis({ newsId: news.id }),
   ]);
   const format = await getFormatter();
   const companyPath = `/dashboard/company/${encodeURIComponent(news.company.ticker)}`;
@@ -64,6 +68,18 @@ export default async function NewsPage({ params }: PageProps<"/dashboard/news/[i
               ))}
             </ul>
           </section>
+        )}
+        {analysisCategories.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {tAnalysis.rich("updatedByNews", {
+              sections: analysisCategories.map((category) => tAnalysis(`categories.${category}`)).join(", "),
+              link: (chunks) => (
+                <Link href={`${companyPath}?tab=analysis`} className="text-primary underline-offset-4 hover:underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
+          </p>
         )}
       </article>
       <section className="flex flex-col gap-4">

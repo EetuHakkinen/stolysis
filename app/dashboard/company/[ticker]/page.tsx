@@ -1,6 +1,7 @@
 import { SettingsIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { getBusinessAnalysis } from "@/actions/business-analysis";
 import { getCompany } from "@/actions/companies";
 import { getDiscountVariables } from "@/actions/discounting";
 import { getEstimates } from "@/actions/estimates";
@@ -10,6 +11,7 @@ import { getNewsForNote, getNoteSnapshot, getNotes } from "@/actions/notes";
 import { getCompanyResults } from "@/actions/results";
 import { getStockPrices } from "@/actions/stock-prices";
 import { getValuation } from "@/actions/valuation";
+import { BusinessAnalysis } from "@/components/business-analysis";
 import { ButtonLink } from "@/components/button-link";
 import { CompanyNotes } from "@/components/company-notes";
 import { CompanyTabs, type CompanyTab } from "@/components/company-tabs";
@@ -50,6 +52,7 @@ export default async function CompanyPage({
     stockPrices,
     priceNews,
     newsFetch,
+    businessAnalysis,
   ] = await Promise.all([
     getCompanyResults(company.id),
     getEstimates(company.id),
@@ -62,6 +65,7 @@ export default async function CompanyPage({
     getStockPrices({ companyId: company.id }),
     getPriceChartNews({ companyId: company.id }),
     getNewsFetch({ companyId: company.id }),
+    getBusinessAnalysis({ companyId: company.id }),
   ]);
   const path = `/dashboard/company/${encodeURIComponent(company.ticker)}`;
   const now = new Date();
@@ -124,6 +128,7 @@ export default async function CompanyPage({
                 pageHref={(page) => `${path}?tab=notes&notesPage=${page}`}
               />
             }
+            analysis={<BusinessAnalysis companyId={company.id} sections={businessAnalysis} />}
           />
         </SelectedScenarioProvider>
       </NewsFetchProvider>
@@ -141,7 +146,7 @@ async function noteDraft(companyId: number, newsId: string | string[] | undefine
 }
 
 function parseTab(value: string | string[] | undefined): CompanyTab {
-  return value === "notes" ? "notes" : "news";
+  return value === "notes" || value === "analysis" ? value : "news";
 }
 
 function parseId(value: string | string[] | undefined): number | undefined {

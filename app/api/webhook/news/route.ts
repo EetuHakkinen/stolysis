@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { extractResultsAfterResponse, saveNewsFromEmail } from "@/lib/news";
+import { processNewsAfterResponse, saveNewsFromEmail } from "@/lib/news";
 import {
   emailAddress,
   parseAddressList,
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       const result = await saveNewsFromEmail(email);
       if (result.saved) {
         console.log("Saved inbound news email", { subject, ...result });
-        extractResultsAfterResponse(result);
+        processNewsAfterResponse(result);
       } else {
         console.warn("Inbound news email was not saved", { from, subject, ...result });
       }
