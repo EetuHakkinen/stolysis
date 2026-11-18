@@ -8,11 +8,13 @@ import { getNotesForNews } from "@/actions/notes";
 import { AiNoteBadge } from "@/components/ai-note-badge";
 import { ButtonLink } from "@/components/button-link";
 import { CompanyBadge } from "@/components/company-badge";
+import { GeneratePeriodNoteButton } from "@/components/generate-period-note-button";
 import { Markdown } from "@/components/markdown";
 import { NewsCategoryBadge } from "@/components/news-category-badge";
 import { PageBreadcrumbs } from "@/components/page-breadcrumbs";
 import { ReleaseTime } from "@/components/release-time";
 import { toDbDate } from "@/lib/note-date";
+import { isReportCategory } from "@/lib/report-extraction";
 
 export default async function NewsPage({ params }: PageProps<"/dashboard/news/[id]">) {
   const { id } = await params;
@@ -86,10 +88,15 @@ export default async function NewsPage({ params }: PageProps<"/dashboard/news/[i
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">{tNotes("title")}</h2>
-          <ButtonLink href={`${companyPath}?tab=notes&newsId=${news.id}`} variant="outline" size="sm">
-            <NotebookPenIcon />
-            {tNotes("createFromNews")}
-          </ButtonLink>
+          <div className="flex flex-wrap justify-end gap-2">
+            {isReportCategory(news.category.name) && !notes.some((note) => note.ai) && (
+              <GeneratePeriodNoteButton newsId={news.id} />
+            )}
+            <ButtonLink href={`${companyPath}?tab=notes&newsId=${news.id}`} variant="outline" size="sm">
+              <NotebookPenIcon />
+              {tNotes("createFromNews")}
+            </ButtonLink>
+          </div>
         </div>
         {notes.length === 0 ? (
           <p className="text-muted-foreground">{tNotes("noneForNews")}</p>

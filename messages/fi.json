@@ -161,7 +161,17 @@
     "createFromNews": "Luo muistiinpano",
     "noneForNews": "Tästä uutisesta ei ole vielä muistiinpanoja.",
     "aiGenerated": "Tekoälyn kirjoittama",
-    "aiGeneratedEdited": "Tekoälyn kirjoittama · muokattu"
+    "aiGeneratedEdited": "Tekoälyn kirjoittama · muokattu",
+    "generate": {
+      "button": "Luo tekoälymuistiinpano",
+      "generating": "Luodaan… (noin minuutti)",
+      "errors": {
+        "notReport": "Tekoälymuistiinpanoja luodaan vain osavuosikatsauksista ja tilinpäätöstiedotteista.",
+        "alreadyWritten": "Tiedotteella on jo tekoälymuistiinpano.",
+        "empty": "Tekoäly ei palauttanut muistiinpanoa. Yritä uudelleen.",
+        "failed": "Muistiinpanon luominen epäonnistui."
+      }
+    }
   },
   "MarkdownEditor": {
     "write": "Kirjoita",

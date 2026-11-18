@@ -161,7 +161,17 @@
     "createFromNews": "Create note",
     "noneForNews": "No notes about this news yet.",
     "aiGenerated": "AI-generated",
-    "aiGeneratedEdited": "AI-generated · edited"
+    "aiGeneratedEdited": "AI-generated · edited",
+    "generate": {
+      "button": "Generate AI note",
+      "generating": "Generating… (about a minute)",
+      "errors": {
+        "notReport": "AI notes are only generated from interim reports and financial statements releases.",
+        "alreadyWritten": "The news already has an AI note.",
+        "empty": "The AI returned no note. Try again.",
+        "failed": "Generating the note failed."
+      }
+    }
   },
   "MarkdownEditor": {
     "write": "Write",

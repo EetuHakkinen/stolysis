@@ -227,9 +227,23 @@ export async function saveSectionByHand({
   });
 }
 
-// The company's current business analysis for the AI (see analysisForPrompt).
-export async function businessAnalysisForPrompt(companyId: number): Promise<string> {
-  return analysisForPrompt(await readCurrentSections(prisma, companyId));
+// The company's business analysis for the AI (see analysisForPrompt): the current one, or with
+// `releasedBefore`, the one written from the news released before then and by hand before then. A
+// version's own time isn't enough, as past news may be analyzed long after their release.
+export async function businessAnalysisForPrompt(
+  companyId: number,
+  { releasedBefore }: { releasedBefore?: Date } = {},
+): Promise<string> {
+  if (!releasedBefore) return analysisForPrompt(await readCurrentSections(prisma, companyId));
+  const rows = await prisma.businessAnalysis.findMany({
+    where: {
+      companyId,
+      OR: [{ news: { releasedAt: { lt: releasedBefore } } }, { newsId: null, createdAt: { lt: releasedBefore } }],
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { id: true, category: true, content: true, newsId: true },
+  });
+  return analysisForPrompt(currentSections(rows));
 }
 
 type Db = Prisma.TransactionClient | typeof prisma;

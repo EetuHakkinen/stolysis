@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
 import { fromDbDate, helsinkiNoteDate, parseNoteDate, toDbDate } from "@/lib/note-date";
 import { loadSnapshotData, noteSnapshot, type NoteSnapshot } from "@/lib/note-snapshot";
+import { writePeriodNote } from "@/lib/period-note";
 import { wasEdited } from "@/lib/period-note-context";
 import { prisma } from "@/lib/prisma";
 
@@ -182,4 +183,27 @@ export async function deleteNote(input: { noteId: number }): Promise<void> {
   await requireUserId();
   await prisma.note.deleteMany({ where: { id: idSchema.parse(input.noteId) } });
   refresh();
+}
+
+// Error values are translation keys under Notes.generate.errors.
+export type GeneratePeriodNoteError = "notReport" | "alreadyWritten" | "empty" | "failed";
+
+// Writes an AI note on the period of a report news item that has none, also when the report was
+// gone through already, with the notes from the year before the report and the business analysis as it was before its
+// release. Takes a minute or so, as the report is read in full.
+export async function generatePeriodNote(input: { newsId: number }): Promise<{ error?: GeneratePeriodNoteError }> {
+  await requireUserId();
+  const newsId = idSchema.parse(input.newsId);
+
+  try {
+    const result = await writePeriodNote(newsId, { onRequest: true });
+    if (!result.written) {
+      return { error: result.reason === "empty" || result.reason === "alreadyWritten" ? result.reason : "notReport" };
+    }
+    refresh();
+    return {};
+  } catch (error) {
+    console.error("Generating period note failed", { newsId, error });
+    return { error: "failed" };
+  }
 }

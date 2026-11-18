@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { businessAnalysisForPrompt, documentPart, downloadDocuments } from "@/lib/business-analysis";
 import { latestRows } from "@/lib/latest-rows";
 import { fromDbDate, helsinkiNoteDate, toDbDate } from "@/lib/note-date";
@@ -49,9 +50,17 @@ export type PeriodNoteResult =
 
 // Writes an AI note on the period of a report news item, unless one has been written already: from
 // the report and all of its attachments, the figures extracted from it, the company's business
-// analysis and its notes from the year before the report. The note is dated on the report's release
-// day and linked to it.
-export async function writePeriodNote(newsId: number): Promise<PeriodNoteResult> {
+// analysis and its notes from the year before the report (not those on the report itself, e.g. an
+// earlier AI note). The note is dated on the report's release day and linked to it.
+//
+// With `onRequest`, the note is written when the user asks for it: also when the report was gone
+// through already, as long as it has no AI note now (e.g. the note was deleted), and with the
+// business analysis as it was before the report's release (see businessAnalysisForPrompt), as the
+// report may be old. Otherwise the analysis is the current one, already updated from the report.
+export async function writePeriodNote(
+  newsId: number,
+  { onRequest = false }: { onRequest?: boolean } = {},
+): Promise<PeriodNoteResult> {
   const news = await prisma.news.findUnique({
     where: { id: newsId },
     select: {
@@ -66,15 +75,21 @@ export async function writePeriodNote(newsId: number): Promise<PeriodNoteResult>
     },
   });
   if (!news) return { written: false, reason: "notFound" };
-  if (news.periodReviewedAt) return { written: false, reason: "alreadyWritten" };
+  if (news.periodReviewedAt && !onRequest) return { written: false, reason: "alreadyWritten" };
+  if (onRequest && (await hasAiNote(prisma, newsId))) return { written: false, reason: "alreadyWritten" };
   if (!isReportCategory(news.category.name)) return { written: false, reason: "notReport" };
 
   const date = helsinkiNoteDate(news.releasedAt);
   const [documents, businessAnalysis, notes, figures] = await Promise.all([
     downloadDocuments(news.attachments),
-    businessAnalysisForPrompt(news.companyId),
+    businessAnalysisForPrompt(news.companyId, { releasedBefore: onRequest ? news.releasedAt : undefined }),
     prisma.note.findMany({
-      where: { companyId: news.companyId, date: { gte: toDbDate(yearBefore(date)), lte: toDbDate(date) } },
+      where: {
+        companyId: news.companyId,
+        date: { gte: toDbDate(yearBefore(date)), lte: toDbDate(date) },
+        // A not-equals filter alone would leave out notes without news too.
+        OR: [{ newsId: null }, { newsId: { not: newsId } }],
+      },
       orderBy: [{ date: "desc" }, { id: "desc" }],
       select: { date: true, text: true, aiGenerated: true },
     }),
@@ -124,7 +139,9 @@ export async function writePeriodNote(newsId: number): Promise<PeriodNoteResult>
       where: { id: newsId, periodReviewedAt: null },
       data: { periodReviewedAt: new Date() },
     });
-    if (count === 0) return { written: false, reason: "alreadyWritten" } as const;
+    // A note asked for is written unless another one was meanwhile; marking the report keeps it from
+    // getting another one automatically.
+    if (onRequest ? await hasAiNote(tx, newsId) : count === 0) return { written: false, reason: "alreadyWritten" } as const;
     // The same creation and update time marks the note unedited (see wasEdited).
     const now = new Date();
     const note = await tx.note.create({
@@ -141,6 +158,10 @@ export async function writePeriodNote(newsId: number): Promise<PeriodNoteResult>
     });
     return { written: true, noteId: note.id } as const;
   });
+}
+
+async function hasAiNote(db: Prisma.TransactionClient | typeof prisma, newsId: number): Promise<boolean> {
+  return (await db.note.count({ where: { newsId, aiGenerated: true } })) > 0;
 }
 
 // The current values extracted from the news item's report, the latest period first, in the order
