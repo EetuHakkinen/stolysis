@@ -31,7 +31,15 @@ The company's outlook or guidance as the report states it, and how it changed fr
 Rules:
 - Use only figures that the report states. Calculate a change only from figures printed in the report. The figures already extracted from the report are given for reference: use the same figures where they agree with the report.
 - Keep the note concise, about 150–300 words. Focus on what is new in this period; don't repeat the business analysis.
-- The earlier notes, some written by AI and the rest by the investor, show which metrics and themes the investor follows. Use them for focus and continuity, but don't copy their content.`;
+- The earlier notes, some written by AI and the rest by the investor, show which metrics and themes the investor follows. Use them for focus and continuity, but don't copy their content.
+
+Highlights:
+- Highlight the matters that are significant for the investment case or need watching, each as a line of its own in the section it belongs to, starting with "❗". For example:
+  - issues that management brings up or repeats period after period, such as a problem it has promised to resolve but that is still present;
+  - new issues that management highlights and that matter to the bigger picture of the investment case, judged against the business analysis;
+  - things to keep an eye on, such as temporarily higher costs, one-off items or delays, which should be followed in the coming periods.
+- When the earlier notes highlight matters or say something should be followed in the future, tell how they stand in this period, also highlighted with "❗" while they still need attention. Say so briefly when such a matter has been resolved.
+- Highlight only what really matters; most lines have no highlight.`;
 
 const noteSchema = z.object({ text: z.string().describe("The note in Finnish markdown") });
 
