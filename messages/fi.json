@@ -181,6 +181,23 @@
       "noSubject": "Otsikkoa ei löytynyt.",
       "noCompany": "Tiedotteelle ei löytynyt yhtiötä.",
       "failed": "Käsittely epäonnistui."
+    },
+    "tabs": {
+      "urls": "Osoitteista",
+      "investorCall": "Sijoittajapuhelu"
+    },
+    "investorCall": {
+      "description": "Liitä sijoittajapuhelun litterointi. Se tallennetaan yhtiön uutiseksi.",
+      "company": "Yhtiö",
+      "chooseCompany": "Valitse yhtiö",
+      "date": "Puhelun päivä",
+      "newsTitle": "Otsikko",
+      "transcript": "Litterointi",
+      "errors": {
+        "required": "Pakollinen.",
+        "invalid": "Valitse kelvollinen päivä.",
+        "future": "Päivä ei voi olla tulevaisuudessa."
+      }
     }
   },
   "Pagination": {

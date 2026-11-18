@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { getCompanies } from "@/actions/companies";
 import type { NewsFeedPage } from "@/actions/news";
 import { AddNewsDialog } from "@/components/add-news-dialog";
 import { CompanyBadge } from "@/components/company-badge";
@@ -11,21 +12,24 @@ import { ReleaseTime } from "@/components/release-time";
 // Paginated list of news, each linking to the full article.
 // `showCompany` tags each item with its company, for feeds that mix companies. Without `showTitle`,
 // e.g. in a tab named after the news, the title is left out. With `refreshable`, the feed has a
-// button that checks the company's latest news from Nasdaq (within NewsFetchProvider).
+// button that checks the company's latest news from Nasdaq (within NewsFetchProvider). `companyId`, in
+// a company's own feed, preselects the company of news added by hand.
 export async function NewsFeed({
   feed: { news, page, pageCount },
   showCompany = false,
   showTitle = true,
   pageHref,
   refreshable = false,
+  companyId,
 }: {
   feed: NewsFeedPage;
   showCompany?: boolean;
   showTitle?: boolean;
   pageHref: (page: number) => string;
   refreshable?: boolean;
+  companyId?: number;
 }) {
-  const t = await getTranslations("News");
+  const [t, companies] = await Promise.all([getTranslations("News"), getCompanies()]);
 
   return (
     <section className="flex flex-col gap-4">
@@ -33,7 +37,10 @@ export async function NewsFeed({
         {showTitle ? <h2 className="text-xl font-semibold">{t("title")}</h2> : <span />}
         <div className="flex items-center gap-1">
           {refreshable && <RefreshNewsButton />}
-          <AddNewsDialog />
+          <AddNewsDialog
+            companies={companies.map(({ id, name }) => ({ id, name }))}
+            companyId={companyId}
+          />
         </div>
       </div>
       {news.length === 0 ? (

@@ -33,6 +33,36 @@ export async function saveNews({ attachments, ...news }: NewsInput) {
   });
 }
 
+// Category of investor call transcripts, which are added by hand and never matched by keywords.
+export const INVESTOR_CALL_CATEGORY = "Sijoittajapuhelu";
+
+// Saves an investor call transcript as the company's news.
+export async function saveInvestorCall({
+  companyId,
+  title,
+  transcript,
+  releasedAt,
+}: {
+  companyId: number;
+  title: string;
+  transcript: string;
+  releasedAt: Date;
+}) {
+  const category = await prisma.newsCategory.findUnique({
+    where: { name: INVESTOR_CALL_CATEGORY },
+    select: { id: true },
+  });
+  if (!category) throw new Error(`News category "${INVESTOR_CALL_CATEGORY}" is missing`);
+  return saveNews({
+    companyId,
+    title,
+    description: transcript,
+    releasedAt,
+    categoryId: category.id,
+    attachments: [],
+  });
+}
+
 // Category for news that match no other category.
 const FALLBACK_CATEGORY = "Muu";
 

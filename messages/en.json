@@ -181,6 +181,23 @@
       "noSubject": "No title found.",
       "noCompany": "No company could be matched to the release.",
       "failed": "Processing failed."
+    },
+    "tabs": {
+      "urls": "From URL",
+      "investorCall": "Investor call"
+    },
+    "investorCall": {
+      "description": "Paste the transcript of an investor call. It's saved as the company's news.",
+      "company": "Company",
+      "chooseCompany": "Choose a company",
+      "date": "Date of the call",
+      "newsTitle": "Title",
+      "transcript": "Transcript",
+      "errors": {
+        "required": "Required.",
+        "invalid": "Choose a valid date.",
+        "future": "The date can't be in the future."
+      }
     }
   },
   "Pagination": {

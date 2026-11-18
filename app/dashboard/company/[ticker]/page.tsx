@@ -113,6 +113,7 @@ export default async function CompanyPage({
                 showTitle={false}
                 pageHref={(page) => `${path}?page=${page}`}
                 refreshable={!!company.nasdaqName}
+                companyId={company.id}
               />
             }
             notes={

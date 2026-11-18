@@ -12,10 +12,11 @@ import {
   type NewsFetchResult,
   type NewsFetchState,
 } from "@/lib/nasdaq-news-fetch";
-import { extractResultsAfterResponse } from "@/lib/news";
+import { extractResultsAfterResponse, saveInvestorCall } from "@/lib/news";
 import { saveNewsFromUrl, type SaveNewsUrlResult } from "@/lib/news-url";
 import { MAX_NEWS_URLS } from "@/lib/news-urls";
-import { helsinkiNoteDate } from "@/lib/note-date";
+import { helsinkiTime } from "@/lib/helsinki-time";
+import { helsinkiNoteDate, parseNoteDate } from "@/lib/note-date";
 import { prisma } from "@/lib/prisma";
 import type { PriceChartNews } from "@/lib/stock-price";
 
@@ -143,6 +144,53 @@ export async function addNewsFromUrls({ urls }: { urls: string[] }): Promise<Add
 
   if (results.some((result) => result.saved)) refresh();
   return results;
+}
+
+export type InvestorCallInput = {
+  companyId: number | null;
+  title: string;
+  transcript: string;
+  // Day of the call, "YYYY-MM-DD".
+  date: string;
+};
+
+// Error values are translation keys under AddNews.investorCall.errors.
+export type InvestorCallErrors = Partial<
+  Record<"companyId" | "title" | "transcript", "required"> & { date: "invalid" | "future" }
+>;
+
+// Saves an investor call transcript as the company's news. A call today is released at the time of
+// saving, an earlier one at the start of its day in Finnish time.
+export async function addInvestorCall(input: InvestorCallInput): Promise<{ errors?: InvestorCallErrors }> {
+  await requireUserId();
+
+  // Parameters come from the client, so validate them despite the type.
+  const companyId = z.number().int().positive().safeParse(input.companyId);
+  const title = typeof input.title === "string" ? input.title.trim() : "";
+  const transcript = typeof input.transcript === "string" ? input.transcript.trim() : "";
+  const date = parseNoteDate(input.date);
+  const now = new Date();
+  const today = helsinkiNoteDate(now);
+
+  const errors: InvestorCallErrors = {};
+  if (!companyId.success) errors.companyId = "required";
+  if (!title) errors.title = "required";
+  if (!transcript) errors.transcript = "required";
+  if (!date) errors.date = "invalid";
+  else if (input.date > today) errors.date = "future";
+  if (Object.keys(errors).length > 0 || !companyId.success || !date) return { errors };
+
+  const company = await prisma.company.findUnique({ where: { id: companyId.data }, select: { id: true } });
+  if (!company) return { errors: { companyId: "required" } };
+
+  await saveInvestorCall({
+    companyId: company.id,
+    title,
+    transcript,
+    releasedAt: input.date === today ? now : helsinkiTime(date.year, date.month, date.day),
+  });
+  refresh();
+  return {};
 }
 
 // The company's latest fetch of news from Nasdaq that found news to save, or null.
