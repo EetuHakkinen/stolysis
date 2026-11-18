@@ -1,11 +1,13 @@
 import "server-only";
+import { findPdf } from "@/lib/attachments";
+import { suggestFieldChanges } from "@/lib/field-suggestions";
 import { seasonMonths, type ReportingCycle } from "@/lib/financial-year";
 import { fetchAnnouncements, fetchIssuers, fetchReleaseText, type NasdaqAnnouncement } from "@/lib/nasdaq";
 import { matchIssuer, withoutTranslations } from "@/lib/nasdaq-news";
 import { categorizeNews } from "@/lib/news";
 import { findReleaseLine } from "@/lib/news-email";
 import { INTERIM_CATEGORY, readReportFigures, STATEMENTS_CATEGORY } from "@/lib/report-extraction";
-import type { CheckedReport, RevenueBreakdown } from "@/lib/report-check-api";
+import type { CheckedReport, FieldSuggestion, RevenueBreakdown, SuggestionsRequest } from "@/lib/report-check-api";
 
 // Checking which result fields of a company being created can be found in its latest reports on
 // Nasdaq, before the company exists: nothing is saved.
@@ -70,6 +72,16 @@ async function reportKind(announcement: NasdaqAnnouncement): Promise<ReportKind 
   return undefined;
 }
 
+// The report's announcement, found again by its id, so its attachments aren't taken from the
+// client.
+async function findReport(
+  issuer: string,
+  report: { id: number; publishedAt: Date },
+): Promise<NasdaqAnnouncement | undefined> {
+  const since = new Date(report.publishedAt.getTime() - DAY_MS);
+  return (await fetchAnnouncements({ issuer, language: "fi", since })).find((candidate) => candidate.id === report.id);
+}
+
 // Which fields aren't printed in the report, read with AI as results are: fields for the report's
 // latest season as long as the company's, and in a financial statements release, fields reported
 // only yearly for the whole financial year. An interim report has no yearly figures, so fields
@@ -88,11 +100,7 @@ export async function checkReport({
   // Names as shown to the AI, e.g. "Tuloslaskelma: Liikevaihto".
   fields: { id: number; name: string; yearlyOnly: boolean }[];
 }): Promise<{ missingFieldIds: number[]; revenueBreakdowns: RevenueBreakdown[] } | undefined> {
-  // The report's attachments, found again by its id rather than taken from the client.
-  const since = new Date(report.publishedAt.getTime() - DAY_MS);
-  const announcement = (await fetchAnnouncements({ issuer, language: "fi", since })).find(
-    (candidate) => candidate.id === report.id,
-  );
+  const announcement = await findReport(issuer, report);
   if (!announcement) return undefined;
 
   const periodFields = fields.filter((field) => !field.yearlyOnly);
@@ -114,4 +122,27 @@ export async function checkReport({
     ].map((field) => field.id),
     revenueBreakdowns: figures.revenueBreakdowns,
   };
+}
+
+// Changes to the fields the reports don't have, read with AI from the reports' PDFs (see
+// suggestFieldChanges). Reports not found again or without a PDF are left out; without any, there
+// are no suggestions.
+export async function suggestReportFieldChanges({
+  issuer,
+  reports,
+  fields,
+}: {
+  issuer: string;
+  reports: { id: number; kind: ReportKind; publishedAt: Date }[];
+  fields: SuggestionsRequest["fields"];
+}): Promise<FieldSuggestion[]> {
+  if (!fields.some((field) => field.missingFrom.length > 0)) return [];
+  const pdfs = await Promise.all(
+    reports.map(async (report) => {
+      const announcement = await findReport(issuer, report);
+      const pdf = announcement && (await findPdf(announcement.attachments));
+      return pdf ? [{ id: report.id, kind: report.kind, ...pdf }] : [];
+    }),
+  );
+  return suggestFieldChanges({ pdfs: pdfs.flat(), fields });
 }

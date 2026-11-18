@@ -6,7 +6,9 @@ import {
   evaluationOrder,
   formatFormula,
   formulaSchema,
+  formulaText,
   hasCycle,
+  parseFormulaText,
   referencedFieldIds,
   type Formula,
 } from "./formulas.ts";
@@ -147,5 +149,35 @@ describe("formatFormula", () => {
       "(Liikevoitto ÷ Liikevaihto) × 100",
     );
     assert.equal(formatFormula([op("-"), field(1), op("-"), field(1, "previous")], format), "−Liikevaihto − Liikevaihto (prev)");
+  });
+});
+
+describe("formulaText and parseFormulaText", () => {
+  const key = (id: number) => `field_${id}`;
+  const resolve = (text: string) => (text.startsWith("field_") ? Number(text.slice(6)) : undefined);
+
+  it("write a formula as text and read it back", () => {
+    const formula: Formula = [
+      { parenthesis: "(" },
+      field(8),
+      op("/"),
+      field(1, "previous"),
+      { parenthesis: ")" },
+      op("*"),
+      { number: 100.5 },
+    ];
+    assert.equal(formulaText(formula, key), "( [field_8] / [field_1:previous] ) * 100.5");
+    assert.deepEqual(parseFormulaText(formulaText(formula, key), resolve), formula);
+    assert.deepEqual(parseFormulaText("([field_8]/[field_1:previous])*100.5", resolve), formula);
+  });
+
+  it("reads an empty text as an empty formula", () => {
+    assert.deepEqual(parseFormulaText("  ", resolve), []);
+  });
+
+  it("gives undefined for unknown keys and other text", () => {
+    assert.equal(parseFormulaText("[new_1] + 1", resolve), undefined);
+    assert.equal(parseFormulaText("[field_1] % 2", resolve), undefined);
+    assert.equal(parseFormulaText("field_1 + 2", resolve), undefined);
   });
 });

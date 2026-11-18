@@ -1,22 +1,28 @@
 // The check of a company being created against its latest reports on Nasdaq, run in the background
-// while its result fields are reviewed: which entered fields each report doesn't have, and the
-// breakdowns of revenue it has. It runs once per company and reporting cycle: editing the fields
-// doesn't run it again, and fields added afterwards aren't checked. Kept in session storage, so a
-// finished check survives reloading the page; a check interrupted by reloading starts over. Browser
-// only.
+// while its result fields are reviewed: which entered fields each report doesn't have, the
+// breakdowns of revenue it has, and once every report has been read, suggested changes to the
+// fields they don't have, which are applied to the draft one by one. It runs once per company and
+// reporting cycle: editing the fields doesn't run it again, and fields added afterwards aren't
+// checked. Kept in session storage, so a finished check survives reloading the page; a check
+// interrupted by reloading starts over. Browser only.
 
 import type { CompanyInput } from "@/actions/companies";
 import type { CompanyDraftSettings } from "@/lib/company-draft";
+import type { NewFieldIds } from "@/lib/company-draft-suggestions";
 import type { ReportingCycle } from "@/lib/financial-year";
 import {
   REPORT_CHECK_FIELDS_PATH,
   REPORT_CHECK_REPORTS_PATH,
+  REPORT_CHECK_SUGGESTIONS_PATH,
   type CheckedReport,
+  type FieldSuggestion,
   type FieldsRequest,
   type FieldsResponse,
   type ReportsRequest,
   type ReportsResponse,
   type RevenueBreakdown,
+  type SuggestionsRequest,
+  type SuggestionsResponse,
 } from "@/lib/report-check-api";
 
 export type ReportCheck = {
@@ -32,11 +38,18 @@ export type ReportCheck = {
   results: Record<number, FieldsResponse>;
   // The fields checked: those entered rather than calculated when the check started.
   checkedFieldIds: number[];
+  // Suggested changes to the fields missing from the reports, once every report has been read;
+  // null when they couldn't be read.
+  suggestions?: FieldSuggestion[] | null;
+  // Ids of the suggestions and their changes applied to the draft.
+  applied: string[];
+  // Ids of the fields added by the applied suggestions.
+  newFieldIds: NewFieldIds;
 };
 
 const KEY = "company-report-check";
 // Changed when the shape of the check changes, so an older check is ignored.
-const VERSION = 1;
+const VERSION = 2;
 
 let check: ReportCheck | null | undefined;
 // The check running in this page, which an interrupted one in storage isn't.
@@ -103,19 +116,45 @@ export function startReportCheck({
   const current = getReportCheck();
   if (current?.key === key && (current.status !== "running" || runningKey === key)) return;
 
-  // Named as in result extraction, with their group.
-  const fields = settings.groups.flatMap((group) =>
-    group.fields
-      .filter((field) => !field.actualDefinition)
-      .map((field) => ({
-        id: field.id,
-        name: `${group.name}: ${field.name}`,
-        yearlyOnly: field.yearlyValue === "yearly_only",
-      })),
+  // All the fields, for the suggestions; which reports don't have them is added once known.
+  const allFields = settings.groups.flatMap((group) =>
+    group.fields.map((field) => ({
+      id: field.id,
+      group: group.name,
+      name: field.name,
+      typed: field.type != null,
+      yearlyOnly: field.yearlyValue === "yearly_only",
+      actualDefinition: field.actualDefinition,
+      estimateDefinition: field.estimateDefinition,
+    })),
   );
+  // The entered fields, named as in result extraction, with their group.
+  const fields = allFields
+    .filter((field) => !field.actualDefinition)
+    .map((field) => ({ id: field.id, name: `${field.group}: ${field.name}`, yearlyOnly: field.yearlyOnly }));
   runningKey = key;
-  set({ key, status: "running", issuer: null, reports: null, results: {}, checkedFieldIds: fields.map((f) => f.id) });
-  void run(key, { name: company.name, nasdaqName: company.nasdaqName, reportingCycle }, fields);
+  set({
+    key,
+    status: "running",
+    issuer: null,
+    reports: null,
+    results: {},
+    checkedFieldIds: fields.map((f) => f.id),
+    applied: [],
+    newFieldIds: {},
+  });
+  void run(key, { name: company.name, nasdaqName: company.nasdaqName, reportingCycle }, fields, allFields);
+}
+
+// Marks the suggestions and changes applied to the draft, with the fields they added.
+export function markSuggestionApplied(key: string, ids: string[], newFieldIds: NewFieldIds) {
+  const current = getReportCheck();
+  if (current?.key !== key) return;
+  set({
+    ...current,
+    applied: [...new Set([...current.applied, ...ids])],
+    newFieldIds: { ...current.newFieldIds, ...newFieldIds },
+  });
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -128,7 +167,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return response.json();
 }
 
-async function run(key: string, request: ReportsRequest, fields: FieldsRequest["fields"]) {
+async function run(
+  key: string,
+  request: ReportsRequest,
+  fields: FieldsRequest["fields"],
+  allFields: Omit<SuggestionsRequest["fields"][number], "missingFrom">[],
+) {
   // Changes only the check still running, not one started over for another company.
   const update = (change: (check: ReportCheck) => ReportCheck) => {
     const current = getReportCheck();
@@ -148,6 +192,7 @@ async function run(key: string, request: ReportsRequest, fields: FieldsRequest["
   update((check) => ({ ...check, issuer, reports }));
 
   if (issuer) {
+    const results = new Map<number, FieldsResponse>();
     await Promise.all(
       reports.map(async (report) => {
         let result: FieldsResponse;
@@ -162,12 +207,42 @@ async function run(key: string, request: ReportsRequest, fields: FieldsRequest["
           console.error("Checking the fields against a report failed", { report: report.id, error });
           result = null;
         }
+        results.set(report.id, result);
         update((check) => ({ ...check, results: { ...check.results, [report.id]: result } }));
       }),
     );
+    const suggestions = await suggest(issuer, reports, results, allFields);
+    update((check) => ({ ...check, suggestions }));
   }
   update((check) => ({ ...check, status: "done" }));
   if (runningKey === key) runningKey = null;
+}
+
+// Suggested changes to the fields missing from the reports read; empty without any. Null when
+// they couldn't be read.
+async function suggest(
+  issuer: string,
+  reports: CheckedReport[],
+  results: Map<number, FieldsResponse>,
+  fields: Omit<SuggestionsRequest["fields"][number], "missingFrom">[],
+): Promise<FieldSuggestion[] | null> {
+  const read = reports.filter((report) => results.get(report.id));
+  const withMissing = fields.map((field) => ({
+    ...field,
+    missingFrom: read.filter((report) => results.get(report.id)!.missingFieldIds.includes(field.id)).map((r) => r.id),
+  }));
+  if (!withMissing.some((field) => field.missingFrom.length > 0)) return [];
+  try {
+    const { suggestions } = await post<SuggestionsResponse>(REPORT_CHECK_SUGGESTIONS_PATH, {
+      issuer,
+      reports: read.map((report) => ({ id: report.id, kind: report.kind, publishedAt: report.publishedAt })),
+      fields: withMissing,
+    } satisfies SuggestionsRequest);
+    return suggestions;
+  } catch (error) {
+    console.error("Suggesting changes to the fields failed", error);
+    return null;
+  }
 }
 
 // The reports that don't have the field; empty for a field that wasn't checked or is in every
@@ -181,8 +256,12 @@ export function revenueBreakdowns(check: ReportCheck): RevenueBreakdown[] {
   return (check.reports ?? []).flatMap((report) => check.results[report.id]?.revenueBreakdowns ?? []);
 }
 
-// Steps done and in all: finding the reports, then reading each of them.
+// Steps done and in all: finding the reports, reading each of them, then suggesting changes.
 export function reportCheckProgress(check: ReportCheck): { done: number; total: number } {
   if (!check.reports) return { done: 0, total: 1 };
-  return { done: 1 + Object.keys(check.results).length, total: 1 + (check.issuer ? check.reports.length : 0) };
+  const reading = check.issuer ? check.reports.length : 0;
+  return {
+    done: 1 + Object.keys(check.results).length + (check.suggestions === undefined ? 0 : 1),
+    total: 1 + reading + (reading > 0 ? 1 : 0),
+  };
 }

@@ -2,10 +2,12 @@
 
 import { CheckIcon, LoaderCircleIcon, PlusIcon, XIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { FieldSuggestions } from "@/components/field-suggestions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { breakdownGroup, revenueEstimateGroupId, type CompanyDraftSettings } from "@/lib/company-draft";
+import type { SuggestionResult } from "@/lib/company-draft-suggestions";
 import {
   reportCheckProgress,
   reportsMissingField,
@@ -17,23 +19,30 @@ import type { RevenueBreakdown } from "@/lib/report-check-api";
 // The progress and outcome of checking a company being created against its latest reports: a
 // progress bar while it runs, then the reports read (or why there are none), and the revenue
 // breakdowns found, each with a button to add it as a group of fields and, once added, to make the
-// revenue estimate its sum.
+// revenue estimate its sum, and the suggested changes to the fields the reports don't have.
 export function CompanyReportCheck({
   check,
   settings,
   onAddBreakdown,
   onUseBreakdown,
+  onApplySuggestion,
 }: {
   check: ReportCheck;
   settings: CompanyDraftSettings;
   onAddBreakdown: (breakdown: RevenueBreakdown) => void;
   onUseBreakdown: (groupId: number) => void;
+  onApplySuggestion: (ids: string[], result: Extract<SuggestionResult, { ok: true }>) => void;
 }) {
   const t = useTranslations("ReportCheck");
   const format = useFormatter();
   const { done, total } = reportCheckProgress(check);
   const breakdowns = revenueBreakdowns(check);
   const estimateGroupId = revenueEstimateGroupId(settings);
+  const progressLabel = !check.reports
+    ? "findingReports"
+    : Object.keys(check.results).length < check.reports.length
+      ? "readingReports"
+      : "suggesting";
 
   return (
     <section className="flex flex-col gap-4">
@@ -41,7 +50,7 @@ export function CompanyReportCheck({
         <div role="status" className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">
           <LoaderCircleIcon className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" />
           <Progress value={(done / total) * 100} className="flex-1">
-            <ProgressLabel>{t(check.reports ? "readingReports" : "findingReports")}</ProgressLabel>
+            <ProgressLabel>{t(progressLabel)}</ProgressLabel>
             <span className="ml-auto text-sm text-muted-foreground tabular-nums">{t("count", { done, total })}</span>
           </Progress>
         </div>
@@ -114,6 +123,16 @@ export function CompanyReportCheck({
             })}
           </ul>
         </div>
+      )}
+      {check.suggestions === null && <p className="text-sm text-destructive">{t("suggestionsFailed")}</p>}
+      {check.suggestions && check.suggestions.length > 0 && (
+        <FieldSuggestions
+          suggestions={check.suggestions}
+          settings={settings}
+          applied={check.applied}
+          newFieldIds={check.newFieldIds}
+          onApply={onApplySuggestion}
+        />
       )}
     </section>
   );

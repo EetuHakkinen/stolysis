@@ -201,7 +201,51 @@ export function evaluateFormula(
   return missing || !Number.isFinite(result) ? null : result;
 }
 
-const OPERATOR_SYMBOLS: Record<FormulaOperator, string> = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+// The formula as plain text for AI, with fields as [key] or [key:previous], e.g.
+// "([field_8] / [field_1]) * 100". parseFormulaText reads it back.
+export function formulaText<Field>(formula: Formula<Field>, key: (field: Field) => string): string {
+  return formula
+    .map((token) => {
+      if ("operator" in token) return token.operator;
+      if ("parenthesis" in token) return token.parenthesis;
+      if ("number" in token) return String(token.number);
+      return `[${key(token.field)}${token.period === "previous" ? ":previous" : ""}]`;
+    })
+    .join(" ");
+}
+
+const FORMULA_TEXT_TOKEN = /\s*(?:\[([^\]:]+)(?::(previous|current))?\]|(\d+(?:\.\d+)?)|([-+*/()]))/y;
+
+// The formula written as formulaText writes it, with the fields resolved by key. Undefined when the
+// text has something else in it or a key doesn't resolve; the tokens aren't checked to form a valid
+// expression (see checkFormula).
+export function parseFormulaText<Field>(
+  text: string,
+  field: (key: string) => Field | undefined,
+): Formula<Field> | undefined {
+  const formula: Formula<Field> = [];
+  FORMULA_TEXT_TOKEN.lastIndex = 0;
+  const end = text.trimEnd().length;
+  while (FORMULA_TEXT_TOKEN.lastIndex < end) {
+    const match = FORMULA_TEXT_TOKEN.exec(text);
+    if (!match) return undefined;
+    const [, key, period, number, symbol] = match;
+    if (key != null) {
+      const resolved = field(key.trim());
+      if (resolved === undefined) return undefined;
+      formula.push({ field: resolved, period: period === "previous" ? "previous" : "current" });
+    } else if (number != null) {
+      formula.push({ number: Number(number) });
+    } else if (symbol === "(" || symbol === ")") {
+      formula.push({ parenthesis: symbol });
+    } else {
+      formula.push({ operator: symbol as FormulaOperator });
+    }
+  }
+  return formula;
+}
+
+const OPERATOR_SYMBOLS: Record<FormulaOperator, string> ={ "+": "+", "-": "−", "*": "×", "/": "÷" };
 
 export function operatorSymbol(operator: FormulaOperator): string {
   return OPERATOR_SYMBOLS[operator];
@@ -209,9 +253,9 @@ export function operatorSymbol(operator: FormulaOperator): string {
 
 // The formula as readable text, e.g. "(Liikevoitto ÷ Liikevaihto) × 100". Field tokens and numbers
 // are formatted by the caller, so names and number formats can be localized.
-export function formatFormula(
-  formula: Formula,
-  format: { field: (fieldId: number, period: FormulaPeriod) => string; number: (value: number) => string },
+export function formatFormula<Field = number>(
+  formula: Formula<Field>,
+  format: { field: (fieldId: Field, period: FormulaPeriod) => string; number: (value: number) => string },
 ): string {
   let text = "";
   let expectOperand = true;

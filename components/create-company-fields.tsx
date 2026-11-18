@@ -31,6 +31,7 @@ import { clearCompanyDraft, loadCompanyDraft, saveCompanyDraft } from "@/lib/com
 import {
   clearReportCheck,
   getReportCheck,
+  markSuggestionApplied,
   startReportCheck,
   subscribeReportCheck,
   reportCheckKey,
@@ -41,8 +42,8 @@ const CREATE_COMPANY_PATH = "/dashboard/company/create";
 // The second step of creating a company: its result field groups and fields from the draft, edited
 // as in the company settings but only in the draft until the company is created. Meanwhile the
 // fields are checked against the company's latest reports in the background, once per company and
-// reporting cycle; fields a report doesn't have get a red X, and the revenue breakdowns found can be
-// added. Without a draft, e.g. in a new tab, this goes back to the first step.
+// reporting cycle; fields a report doesn't have get a red X, and the revenue breakdowns found and
+// the changes suggested to the missing fields can be applied. Without a draft, e.g. in a new tab, this goes back to the first step.
 export function CreateCompanyFields() {
   const t = useTranslations("CreateCompany");
   const tForm = useTranslations("CompanyForm");
@@ -132,6 +133,10 @@ export function CreateCompanyFields() {
           settings={settings}
           onAddBreakdown={(breakdown) => change((settings) => addRevenueBreakdown(settings, breakdown))}
           onUseBreakdown={(groupId) => change((settings) => setRevenueEstimateGroup(settings, groupId))}
+          onApplySuggestion={(ids, result) => {
+            change(() => result.draft);
+            markSuggestionApplied(check.key, ids, result.newFieldIds);
+          }}
         />
       )}
       <ResultFieldList
