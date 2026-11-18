@@ -15,8 +15,8 @@ import { BUSINESS_ANALYSIS_CATEGORIES } from "@/lib/business-analysis-sections";
 import { cn } from "@/lib/utils";
 
 // A company's business analysis, a collapsible section per category, all open at first, with
-// buttons to open and collapse them all. Each section can be edited by hand and its earlier versions
-// viewed.
+// buttons to open and collapse them all and to view the history of changes. Each section can be
+// edited by hand.
 export function BusinessAnalysis({
   companyId,
   sections,
@@ -41,7 +41,7 @@ export function BusinessAnalysis({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">{t("description")}</p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setOpen(new Set(BUSINESS_ANALYSIS_CATEGORIES))}>
             <ChevronsUpDownIcon />
             {t("openAll")}
@@ -50,6 +50,7 @@ export function BusinessAnalysis({
             <ChevronsDownUpIcon />
             {t("collapseAll")}
           </Button>
+          <BusinessAnalysisHistory companyId={companyId} />
         </div>
       </div>
       {BUSINESS_ANALYSIS_CATEGORIES.map((category) => (
@@ -133,7 +134,6 @@ function BusinessAnalysisSection({
             <PencilIcon />
           </Button>
         )}
-        <BusinessAnalysisHistory companyId={companyId} category={category} title={title} />
       </div>
       <CollapsibleContent className="flex flex-col gap-3 px-4 pb-4">
         {editing ? (

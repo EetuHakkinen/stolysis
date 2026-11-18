@@ -3,57 +3,53 @@
 import { useState } from "react";
 import { HistoryIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { BusinessAnalysisCategory } from "@/app/generated/prisma/enums";
-import { getBusinessAnalysisHistory, type BusinessAnalysisVersion } from "@/actions/business-analysis";
+import { getBusinessAnalysisHistory, type BusinessAnalysisChange } from "@/actions/business-analysis";
 import { BusinessAnalysisSource } from "@/components/business-analysis-source";
 import { TextDiff } from "@/components/text-diff";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-// Dialog listing all versions of a section of a company's business analysis, newest first, each
-// with the news it was written from or a mark that it was written by hand, and what it changed from
-// the version before it (the first version is all added). Loaded when opened.
-export function BusinessAnalysisHistory({
-  companyId,
-  category,
-  title,
-}: {
-  companyId: number;
-  category: BusinessAnalysisCategory;
-  title: string;
-}) {
+// Dialog listing all changes to a company's business analysis, newest first: for each news item,
+// how it changed each section it updated, and each edit by hand. Loaded when opened.
+export function BusinessAnalysisHistory({ companyId }: { companyId: number }) {
   const t = useTranslations("BusinessAnalysis");
-  const [versions, setVersions] = useState<BusinessAnalysisVersion[] | null>(null);
+  const [changes, setChanges] = useState<BusinessAnalysisChange[] | null>(null);
 
   function changeOpen(open: boolean) {
     if (!open) return;
-    setVersions(null);
-    getBusinessAnalysisHistory({ companyId, category }).then(setVersions);
+    setChanges(null);
+    getBusinessAnalysisHistory({ companyId }).then(setChanges);
   }
 
   return (
     <Dialog onOpenChange={changeOpen}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon-sm" aria-label={t("history")} title={t("history")}>
+          <Button variant="outline" size="sm">
             <HistoryIcon />
+            {t("history")}
           </Button>
         }
       />
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{t("historyTitle", { section: title })}</DialogTitle>
+          <DialogTitle>{t("historyTitle")}</DialogTitle>
         </DialogHeader>
-        {versions == null ? (
+        {changes == null ? (
           <p className="text-muted-foreground">{t("loading")}</p>
-        ) : versions.length === 0 ? (
+        ) : changes.length === 0 ? (
           <p className="text-muted-foreground">{t("noHistory")}</p>
         ) : (
           <ol className="flex flex-col gap-4">
-            {versions.map((version, i) => (
-              <li key={version.id} className="flex flex-col gap-2 rounded-lg border p-3">
-                <BusinessAnalysisSource version={version} />
-                <TextDiff before={versions[i + 1]?.content ?? ""} after={version.content} />
+            {changes.map((change) => (
+              <li key={change.key} className="flex flex-col gap-3 rounded-lg border p-3">
+                <BusinessAnalysisSource version={change} />
+                {change.changes.map((section) => (
+                  <section key={section.category} className="flex flex-col gap-1">
+                    <h4 className="text-sm font-semibold">{t(`categories.${section.category}`)}</h4>
+                    <TextDiff before={section.before} after={section.after} />
+                  </section>
+                ))}
               </li>
             ))}
           </ol>

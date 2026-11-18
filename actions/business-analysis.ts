@@ -12,7 +12,7 @@ import {
   type BusinessAnalysisRunState,
   type StartBusinessAnalysisRunResult,
 } from "@/lib/business-analysis-run";
-import { BUSINESS_ANALYSIS_CATEGORIES, currentSections } from "@/lib/business-analysis-sections";
+import { analysisChanges, BUSINESS_ANALYSIS_CATEGORIES, currentSections } from "@/lib/business-analysis-sections";
 import { prisma } from "@/lib/prisma";
 
 const idSchema = z.number().int().positive();
@@ -56,19 +56,30 @@ export async function getBusinessAnalysis(input: { companyId: number }): Promise
   });
 }
 
-// All versions of a section of the company's business analysis, newest first.
-export async function getBusinessAnalysisHistory(input: {
-  companyId: number;
-  category: BusinessAnalysisCategory;
-}): Promise<BusinessAnalysisVersion[]> {
+// A change to the business analysis: the sections one news item updated, or a section edited by
+// hand, each with its text before and after.
+export type BusinessAnalysisChange = {
+  key: string;
+  createdAt: Date;
+  // Null for an edit by hand.
+  news: { id: number; title: string } | null;
+  changes: { category: BusinessAnalysisCategory; before: string; after: string }[];
+};
+
+// All changes to the company's business analysis, newest first.
+export async function getBusinessAnalysisHistory(input: { companyId: number }): Promise<BusinessAnalysisChange[]> {
   await requireUserId();
-  const { companyId, category } = z.object({ companyId: idSchema, category: categorySchema }).parse(input);
   const rows = await prisma.businessAnalysis.findMany({
-    where: { companyId, category },
+    where: { companyId: idSchema.parse(input.companyId) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: versionSelect,
   });
-  return rows.map(toVersion);
+  return analysisChanges(rows).map(({ key, first, changes }) => ({
+    key,
+    createdAt: first.createdAt,
+    news: first.news,
+    changes,
+  }));
 }
 
 // Categories of the sections of the business analysis that got a new version from the news item.

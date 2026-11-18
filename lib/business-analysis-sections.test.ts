@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  analysisChanges,
   analysisForPrompt,
   currentSections,
   newVersions,
@@ -101,3 +102,21 @@ describe("analysisForPrompt", () => {
   });
 });
 
+
+describe("analysisChanges", () => {
+  it("groups a news item's versions into one change, newest first, with the texts before", () => {
+    const changes = analysisChanges(ROWS).map(({ key, first, changes }) => ({ key, first: first.id, changes }));
+    assert.deepEqual(changes, [
+      { key: "news-12", first: 5, changes: [{ category: "strategy", before: "Vanha strategia", after: "Uusi strategia" }] },
+      { key: "manual-4", first: 4, changes: [{ category: "risks", before: "", after: "Riskit käsin" }] },
+      {
+        key: "news-10",
+        first: 1,
+        changes: [
+          { category: "company_description", before: "", after: "Yhtiö" },
+          { category: "strategy", before: "", after: "Vanha strategia" },
+        ],
+      },
+    ]);
+  });
+});

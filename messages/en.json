@@ -195,9 +195,9 @@
       "failed": "Saving failed."
     },
     "history": "History",
-    "historyTitle": "History: {section}",
+    "historyTitle": "Business analysis history",
     "loading": "Loading…",
-    "noHistory": "No versions yet.",
+    "noHistory": "No changes yet.",
     "updatedByNews": "This news updated the <link>business analysis</link>: {sections}."
   },
   "AddNews": {

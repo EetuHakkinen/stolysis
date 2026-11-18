@@ -195,9 +195,9 @@
       "failed": "Tallentaminen epäonnistui."
     },
     "history": "Historia",
-    "historyTitle": "Historia: {section}",
+    "historyTitle": "Liiketoiminta-analyysin historia",
     "loading": "Ladataan…",
-    "noHistory": "Ei vielä versioita.",
+    "noHistory": "Ei vielä muutoksia.",
     "updatedByNews": "Tämä tiedote päivitti <link>liiketoiminta-analyysiä</link>: {sections}."
   },
   "AddNews": {

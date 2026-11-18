@@ -64,3 +64,30 @@ export function analysisForPrompt(current: Map<BusinessAnalysisCategory, Section
     return `<section category="${category}"${manual}>\n${version.content.trim()}\n</section>`;
   }).join("\n\n");
 }
+
+// A change to the business analysis: the new versions of the sections that one news item updated,
+// or a section edited by hand, with each section's text before it ("" for none).
+export type AnalysisChange<T> = {
+  key: string;
+  // The change's first version, e.g. for its time and news.
+  first: T;
+  changes: { category: BusinessAnalysisCategory; before: string; after: string }[];
+};
+
+// The versions read newest first (by createdAt, then id) as changes, newest first. A news item's
+// versions make one change; each version written by hand is a change of its own.
+export function analysisChanges<T extends SectionVersion>(rows: T[]): AnalysisChange<T>[] {
+  const previous = new Map<BusinessAnalysisCategory, string>();
+  const changes = new Map<string, AnalysisChange<T>>();
+  for (const row of [...rows].reverse()) {
+    const key = row.newsId != null ? `news-${row.newsId}` : `manual-${row.id}`;
+    const change = changes.get(key) ?? { key, first: row, changes: [] };
+    change.changes.push({ category: row.category, before: previous.get(row.category) ?? "", after: row.content });
+    changes.set(key, change);
+    previous.set(row.category, row.content);
+  }
+  const order = (category: BusinessAnalysisCategory) => BUSINESS_ANALYSIS_CATEGORIES.indexOf(category);
+  return [...changes.values()]
+    .map((change) => ({ ...change, changes: change.changes.sort((a, b) => order(a.category) - order(b.category)) }))
+    .reverse();
+}

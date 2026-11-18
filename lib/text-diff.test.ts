@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { textDiff } from "./text-diff.ts";
+import { changedParagraphs, textDiff } from "./text-diff.ts";
 
 describe("textDiff", () => {
   it("marks added and removed words", () => {
@@ -24,5 +24,43 @@ describe("textDiff", () => {
       parts.filter((part) => part.kind !== kind).map((part) => part.text).join("");
     assert.equal(text("added"), before);
     assert.equal(text("removed"), after);
+  });
+});
+
+describe("changedParagraphs", () => {
+  const before = "Ensimmäinen kappale.\n\nToinen kappale.\n\n- kohta yksi\n- kohta kaksi";
+
+  it("shows only the changed paragraph", () => {
+    const after = "Ensimmäinen kappale.\n\nToinen kappale, muutettu.\n\n- kohta yksi\n- kohta kaksi";
+    assert.deepEqual(changedParagraphs(before, after), [
+      [
+        { kind: "same", text: "Toinen kappale" },
+        { kind: "added", text: ", muutettu" },
+        { kind: "same", text: "." },
+      ],
+    ]);
+  });
+
+  it("treats list items as paragraphs", () => {
+    const after = "Ensimmäinen kappale.\n\nToinen kappale.\n\n- kohta yksi\n- kohta kolme";
+    assert.deepEqual(changedParagraphs(before, after), [
+      [
+        { kind: "same", text: "- kohta " },
+        { kind: "removed", text: "kaksi" },
+        { kind: "added", text: "kolme" },
+      ],
+    ]);
+  });
+
+  it("keeps separate changes apart and shows added and removed paragraphs", () => {
+    const after = "Uusi alku.\n\nEnsimmäinen kappale.\n\nToinen kappale.\n\n- kohta yksi";
+    assert.deepEqual(changedParagraphs(before, after), [
+      [{ kind: "added", text: "Uusi alku." }],
+      [{ kind: "removed", text: "- kohta kaksi" }],
+    ]);
+  });
+
+  it("is empty when nothing changed but blank lines", () => {
+    assert.deepEqual(changedParagraphs(before, before.replaceAll("\n\n", "\n")), []);
   });
 });
