@@ -3,6 +3,7 @@ import type { Unit, ValueFormat } from "@/app/generated/prisma/client";
 import { ResultFieldType } from "@/app/generated/prisma/enums";
 import {
   fromStoredEstimate,
+  QUARTERLY_YEARS_AHEAD,
   type ActualValues,
   type EstimateField,
   type EstimateInput,
@@ -20,9 +21,6 @@ import { fromStoredMultiple } from "@/lib/valuation";
 
 // Years estimated after the current financial year.
 export const YEARS_AHEAD = 10;
-// Years after the current one whose totals are sums of their seasons; later ones are estimated
-// as a whole.
-const QUARTERLY_YEARS_AHEAD = 1;
 
 export type ResultGroup = {
   id: number;

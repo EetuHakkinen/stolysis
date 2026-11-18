@@ -4,6 +4,7 @@ import { useFormatter } from "next-intl";
 import type { EstimateType, Unit, ValueFormat } from "@/app/generated/prisma/client";
 import {
   comparisonSeason,
+  QUARTERLY_YEARS_AHEAD,
   roundEstimate,
   type EstimateYear,
   type PeriodValue,
@@ -28,7 +29,7 @@ function yearUnit(year: EstimateYear): Unit {
   return year.unit ?? "one";
 }
 
-// Seasons of the current and next financial year that have no data, each with the season it's
+// Seasons of the current financial year and QUARTERLY_YEARS_AHEAD years after it that have no data, each with the season it's
 // compared with. Seasons with data are shown only as comparison periods.
 export function quarterlyEstimateColumns(
   years: EstimateYear[],
@@ -38,7 +39,7 @@ export function quarterlyEstimateColumns(
   const current = years.findIndex((year) => year.id === currentYearId);
   // Shown seasons: editable or comparison only.
   const shown = new Map<number, boolean>();
-  for (const yearIndex of [current, current + 1]) {
+  for (let yearIndex = current; yearIndex <= current + QUARTERLY_YEARS_AHEAD; yearIndex++) {
     const year = years[yearIndex];
     year?.seasons.forEach((season, index) => {
       if (withData.has(season.id)) return;
@@ -48,7 +49,7 @@ export function quarterlyEstimateColumns(
     });
   }
 
-  return years.slice(Math.max(0, current - 1), current + 2).flatMap((year) =>
+  return years.slice(Math.max(0, current - 1), current + QUARTERLY_YEARS_AHEAD + 1).flatMap((year) =>
     year.seasons
       .filter((season) => shown.has(season.id))
       .map((season) => ({

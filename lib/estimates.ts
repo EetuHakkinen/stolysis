@@ -5,6 +5,10 @@
 import type { EstimateType, Unit, ValueFormat, YearlyValue } from "@/app/generated/prisma/client";
 import { evaluateFormula, evaluationOrder, type Formula, type FormulaPeriod } from "./formulas.ts";
 
+// Years after the current financial year whose totals are sums of their seasons, so their seasons
+// are estimated; later ones are estimated as a whole.
+export const QUARTERLY_YEARS_AHEAD = 0;
+
 export type EstimateSeason = { id: number; name: string | null };
 
 export type EstimateYear = {

@@ -5,7 +5,7 @@ import type { ValueFormat } from "@/app/generated/prisma/client";
 import type { EstimatePeriod } from "@/components/estimate-table";
 import { ResultGraph } from "@/components/result-graph";
 import type { ResultColumn } from "@/components/result-table";
-import type { EstimateYear, PeriodValue } from "@/lib/estimates";
+import { QUARTERLY_YEARS_AHEAD, type EstimateYear, type PeriodValue } from "@/lib/estimates";
 import { cn } from "@/lib/utils";
 
 // Financial years before the current one shown in the estimate graphs.
@@ -13,8 +13,6 @@ const HISTORY_YEARS = 3;
 // Financial years before the current one and after it shown in the valuation summary.
 const SUMMARY_HISTORY_YEARS = 2;
 const SUMMARY_FUTURE_YEARS = 5;
-// Years after the current one with quarterly estimates (QUARTERLY_YEARS_AHEAD in actions/estimates).
-const QUARTERLY_YEARS_AHEAD = 1;
 
 // Whether any value of the period is estimated.
 type IsEstimated = (period: EstimatePeriod) => boolean;
