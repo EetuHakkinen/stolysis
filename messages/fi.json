@@ -120,6 +120,7 @@
       "savingNews": "Haetaan uutisia Nasdaqista",
       "extractingResults": "Poimitaan tuloksia katsauksista",
       "analyzingNews": "Päivitetään liiketoiminta-analyysiä",
+      "writingPeriodNotes": "Kirjoitetaan kausikatsauksia",
       "count": "{done} / {total}"
     }
   },
@@ -158,7 +159,9 @@
     "deleteTitle": "Poistetaanko muistiinpano?",
     "deleteDescription": "Muistiinpano poistetaan pysyvästi.",
     "createFromNews": "Luo muistiinpano",
-    "noneForNews": "Tästä uutisesta ei ole vielä muistiinpanoja."
+    "noneForNews": "Tästä uutisesta ei ole vielä muistiinpanoja.",
+    "aiGenerated": "Tekoälyn kirjoittama",
+    "aiGeneratedEdited": "Tekoälyn kirjoittama · muokattu"
   },
   "MarkdownEditor": {
     "write": "Kirjoita",

@@ -120,6 +120,7 @@
       "savingNews": "Fetching news from Nasdaq",
       "extractingResults": "Extracting results from reports",
       "analyzingNews": "Updating the business analysis",
+      "writingPeriodNotes": "Writing period notes",
       "count": "{done} / {total}"
     }
   },
@@ -158,7 +159,9 @@
     "deleteTitle": "Delete note?",
     "deleteDescription": "The note will be deleted permanently.",
     "createFromNews": "Create note",
-    "noneForNews": "No notes about this news yet."
+    "noneForNews": "No notes about this news yet.",
+    "aiGenerated": "AI-generated",
+    "aiGeneratedEdited": "AI-generated · edited"
   },
   "MarkdownEditor": {
     "write": "Write",

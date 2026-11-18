@@ -86,8 +86,8 @@ export function useNewsFetch(): NewsFetchContextValue {
 }
 
 // Banner with the progress of the running news fetch: first the news saved, then the reports whose
-// results are extracted, and then the news gone through for the business analysis. Renders nothing
-// when no fetch is running.
+// results are extracted, then the news gone through for the business analysis, and then the reports
+// whose period notes are written. Renders nothing when no fetch is running.
 export function NewsFetchBanner() {
   const t = useTranslations("News.fetch");
   const { fetch } = useNewsFetch();
@@ -98,7 +98,9 @@ export function NewsFetchBanner() {
       ? (["savingNews", fetch.processedCount, fetch.newsCount] as const)
       : fetch.extractedCount < fetch.reportCount
         ? (["extractingResults", fetch.extractedCount, fetch.reportCount] as const)
-        : (["analyzingNews", fetch.analyzedCount, fetch.analysisCount] as const);
+        : fetch.analyzedCount < fetch.analysisCount
+          ? (["analyzingNews", fetch.analyzedCount, fetch.analysisCount] as const)
+          : (["writingPeriodNotes", fetch.periodReviewedCount, fetch.periodCount] as const);
 
   return (
     <div role="status" className="flex items-start gap-3 rounded-lg border bg-muted/40 p-4">

@@ -403,6 +403,9 @@ model News {
   // When the news was gone through for the business analysis, also when it had nothing to add;
   // null when it hasn't been yet.
   businessAnalyzedAt DateTime? @map("business_analyzed_at")
+  // When the AI note on the report's period was written; null when it hasn't been. Keeps a report
+  // from getting a second note, also after the note is deleted.
+  periodReviewedAt   DateTime? @map("period_reviewed_at")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -500,14 +503,17 @@ model GraphField {
 // A user's note on a company, written in markdown. Its date is chosen by the user; the company's
 // estimates and multiples are shown as they were at the end of that day (in Finnish time).
 model Note {
-  id        Int      @id @default(autoincrement())
-  companyId Int      @map("company")
-  date      DateTime @db.Date
-  text      String
+  id          Int      @id @default(autoincrement())
+  companyId   Int      @map("company")
+  date        DateTime @db.Date
+  text        String
   // News the note is about, if any.
-  newsId    Int?     @map("news")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  newsId      Int?     @map("news")
+  // Written by AI, e.g. an overview of a report's period. Kept when the user edits the note: it was
+  // edited when updatedAt is later than createdAt, as both are set to the same time when it's written.
+  aiGenerated Boolean  @default(false) @map("ai_generated")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   news    News?   @relation(fields: [newsId], references: [id], onDelete: SetNull)
@@ -577,7 +583,8 @@ model ResultRefetch {
 }
 
 // State of a fetch of a company's news from Nasdaq: still saving news, extracting results from
-// reports or updating the business analysis, gone through all of them, or stopped by an error.
+// reports, updating the business analysis or writing period notes, gone through all of them, or
+// stopped by an error.
 enum NewsFetchStatus {
   running
   done
@@ -587,26 +594,30 @@ enum NewsFetchStatus {
 }
 
 // A fetch of a company's news from Nasdaq that found news to save, for showing its progress: first
-// the news are saved, then results are extracted from the reports among them, and then the
-// business analysis is updated from the news. A running fetch that
+// the news are saved, then results are extracted from the reports among them, then the business
+// analysis is updated from the news, and then notes on the reports' periods are written. A running fetch that
 // hasn't been updated for a while was interrupted, e.g. by a server restart.
 model NewsFetch {
-  id             Int             @id @default(autoincrement())
-  companyId      Int             @map("company")
-  status         NewsFetchStatus @default(running)
-  newsCount      Int             @map("news_count")
+  id                  Int             @id @default(autoincrement())
+  companyId           Int             @map("company")
+  status              NewsFetchStatus @default(running)
+  newsCount           Int             @map("news_count")
   // News gone through so far, including those already received by email.
-  processedCount Int             @default(0) @map("processed_count")
+  processedCount      Int             @default(0) @map("processed_count")
   // Reports among the saved news; known once all news are saved.
-  reportCount    Int             @default(0) @map("report_count")
+  reportCount         Int             @default(0) @map("report_count")
   // Reports gone through so far, including those whose extraction failed.
-  extractedCount Int             @default(0) @map("extracted_count")
+  extractedCount      Int             @default(0) @map("extracted_count")
   // News among the saved news to go through for the business analysis; known once all news are saved.
-  analysisCount  Int             @default(0) @map("analysis_count")
+  analysisCount       Int             @default(0) @map("analysis_count")
   // News gone through for the business analysis so far, including those that failed.
-  analyzedCount  Int             @default(0) @map("analyzed_count")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+  analyzedCount       Int             @default(0) @map("analyzed_count")
+  // Reports among the saved news to write a period note on; known once all news are saved.
+  periodCount         Int             @default(0) @map("period_count")
+  // Reports gone through for a period note so far, including those that failed.
+  periodReviewedCount Int             @default(0) @map("period_reviewed_count")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

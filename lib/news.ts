@@ -13,6 +13,7 @@ import {
 import { analyzeNewsForBusiness, ANALYZED_NEWS_CATEGORIES } from "@/lib/business-analysis";
 import { findOrCreateCompanyFromReport } from "@/lib/company-from-report";
 import { COMPANY_RELEASE_CATEGORY, INVESTOR_CALL_CATEGORY } from "@/lib/news-categories";
+import { writePeriodNote } from "@/lib/period-note";
 import { extractResultsFromNews, isReportCategory } from "@/lib/report-extraction";
 
 // Not server actions: these are also called by the SendGrid webhook, which has no Clerk session.
@@ -188,8 +189,9 @@ export function autoCreateCompaniesFromUi(): boolean {
 }
 
 // Processes saved news after the response is sent, as reading a report takes a while: extracts
-// results from reports, then goes through the news for the business analysis. Other news have no
-// results to extract, and only some categories are gone through for the analysis.
+// results from reports, then goes through the news for the business analysis, and then writes a
+// note on a report's period, which uses both. Only reports have results and periods, and only some
+// categories are gone through for the analysis.
 export function processNewsAfterResponse(result: SaveNewsResult) {
   if (!result.saved) return;
   const { newsId, category } = result;
@@ -205,6 +207,7 @@ export function processNewsAfterResponse(result: SaveNewsResult) {
       }
     }
     await analyzeNewsAndLog(newsId);
+    if (report) await writePeriodNoteAndLog(newsId);
   });
 }
 
@@ -216,5 +219,15 @@ export async function analyzeNewsAndLog(newsId: number, categories?: string[]) {
     console.log("Analyzed news for the business analysis", { newsId, ...analysis });
   } catch (error) {
     console.error("Analyzing news for the business analysis failed", { newsId, error });
+  }
+}
+
+// Writes a note on the report's period, logging the outcome. A failure is logged too.
+export async function writePeriodNoteAndLog(newsId: number) {
+  try {
+    const note = await writePeriodNote(newsId);
+    console.log("Wrote period note on news", { newsId, ...note });
+  } catch (error) {
+    console.error("Writing period note on news failed", { newsId, error });
   }
 }

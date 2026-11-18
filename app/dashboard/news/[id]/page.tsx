@@ -5,6 +5,7 @@ import { NotebookPenIcon } from "lucide-react";
 import { getNewsBusinessAnalysis } from "@/actions/business-analysis";
 import { getNews } from "@/actions/news";
 import { getNotesForNews } from "@/actions/notes";
+import { AiNoteBadge } from "@/components/ai-note-badge";
 import { ButtonLink } from "@/components/button-link";
 import { CompanyBadge } from "@/components/company-badge";
 import { Markdown } from "@/components/markdown";
@@ -95,9 +96,12 @@ export default async function NewsPage({ params }: PageProps<"/dashboard/news/[i
         ) : (
           notes.map((note) => (
             <article key={note.id} className="flex flex-col gap-2 rounded-lg border p-4">
-              <time dateTime={note.date} className="text-sm text-muted-foreground">
-                {format.dateTime(toDbDate(note.date), { dateStyle: "medium", timeZone: "UTC" })}
-              </time>
+              <div className="flex flex-wrap items-center gap-2">
+                <time dateTime={note.date} className="text-sm text-muted-foreground">
+                  {format.dateTime(toDbDate(note.date), { dateStyle: "medium", timeZone: "UTC" })}
+                </time>
+                {note.ai && <AiNoteBadge edited={note.ai.edited} />}
+              </div>
               <Markdown>{note.text}</Markdown>
             </article>
           ))

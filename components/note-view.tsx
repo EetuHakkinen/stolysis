@@ -12,6 +12,7 @@ import {
   type NoteItem,
   type NoteNews,
 } from "@/actions/notes";
+import { AiNoteBadge } from "@/components/ai-note-badge";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { MarkdownEditor } from "@/components/markdown-editor";
@@ -138,6 +139,7 @@ export function NoteView({
         ref={setNoteColumn}
         className="flex min-w-0 flex-col gap-3 self-start lg:col-span-3"
       >
+        {note.ai && <AiNoteBadge edited={note.ai.edited} />}
         {editing ? (
           <>
             <MarkdownEditor

@@ -236,13 +236,13 @@ export async function refreshNews(input: { companyId: number }): Promise<Refresh
 }
 
 // Shows the saved news, and processes them after the response is sent: extracts results from the
-// reports and goes through the news for the business analysis.
+// reports, goes through the news for the business analysis and writes notes on the reports' periods.
 function afterNewsFetch(result: NewsFetchResult) {
   if (!result.fetched) return;
   if (result.savedCount > 0) refresh();
-  const { fetchId, reportNewsIds, analysisNewsIds } = result;
-  if (fetchId !== null && (reportNewsIds.length > 0 || analysisNewsIds.length > 0)) {
-    after(() => processFetchedNews(fetchId, { reportNewsIds, analysisNewsIds }));
+  const { fetchId } = result;
+  if (fetchId !== null && (result.reportNewsIds.length > 0 || result.analysisNewsIds.length > 0)) {
+    after(() => processFetchedNews(fetchId, result));
   }
 }
 

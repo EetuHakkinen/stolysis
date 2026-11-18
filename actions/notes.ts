@@ -5,11 +5,15 @@ import { z } from "zod";
 import { requireUserId } from "@/lib/auth";
 import { fromDbDate, helsinkiNoteDate, parseNoteDate, toDbDate } from "@/lib/note-date";
 import { loadSnapshotData, noteSnapshot, type NoteSnapshot } from "@/lib/note-snapshot";
+import { wasEdited } from "@/lib/period-note-context";
 import { prisma } from "@/lib/prisma";
 
 const NOTES_PAGE_SIZE = 20;
 
 export type NoteNews = { id: number; title: string; releasedAt: Date };
+
+// A note written by AI, and whether the user has edited it since; null for the user's own notes.
+export type NoteAi = { edited: boolean } | null;
 
 export type NoteItem = {
   id: number;
@@ -17,12 +21,19 @@ export type NoteItem = {
   date: string;
   text: string;
   news: NoteNews | null;
+  ai: NoteAi;
   snapshot: NoteSnapshot;
 };
 
 export type NotesPage = { notes: NoteItem[]; page: number; pageCount: number };
 
 const newsSelect = { id: true, title: true, releasedAt: true } as const;
+
+const aiSelect = { aiGenerated: true, createdAt: true, updatedAt: true } as const;
+
+function noteAi(note: { aiGenerated: boolean; createdAt: Date; updatedAt: Date }): NoteAi {
+  return note.aiGenerated ? { edited: wasEdited(note) } : null;
+}
 
 // One page of a company's notes, newest first, each with the company's estimates and multiples at
 // the end of its date.
@@ -42,15 +53,15 @@ export async function getNotes({ companyId, page }: { companyId: number; page: n
       orderBy: [{ date: "desc" }, { id: "desc" }],
       skip: (current - 1) * NOTES_PAGE_SIZE,
       take: NOTES_PAGE_SIZE,
-      select: { id: true, date: true, text: true, news: { select: newsSelect } },
+      select: { id: true, date: true, text: true, news: { select: newsSelect }, ...aiSelect },
     }),
     loadSnapshotData(companyId),
   ]);
 
   return {
-    notes: rows.map((row) => {
-      const date = fromDbDate(row.date);
-      return { ...row, date, snapshot: noteSnapshot(data, date) };
+    notes: rows.map(({ id, date: dbDate, text, news, ...ai }) => {
+      const date = fromDbDate(dbDate);
+      return { id, date, text, news, ai: noteAi(ai), snapshot: noteSnapshot(data, date) };
     }),
     page: current,
     pageCount,
@@ -96,16 +107,16 @@ export async function getNotesForNews({
   newsId,
 }: {
   newsId: number;
-}): Promise<{ id: number; date: string; text: string }[]> {
+}): Promise<{ id: number; date: string; text: string; ai: NoteAi }[]> {
   await requireUserId();
   const parsed = idSchema.safeParse(newsId);
   if (!parsed.success) return [];
   const rows = await prisma.note.findMany({
     where: { newsId: parsed.data },
     orderBy: [{ date: "desc" }, { id: "desc" }],
-    select: { id: true, date: true, text: true },
+    select: { id: true, date: true, text: true, ...aiSelect },
   });
-  return rows.map((row) => ({ ...row, date: fromDbDate(row.date) }));
+  return rows.map(({ id, date, text, ...ai }) => ({ id, date: fromDbDate(date), text, ai: noteAi(ai) }));
 }
 
 const idSchema = z.number().int().positive();

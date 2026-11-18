@@ -73,7 +73,7 @@ export function NoteList({
         <NoteView
           key={`draft-${draft.key}`}
           companyId={companyId}
-          note={{ id: null, text: "", date: draft.date, news: draft.news, snapshot: draft.snapshot }}
+          note={{ id: null, text: "", date: draft.date, news: draft.news, ai: null, snapshot: draft.snapshot }}
           onCreated={setDraftId}
           onDone={draftClosed}
         />

@@ -227,6 +227,11 @@ export async function saveSectionByHand({
   });
 }
 
+// The company's current business analysis for the AI (see analysisForPrompt).
+export async function businessAnalysisForPrompt(companyId: number): Promise<string> {
+  return analysisForPrompt(await readCurrentSections(prisma, companyId));
+}
+
 type Db = Prisma.TransactionClient | typeof prisma;
 
 // The current version of each of the company's sections.
@@ -257,7 +262,7 @@ async function markAnalyzed(db: Db, newsId: number): Promise<boolean> {
 
 // The attachments that are PDFs or text, in order, up to the limits. Attachments over the limits
 // are left out, as are those that can't be downloaded.
-async function downloadDocuments(attachments: Attachment[]): Promise<AttachmentDocument[]> {
+export async function downloadDocuments(attachments: Attachment[]): Promise<AttachmentDocument[]> {
   const documents: AttachmentDocument[] = [];
   let bytes = 0;
   for (const attachment of attachments) {
@@ -282,7 +287,8 @@ async function downloadDocuments(attachments: Attachment[]): Promise<AttachmentD
   return documents;
 }
 
-function documentPart(document: AttachmentDocument): ContentPart {
+// An attachment as part of an AI message.
+export function documentPart(document: AttachmentDocument): ContentPart {
   return document.kind === "pdf"
     ? { type: "file", file: { filename: document.name, file_data: document.fileData } }
     : { type: "text", text: `Attachment "${document.name}":\n\n${document.text}` };
