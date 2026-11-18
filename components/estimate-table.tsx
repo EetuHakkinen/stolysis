@@ -3,7 +3,6 @@
 import { useFormatter } from "next-intl";
 import type { EstimateType, Unit, ValueFormat } from "@/app/generated/prisma/client";
 import {
-  comparisonSeason,
   QUARTERLY_YEARS_AHEAD,
   roundEstimate,
   type EstimateYear,
@@ -29,37 +28,25 @@ function yearUnit(year: EstimateYear): Unit {
   return year.unit ?? "one";
 }
 
-// Seasons of the current financial year and QUARTERLY_YEARS_AHEAD years after it that have no data, each with the season it's
-// compared with. Seasons with data are shown only as comparison periods.
+// Every season of the previous financial year for reference, then the seasons of the current one
+// and QUARTERLY_YEARS_AHEAD years after it. Seasons without data in the estimated years are
+// editable; the others are shown read-only.
 export function quarterlyEstimateColumns(
   years: EstimateYear[],
   currentYearId: number,
   withData: Set<number>,
 ): EstimateColumn[] {
   const current = years.findIndex((year) => year.id === currentYearId);
-  // Shown seasons: editable or comparison only.
-  const shown = new Map<number, boolean>();
-  for (let yearIndex = current; yearIndex <= current + QUARTERLY_YEARS_AHEAD; yearIndex++) {
-    const year = years[yearIndex];
-    year?.seasons.forEach((season, index) => {
-      if (withData.has(season.id)) return;
-      shown.set(season.id, true);
-      const comparison = comparisonSeason(years[yearIndex - 1], year, index);
-      if (comparison && !shown.has(comparison.id)) shown.set(comparison.id, false);
-    });
-  }
-
-  return years.slice(Math.max(0, current - 1), current + QUARTERLY_YEARS_AHEAD + 1).flatMap((year) =>
-    year.seasons
-      .filter((season) => shown.has(season.id))
-      .map((season) => ({
-        key: `season-${season.id}`,
-        label: `${season.name ?? ""} ${year.name ?? ""}`.trim(),
-        unit: yearUnit(year),
-        period: { reportingSeasonId: season.id, financialYearId: null },
-        editable: shown.get(season.id)!,
-        yearlyOnlyEditable: false,
-      })),
+  const first = Math.max(0, current - 1);
+  return years.slice(first, current + QUARTERLY_YEARS_AHEAD + 1).flatMap((year, index) =>
+    year.seasons.map((season) => ({
+      key: `season-${season.id}`,
+      label: `${season.name ?? ""} ${year.name ?? ""}`.trim(),
+      unit: yearUnit(year),
+      period: { reportingSeasonId: season.id, financialYearId: null },
+      editable: first + index >= current && !withData.has(season.id),
+      yearlyOnlyEditable: false,
+    })),
   );
 }
 
